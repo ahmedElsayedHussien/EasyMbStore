@@ -1,0 +1,302 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - تقرير تاريخ الجهاز{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- كارت تفاصيل الجهاز (Glass Card) -->
+        <div class="glass-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
+                <h4 class="mb-0 text-primary fw-bold">
+                    <i class="bi bi-clock-history"></i> تقرير تاريخ وتفاصيل الجهاز
+                </h4>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'erp:used_purchase' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-down-left-circle"></i> شراء مستعمل جديد
+                    </a>
+                    <a href="{% url 'erp:dashboard' %}" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-arrow-right"></i> لوحة التحكم
+                    </a>
+                </div>
+            </div>
+
+            <!-- بطاقة مواصفات الجهاز -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="p-3 rounded bg-dark border border-secondary h-100">
+                        <h5 class="text-secondary border-bottom border-secondary pb-2 mb-3">
+                            <i class="bi bi-phone"></i> المواصفات الأساسية
+                        </h5>
+                        <table class="table table-borderless text-light mb-0">
+                            <tr>
+                                <td class="text-secondary py-1 w-40">الموديل / الصنف:</td>
+                                <td class="fw-bold text-primary py-1">{{ device.product.name }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-secondary py-1">السيريال IMEI 1:</td>
+                                <td class="fw-bold py-1 text-warning">{{ device.imei }}</td>
+                            </tr>
+                            {% if device.imei2 %}
+                            <tr>
+                                <td class="text-secondary py-1">السيريال IMEI 2:</td>
+                                <td class="fw-bold py-1 text-warning">{{ device.imei2 }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td class="text-secondary py-1">المخزن الحالي:</td>
+                                <td class="py-1"><span class="badge bg-secondary">{{ device.warehouse.name }}</span></td>
+                            </tr>
+                            <tr>
+                                <td class="text-secondary py-1">الحالة عند الإدخال:</td>
+                                <td class="py-1">
+                                    {% if device.condition == 'new' %}
+                                        <span class="badge bg-success">جديد (New)</span>
+                                    {% else %}
+                                        <span class="badge bg-info">مستعمل (Used)</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="p-3 rounded bg-dark border border-secondary h-100">
+                        <h5 class="text-secondary border-bottom border-secondary pb-2 mb-3">
+                            <i class="bi bi-patch-check"></i> تفاصيل الحالة والضريبة
+                        </h5>
+                        <table class="table table-borderless text-light mb-0">
+                            <tr>
+                                <td class="text-secondary py-1 w-40">المساحة:</td>
+                                <td class="py-1">{{ device.get_storage_display|default:"غير محدد" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-secondary py-1">الرام (RAM):</td>
+                                <td class="py-1">{{ device.get_ram_display|default:"غير محدد" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-secondary py-1">حالة المستعمل الفنية:</td>
+                                <td class="py-1">
+                                    {% if device.used_status %}
+                                        <span class="text-info fw-bold">{{ device.get_used_status_display }}</span>
+                                    {% else %}
+                                        <span class="text-muted">غير محدد</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-secondary py-1">الملحقات الموفرة:</td>
+                                <td class="py-1">
+                                    <span class="me-2">
+                                        {% if device.has_box %}
+                                            <i class="bi bi-check-circle-fill text-success"></i> يوجد كرتونة
+                                        {% else %}
+                                            <i class="bi bi-x-circle text-muted"></i> لا يوجد كرتونة
+                                        {% endif %}
+                                    </span>
+                                    <span>
+                                        {% if device.has_charger %}
+                                            <i class="bi bi-check-circle-fill text-success"></i> يوجد شاحن
+                                        {% else %}
+                                            <i class="bi bi-x-circle text-muted"></i> لا يوجد شاحن
+                                        {% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-secondary py-1">حالة الضريبة:</td>
+                                <td class="py-1">
+                                    {% if device.is_tax_paid %}
+                                        <span class="badge bg-success"><i class="bi bi-shield-fill-check"></i> خالص الضريبة (يوجد فاتورة ضريبية)</span>
+                                    {% else %}
+                                        <span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill"></i> غير خالص الضريبة</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- الملاحظات والمرفقات -->
+                <div class="col-12">
+                    <div class="p-3 rounded bg-dark border border-secondary">
+                        <h5 class="text-secondary border-bottom border-secondary pb-2 mb-3">
+                            <i class="bi bi-info-circle"></i> الملاحظات والمستندات القانونية
+                        </h5>
+                        <div class="mb-3">
+                            <span class="text-secondary">ملاحظات الجهاز:</span>
+                            <p class="text-light bg-black p-2 rounded border border-secondary mt-1 mb-0" style="white-space: pre-wrap;">{{ device.notes|default:"لا توجد ملاحظات مسجلة للجهاز." }}</p>
+                        </div>
+                        
+                        <div>
+                            <span class="text-secondary">المستندات والمرفقات المرفوعة:</span>
+                            {% if device.attachments.all %}
+                                <div class="row g-2 mt-1">
+                                    {% for attach in device.attachments.all %}
+                                        <div class="col-md-4 col-lg-3">
+                                            <div class="card bg-black border border-secondary text-light h-100">
+                                                {% if attach.image %}
+                                                    <img src="{{ attach.image.url }}" class="card-img-top img-fluid" style="height: 120px; object-fit: cover;" alt="{{ attach.get_attachment_type_display }}">
+                                                {% endif %}
+                                                <div class="card-body p-2 text-center">
+                                                    <h6 class="card-title text-primary mb-1 small">{{ attach.get_attachment_type_display }}</h6>
+                                                    <p class="card-text text-secondary mb-0" style="font-size: 0.8rem;">{{ attach.notes|default:"لا توجد ملاحظات" }}</p>
+                                                    {% if attach.image %}
+                                                        <a href="{{ attach.image.url }}" target="_blank" class="btn btn-outline-light btn-xs mt-2 px-2 py-0" style="font-size: 0.75rem;">عرض الملف</a>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted small mt-1 mb-0">لا توجد مرفقات أو صور بطاقات مسجلة لهذا الجهاز.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- خط الزمن / حركة دورة حياة الجهاز (Timeline) -->
+            <h5 class="text-secondary mb-3 mt-4 border-bottom border-secondary pb-2">
+                <i class="bi bi-activity"></i> خط دورة حياة الجهاز (Timeline)
+            </h5>
+            
+            <div class="timeline-container px-3">
+                
+                <!-- 1. مرحلة الإدخال والشراء -->
+                <div class="timeline-item d-flex gap-3 position-relative pb-4">
+                    <div class="timeline-marker bg-success rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0" style="width: 40px; height: 40px; z-index: 2;">
+                        <i class="bi bi-arrow-down-left-square-fill"></i>
+                    </div>
+                    <div class="timeline-line position-absolute start-0 h-100 bg-secondary" style="width: 2px; left: 19px !important; top: 20px; z-index: 1;"></div>
+                    <div class="timeline-content bg-dark border border-secondary p-3 rounded flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                            <h6 class="text-success fw-bold mb-1"><i class="bi bi-plus-circle"></i> دخول النظام (تسجيل الشراء)</h6>
+                            <span class="text-secondary small">{{ device.created_at|date:"Y-m-d h:i A"|default:"تاريخ غير متوفر" }}</span>
+                        </div>
+                        <div class="mt-2 small text-light">
+                            {% if device.purchased_from %}
+                                {% if device.purchased_from.contact_type == 'used_seller' %}
+                                    <p class="mb-1">
+                                        تم شراء الهاتف كـ <strong>جهاز مستعمل</strong> من العميل: 
+                                        <span class="text-primary fw-bold">{{ device.purchased_from.name }}</span>
+                                    </p>
+                                    <p class="mb-1">رقم الهاتف: <span class="text-secondary">{{ device.purchased_from.phone }}</span> | الرقم القومي: <span class="text-secondary">{{ device.purchased_from.national_id|default:"غير مسجل" }}</span></p>
+                                    <p class="mb-0">تكلفة الشراء المدفوعة للعميل: <span class="text-warning fw-bold">{{ device.cost }} ج.م</span></p>
+                                {% else %}
+                                    <p class="mb-1">
+                                        تم شراء الهاتف كـ <strong>جهاز جديد</strong> من المورد B2B: 
+                                        <span class="text-primary fw-bold">{{ device.purchased_from.name }}</span>
+                                    </p>
+                                    {% if purchase_invoice %}
+                                        <p class="mb-1">رقم فاتورة المشتريات: <span class="text-warning">#{{ purchase_invoice.id }}</span> | رقم فاتورة المورد: <span class="text-secondary">{{ purchase_invoice.supplier_invoice_number|default:"غير محدد" }}</span></p>
+                                    {% endif %}
+                                    <p class="mb-0">تكلفة الشراء المسجلة: <span class="text-warning fw-bold">{{ device.cost }} ج.م</span></p>
+                                {% endif %}
+                            {% else %}
+                                <p class="mb-1">تم إدخال الجهاز للنظام مباشرة دون ربطه بجهة اتصال محددة.</p>
+                                <p class="mb-0">التكلفة المسجلة: <span class="text-warning fw-bold">{{ device.cost }} ج.م</span></p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. حركات النقل بين المخازن (إن وجدت) -->
+                {% for item in transfers %}
+                <div class="timeline-item d-flex gap-3 position-relative pb-4">
+                    <div class="timeline-marker bg-info rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0" style="width: 40px; height: 40px; z-index: 2;">
+                        <i class="bi bi-arrow-left-right"></i>
+                    </div>
+                    <div class="timeline-line position-absolute start-0 h-100 bg-secondary" style="width: 2px; left: 19px !important; top: 20px; z-index: 1;"></div>
+                    <div class="timeline-content bg-dark border border-secondary p-3 rounded flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                            <h6 class="text-info fw-bold mb-1"><i class="bi bi-truck"></i> حركة تحويل مخزني</h6>
+                            <span class="text-secondary small">{{ item.transfer.created_at|date:"Y-m-d h:i A" }}</span>
+                        </div>
+                        <div class="mt-2 small text-light">
+                            <p class="mb-1">تم نقل الجهاز من فرع/مخزن <strong>{{ item.transfer.from_warehouse.name }}</strong> إلى <strong>{{ item.transfer.to_warehouse.name }}</strong>.</p>
+                            <p class="mb-1">بواسطة الموظف: <span class="text-primary">{{ item.transfer.created_by.username }}</span></p>
+                            <p class="mb-0">الحالة الحالية للتحويل: 
+                                {% if item.transfer.status == 'completed' %}
+                                    <span class="badge bg-success">تم الاستلام وتأكيد النقل</span>
+                                {% else %}
+                                    <span class="badge bg-warning">قيد النقل والإرسال</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- 3. تذاكر الصيانة والاصلاحات المرتبطة به (إن وجدت) -->
+                {% for ticket in repairs %}
+                <div class="timeline-item d-flex gap-3 position-relative pb-4">
+                    <div class="timeline-marker bg-warning rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0" style="width: 40px; height: 40px; z-index: 2;">
+                        <i class="bi bi-wrench-adjustable"></i>
+                    </div>
+                    <div class="timeline-line position-absolute start-0 h-100 bg-secondary" style="width: 2px; left: 19px !important; top: 20px; z-index: 1;"></div>
+                    <div class="timeline-content bg-dark border border-secondary p-3 rounded flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                            <h6 class="text-warning fw-bold mb-1"><i class="bi bi-tools"></i> تذكرة صيانة وإصلاح</h6>
+                            <span class="text-secondary small">رقم التذكرة: <a href="{% url 'erp:repair_detail' ticket.id %}" class="text-primary text-decoration-none fw-bold">#{{ ticket.id }}</a></span>
+                        </div>
+                        <div class="mt-2 small text-light">
+                            <p class="mb-1">دخل الصيانة بمشكلة: <strong>{{ ticket.issue_description }}</strong></p>
+                            <p class="mb-1">العميل صاحب التذكرة: <span class="text-primary">{{ ticket.customer.name }}</span> | الفني المسؤول: <span class="text-primary">{{ ticket.technician.username|default:"غير معين" }}</span></p>
+                            <p class="mb-0">تكلفة المصنعية: <span class="text-warning">{{ ticket.labor_cost }} ج.م</span> | الحالة: 
+                                <span class="badge {% if ticket.status == 'delivered' or ticket.status == 'done' %}bg-success{% else %}bg-warning{% endif %}">{{ ticket.get_status_display }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- 4. مرحلة البيع النهائية (إن وجد) -->
+                {% if device.is_sold %}
+                <div class="timeline-item d-flex gap-3 position-relative">
+                    <div class="timeline-marker bg-danger rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0" style="width: 40px; height: 40px; z-index: 2;">
+                        <i class="bi bi-cart-check-fill"></i>
+                    </div>
+                    <div class="timeline-content bg-dark border border-secondary p-3 rounded flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                            <h6 class="text-danger fw-bold mb-1"><i class="bi bi-bag-check-fill"></i> تم بيع الجهاز وتسليمه للعميل</h6>
+                            {% if sale_invoice %}
+                                <span class="text-secondary small">{{ sale_invoice.date_created|date:"Y-m-d h:i A" }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="mt-2 small text-light">
+                            {% if sale_invoice %}
+                                <p class="mb-1">تم البيع في الفاتورة رقم: <a href="{% url 'erp:sale_detail' sale_invoice.id %}" class="text-primary text-decoration-none fw-bold">#{{ sale_invoice.id }}</a></p>
+                                <p class="mb-1">الكاشير: <span class="text-primary">{{ sale_invoice.cashier.username }}</span> | العميل المشتري: <span class="text-primary">{{ sale_invoice.customer.name }}</span></p>
+                                <p class="mb-0">سعر البيع النهائي بالفاتورة: <span class="text-success fw-bold">{{ sale_item.unit_price|default:device.product.selling_price }} ج.م</span></p>
+                            {% else %}
+                                <p class="mb-0 text-muted">تم تعليم الجهاز كمباع في المخزون.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <!-- في حال لم يبع بعد -->
+                <div class="timeline-item d-flex gap-3 position-relative">
+                    <div class="timeline-marker bg-primary rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0" style="width: 40px; height: 40px; z-index: 2;">
+                        <i class="bi bi-clock"></i>
+                    </div>
+                    <div class="timeline-content bg-dark border border-secondary p-3 rounded flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                            <h6 class="text-primary fw-bold mb-1"><i class="bi bi-shop"></i> الجهاز متوفر بالمخزن للبيع</h6>
+                            <span class="text-secondary small">قيد الانتظار</span>
+                        </div>
+                        <div class="mt-2 small text-light">
+                            <p class="mb-0">الجهاز موجود حالياً في مخزن <strong>{{ device.warehouse.name }}</strong> وجاهز للبيع للعملاء بسعر بيع متوقع: <span class="text-success fw-bold">{{ device.product.selling_price }} ج.م</span>.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

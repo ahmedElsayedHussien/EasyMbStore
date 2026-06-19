@@ -1,0 +1,290 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - لوحة إدارة المخزون والمستودعات{% endblock %}
+
+{% block styles %}
+<style>
+    .search-filter-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3 flex-wrap gap-2">
+    <h4 class="mb-0 text-primary fw-bold"><i class="bi bi-box-seam-fill"></i> لوحة إدارة المخزون والمستودعات</h4>
+    <span class="text-secondary small">عرض وتتبع البضائع والأجهزة المتوفرة في المخازن</span>
+</div>
+
+<!-- أدوات البحث والتصفية -->
+<div class="search-filter-card p-4 mb-4">
+    <form method="GET" class="row g-3 align-items-end">
+        <!-- البحث السريع -->
+        <div class="col-md-4 col-lg-5">
+            <label for="searchQuery" class="form-label fw-semibold text-secondary">البحث السريع:</label>
+            <div class="input-group">
+                <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
+                <input type="text" name="q" id="searchQuery" class="form-control bg-dark text-light border-secondary" 
+                       placeholder="ابحث باسم المنتج، الباركود، أو السيريال (IMEI)..." value="{{ search_query }}">
+            </div>
+        </div>
+
+        <!-- تصفية حسب المستودع -->
+        <div class="col-md-3 col-lg-3">
+            <label for="warehouseFilter" class="form-label fw-semibold text-secondary">المخزن / الفرع:</label>
+            <select name="warehouse" id="warehouseFilter" class="form-select bg-dark text-light border-secondary">
+                <option value="">كل المستودعات والفروع</option>
+                {% for wh in warehouses %}
+                    <option value="{{ wh.id }}" {% if selected_warehouse == wh.id|stringformat:"i" %}selected{% endif %}>{{ wh.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- تصفية حسب نوع الصنف -->
+        <div class="col-md-3 col-lg-2">
+            <label for="typeFilter" class="form-label fw-semibold text-secondary">تصنيف الصنف السائب:</label>
+            <select name="type" id="typeFilter" class="form-select bg-dark text-light border-secondary">
+                <option value="">كل الأصناف السائبة</option>
+                <option value="accessory" {% if selected_type == 'accessory' %}selected{% endif %}>إكسسوارات</option>
+                <option value="spare_part" {% if selected_type == 'spare_part' %}selected{% endif %}>قطع غيار</option>
+            </select>
+        </div>
+
+        <!-- أزرار الإجراءات -->
+        <div class="col-md-2 col-lg-2 d-flex gap-2">
+            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel-fill"></i> تصفية</button>
+            {% if search_query or selected_warehouse or selected_type %}
+                <a href="{% url 'erp:inventory_dashboard' %}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> إلغاء</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- مؤشرات الأرقام الكبيرة للمخزون (KPI Cards) -->
+<div class="row g-4 mb-4">
+    <!-- إجمالي البضائع السائبة -->
+    <div class="col-md-3 col-sm-6">
+        <div class="glass-card kpi-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-secondary mb-1">قطع بضائع وإكسسوارات</h6>
+                    <div class="kpi-value text-primary">{{ total_bulk_qty }} قطعة</div>
+                </div>
+                <div class="fs-1 text-primary">
+                    <i class="bi bi-boxes"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- إجمالي الهواتف المتوفرة -->
+    <div class="col-md-3 col-sm-6">
+        <div class="glass-card kpi-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-secondary mb-1">الهواتف والأجهزة المتاحة</h6>
+                    <div class="kpi-value text-success">{{ total_devices_qty }} جهاز</div>
+                </div>
+                <div class="fs-1 text-success">
+                    <i class="bi bi-phone"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- القيمة المالية بالتكلفة (خاص بالمديرين) -->
+    {% if request.user.is_staff or request.user.is_superuser %}
+    <div class="col-md-3 col-sm-6">
+        <div class="glass-card kpi-card warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-secondary mb-1">إجمالي تكلفة المخزون</h6>
+                    <div class="kpi-value text-warning">{{ total_cost_valuation|floatformat:2 }} ج.م</div>
+                </div>
+                <div class="fs-1 text-warning">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- القيمة البيعية المتوقعة -->
+    <div class="col-md-3 col-sm-6">
+        <div class="glass-card kpi-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-secondary mb-1">القيمة البيعية للمخزون</h6>
+                    <div class="kpi-value text-info">{{ total_selling_valuation|floatformat:2 }} ج.م</div>
+                </div>
+                <div class="fs-1 text-info">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- جدول قوائم تفاصيل المخزون -->
+<div class="glass-card p-4">
+    <!-- أزرار التبويبات -->
+    <ul class="nav nav-tabs border-secondary mb-4" id="inventoryTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active text-light fw-semibold" id="bulk-tab" data-bs-toggle="tab" data-bs-target="#bulk" type="button" role="tab" aria-controls="bulk" aria-selected="true">
+                <i class="bi bi-bag-fill me-1"></i> الإكسسوارات وقطع الغيار (البضائع السائبة)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link text-light fw-semibold" id="serialized-tab" data-bs-toggle="tab" data-bs-target="#serialized" type="button" role="tab" aria-controls="serialized" aria-selected="false">
+                <i class="bi bi-phone-fill me-1"></i> الهواتف والأجهزة المسيرنة المتوفرة
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="inventoryTabsContent">
+        <!-- 1. البضائع السائبة (Bulk Stock) -->
+        <div class="tab-pane fade show active" id="bulk" role="tabpanel" aria-labelledby="bulk-tab">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover table-striped mb-0 text-center align-middle" style="font-size: 0.9rem;">
+                    <thead>
+                        <tr class="border-secondary text-primary fw-bold">
+                            <th>الصنف / المنتج</th>
+                            <th>الباركود</th>
+                            <th>التصنيف</th>
+                            <th>المخزن / الفرع</th>
+                            <th>الكمية المتوفرة</th>
+                            {% if request.user.is_staff or request.user.is_superuser %}
+                                <th>متوسط التكلفة</th>
+                            {% endif %}
+                            <th>سعر البيع</th>
+                            {% if request.user.is_staff or request.user.is_superuser %}
+                                <th>قيمة التكلفة الكلية</th>
+                            {% endif %}
+                            <th>القيمة البيعية الكلية</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for st in bulk_stock %}
+                            <tr>
+                                <td class="text-light fw-bold text-start">{{ st.product.name }}</td>
+                                <td class="font-monospace">{{ st.product.barcode_qr }}</td>
+                                <td>{{ st.product.get_product_type_display }}</td>
+                                <td>{{ st.warehouse.name }}</td>
+                                <td>
+                                    <span class="badge {% if st.quantity < 5 %}bg-danger{% else %}bg-secondary{% endif %} fs-6">
+                                        {{ st.quantity }} قطعة
+                                    </span>
+                                </td>
+                                {% if request.user.is_staff or request.user.is_superuser %}
+                                    <td>{{ st.product.average_cost }} ج.م</td>
+                                {% endif %}
+                                <td>{{ st.product.selling_price }} ج.م</td>
+                                {% if request.user.is_staff or request.user.is_superuser %}
+                                    <td class="fw-bold text-warning">{% widthratio st.quantity 1 st.product.average_cost %} ج.م</td>
+                                {% endif %}
+                                <td class="fw-bold text-success">{% widthratio st.quantity 1 st.product.selling_price %} ج.م</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center text-secondary py-4">لا توجد بضائع سائبة متوفرة بالمستودعات حالياً مطابقة لشروط التصفية.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2. الأجهزة المسيرنة المتوفرة (Serialized Devices) -->
+        <div class="tab-pane fade" id="serialized" role="tabpanel" aria-labelledby="serialized-tab">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover table-striped mb-0 text-center align-middle" style="font-size: 0.9rem;">
+                    <thead>
+                        <tr class="border-secondary text-primary fw-bold">
+                            <th>موديل الهاتف</th>
+                            <th>السيريال (IMEI 1)</th>
+                            <th>السيريال (IMEI 2)</th>
+                            <th>المخزن / الفرع</th>
+                            <th>الحالة الفنية</th>
+                            <th>المواصفات (مساحة / رام)</th>
+                            <th>الملحقات</th>
+                            {% if request.user.is_staff or request.user.is_superuser %}
+                                <th>سعر الشراء</th>
+                            {% endif %}
+                            <th>سعر البيع</th>
+                            <th>حالة الضريبة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dev in devices %}
+                            <tr>
+                                <td class="text-light fw-bold text-start">{{ dev.product.name }}</td>
+                                <td class="font-monospace text-warning">{{ dev.imei }}</td>
+                                <td class="font-monospace text-secondary">{{ dev.imei2|default:"-" }}</td>
+                                <td>{{ dev.warehouse.name }}</td>
+                                <td>
+                                    <span class="badge {% if dev.condition == 'new' %}bg-success{% else %}bg-info{% endif %}">
+                                        {{ dev.get_condition_display }}
+                                    </span>
+                                </td>
+                                <td>{{ dev.get_storage_display|default:"-" }} / {{ dev.get_ram_display|default:"-" }}</td>
+                                <td>
+                                    <div style="font-size: 0.75rem;">
+                                        {% if dev.has_box %}<span class="badge bg-dark border border-secondary text-light mb-1">علبة</span>{% endif %}
+                                        {% if dev.has_charger %}<span class="badge bg-dark border border-secondary text-light">شاحن</span>{% endif %}
+                                        {% if not dev.has_box and not dev.has_charger %}<span class="text-secondary">-</span>{% endif %}
+                                    </div>
+                                </td>
+                                {% if request.user.is_staff or request.user.is_superuser %}
+                                    <td>{{ dev.cost }} ج.م</td>
+                                {% endif %}
+                                <td>{{ dev.product.selling_price }} ج.م</td>
+                                <td>
+                                    {% if dev.is_tax_paid %}
+                                        <span class="badge bg-success">خالص الضريبة</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">غير خالص</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'erp:device_history' dev.id %}" class="btn btn-outline-info btn-sm">
+                                        <i class="bi bi-clock-history"></i> السجل
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="11" class="text-center text-secondary py-4">لا توجد أجهزة وهواتف ذكية متوفرة بالمستودعات حالياً مطابقة لشروط التصفية.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // الاحتفاظ بتبويب التنشيط بعد التصفية أو التحديث
+        const activeTabId = localStorage.getItem("activeInventoryTabId");
+        if (activeTabId) {
+            const tabEl = document.getElementById(activeTabId);
+            if (tabEl) {
+                const tab = new bootstrap.Tab(tabEl);
+                tab.show();
+            }
+        }
+        
+        // ربط مستمع الحدث لحفظ التبويب النشط
+        const tabButtons = document.querySelectorAll("#inventoryTabs button");
+        tabButtons.forEach(btn => {
+            btn.addEventListener("shown.bs.tab", function(event) {
+                localStorage.setItem("activeInventoryTabId", event.target.id);
+            });
+        });
+    });
+</script>
+{% endblock %}

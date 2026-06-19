@@ -1,0 +1,638 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - الإعدادات والتهيئة{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
+    <h4 class="mb-0 text-primary fw-bold"><i class="bi bi-gear-fill"></i> لوحة الإعدادات وتأسيس النظام</h4>
+    <span class="text-secondary small"><i class="bi bi-info-circle"></i> استخدم هذه اللوحة لتعريف الفروع والموردين والأصناف قبل تسجيل المشتريات والمبيعات.</span>
+</div>
+
+<!-- تبويبات التهيئة (Configuration Tabs) -->
+<ul class="nav nav-tabs mb-4 border-secondary" id="setupTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active text-light fw-semibold" id="warehouses-tab" data-bs-toggle="tab" data-bs-target="#warehouses" type="button" role="tab" aria-controls="warehouses" aria-selected="true">
+            <i class="bi bi-house-gear-fill me-1"></i> الفروع والمخازن
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link text-light fw-semibold" id="suppliers-tab" data-bs-toggle="tab" data-bs-target="#suppliers" type="button" role="tab" aria-controls="suppliers" aria-selected="false">
+            <i class="bi bi-people-fill me-1"></i> الموردون والشركاء
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link text-light fw-semibold" id="products-tab" data-bs-toggle="tab" data-bs-target="#products" type="button" role="tab" aria-controls="products" aria-selected="false">
+            <i class="bi bi-tags-fill me-1"></i> دليل الأصناف والمنتجات
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link text-light fw-semibold" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab" aria-controls="users" aria-selected="false">
+            <i class="bi bi-person-badge-fill me-1"></i> المستخدمون والموظفون
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="setupTabsContent">
+    
+    <!-- 1. الفروع والمخازن (Warehouses) -->
+    <div class="tab-pane fade show active" id="warehouses" role="tabpanel" aria-labelledby="warehouses-tab">
+        <div class="row g-4">
+            <!-- نموذج الإضافة -->
+            <div class="col-lg-4">
+                <div class="glass-card p-4">
+                    <h5 class="text-primary mb-3"><i class="bi bi-plus-lg"></i> تسجيل فرع / مخزن جديد</h5>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_warehouse">
+                        
+                        <div class="mb-3">
+                            <label for="{{ warehouse_form.name.id_for_label }}">اسم المخزن أو الفرع:</label>
+                            {{ warehouse_form.name }}
+                            {{ warehouse_form.name.errors }}
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            {{ warehouse_form.is_active }}
+                            <label class="form-check-label text-light ms-2" for="{{ warehouse_form.is_active.id_for_label }}">حالة المخزن (نشط ويقبل حركات المخزون)</label>
+                            {{ warehouse_form.is_active.errors }}
+                        </div>
+                        
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save2-fill me-2"></i> حفظ الفرع الجديد
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- جدول المعاينة -->
+            <div class="col-lg-8">
+                <div class="glass-card p-4 overflow-auto">
+                    <h5 class="text-secondary mb-3"><i class="bi bi-list-task"></i> الفروع المسجلة حالياً</h5>
+                    <table class="table table-dark table-hover table-striped mb-0 text-center align-middle">
+                        <thead>
+                            <tr class="border-secondary text-primary">
+                                <th># معرف</th>
+                                <th>اسم الفرع / المخزن</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for wh in warehouses %}
+                            <tr>
+                                <td class="text-secondary fw-bold">#{{ wh.id }}</td>
+                                <td class="text-light fw-bold">{{ wh.name }}</td>
+                                <td>
+                                    {% if wh.is_active %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> نشط</span>
+                                    {% else %}
+                                        <span class="badge bg-danger"><i class="bi bi-x-circle"></i> غير نشط</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-muted py-4">لم يتم تسجيل فروع بعد.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. الموردون والشركاء (Suppliers) -->
+    <div class="tab-pane fade" id="suppliers" role="tabpanel" aria-labelledby="suppliers-tab">
+        <div class="row g-4">
+            <!-- نموذج الإضافة -->
+            <div class="col-lg-4">
+                <div class="glass-card p-4">
+                    <h5 class="text-primary mb-3"><i class="bi bi-person-plus-fill"></i> تسجيل مورد جديد</h5>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_supplier">
+                        
+                        <div class="mb-3">
+                            <label for="{{ supplier_form.name.id_for_label }}">اسم المورد أو الشركة الموردة:</label>
+                            {{ supplier_form.name }}
+                            {{ supplier_form.name.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ supplier_form.phone.id_for_label }}">رقم هاتف المورد:</label>
+                            {{ supplier_form.phone }}
+                            {{ supplier_form.phone.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ supplier_form.address.id_for_label }}">عنوان المورد / الشركة:</label>
+                            {{ supplier_form.address }}
+                            {{ supplier_form.address.errors }}
+                        </div>
+                        
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save2-fill me-2"></i> حفظ المورد
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- جدول المعاينة -->
+            <div class="col-lg-8">
+                <div class="glass-card p-4 overflow-auto">
+                    <h5 class="text-secondary mb-3"><i class="bi bi-list-task"></i> قائمة الموردين المعتمدين</h5>
+                    <table class="table table-dark table-hover table-striped mb-0 text-center align-middle">
+                        <thead>
+                            <tr class="border-secondary text-primary">
+                                <th>اسم المورد / الشركة</th>
+                                <th>الهاتف</th>
+                                <th>العنوان</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for supplier in suppliers %}
+                            <tr>
+                                <td class="text-light fw-bold">{{ supplier.name }}</td>
+                                <td class="text-secondary">{{ supplier.phone }}</td>
+                                <td class="text-secondary small">{{ supplier.address|default:"غير متوفر" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-muted py-4">لم يتم تسجيل موردين بعد.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. دليل الأصناف والمنتجات (Product Catalog) -->
+    <div class="tab-pane fade" id="products" role="tabpanel" aria-labelledby="products-tab">
+        <div class="row g-4">
+            <!-- نموذج الإضافة -->
+            <div class="col-lg-4">
+                <div class="glass-card p-4">
+                    <h5 class="text-primary mb-3"><i class="bi bi-plus-circle-fill"></i> إضافة صنف جديد للدليل</h5>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_product">
+                        
+                        <div class="mb-3 position-relative">
+                            <label for="{{ product_form.name.id_for_label }}">اسم وموديل الصنف:</label>
+                            {{ product_form.name }}
+                            <div id="catalog-product-suggestions" class="list-group position-absolute w-100 z-3 d-none" style="max-height: 200px; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5);"></div>
+                            <div id="product-exists-warning" class="alert alert-warning d-none small p-2 mt-2">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i> انتبه: هذا الصنف مسجل بالفعل في الدليل!
+                            </div>
+                            {{ product_form.name.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ product_form.barcode_qr.id_for_label }}">الباركود / رمز QR للبحث السريع:</label>
+                            <div class="input-group">
+                                {{ product_form.barcode_qr }}
+                                <button type="button" class="btn btn-outline-primary" id="btn-generate-barcode" title="توليد باركود عشوائي جديد وطباعته">
+                                    <i class="bi bi-qr-code"></i> توليد وطباعة
+                                </button>
+                            </div>
+                            {{ product_form.barcode_qr.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ product_form.product_type.id_for_label }}">تصنيف ونوع الصنف:</label>
+                            {{ product_form.product_type }}
+                            {{ product_form.product_type.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ product_form.selling_price.id_for_label }}">سعر البيع الافتراضي (ج.م):</label>
+                            {{ product_form.selling_price }}
+                            {{ product_form.selling_price.errors }}
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            {{ product_form.requires_imei }}
+                            <label class="form-check-label text-light ms-2" for="{{ product_form.requires_imei.id_for_label }}">يتطلب سيريال IMEI (مثل الهواتف الجديدة والمستعملة)</label>
+                            {{ product_form.requires_imei.errors }}
+                        </div>
+                        
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save2-fill me-2"></i> إضافة الصنف للكتالوج
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- جدول المعاينة -->
+            <div class="col-lg-8">
+                <div class="glass-card p-4 overflow-auto">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-list-task"></i> دليل أصناف المحل</h5>
+                        <div class="input-group input-group-sm w-50">
+                            <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
+                            <input type="text" id="catalogSearch" class="form-control bg-dark text-light border-secondary" placeholder="بحث باسم الصنف أو الباركود...">
+                        </div>
+                    </div>
+                    <table class="table table-dark table-hover table-striped mb-0 text-center align-middle" id="catalogTable">
+                        <thead>
+                            <tr class="border-secondary text-primary">
+                                <th>اسم وموديل الصنف</th>
+                                <th>الباركود</th>
+                                <th>النوع</th>
+                                <th>سعر البيع</th>
+                                <th>نوع التتبع</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for prod in products %}
+                            <tr class="catalog-row" data-search-text="{{ prod.name|lower }} {{ prod.barcode_qr|lower }}">
+                                <td class="text-light fw-bold text-start">{{ prod.name }}</td>
+                                <td class="text-secondary font-monospace">{{ prod.barcode_qr }}</td>
+                                <td>
+                                    {% if prod.product_type == 'phone' %}
+                                        <span class="badge bg-primary">هاتف</span>
+                                    {% elif prod.product_type == 'accessory' %}
+                                        <span class="badge bg-info text-dark">إكسسوار</span>
+                                    {% elif prod.product_type == 'spare_part' %}
+                                        <span class="badge bg-warning text-dark">قطعة غيار</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-info fw-bold">{{ prod.selling_price }} ج.م</td>
+                                <td>
+                                    {% if prod.requires_imei %}
+                                        <span class="text-primary small fw-semibold"><i class="bi bi-barcode"></i> سيريال IMEI</span>
+                                    {% else %}
+                                        <span class="text-secondary small"><i class="bi bi-box"></i> كمية سائبة</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-muted py-4">لم يتم إضافة أصناف للدليل بعد.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. المستخدمون والموظفون (Users & Staff) -->
+    <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+        <div class="row g-4">
+            <!-- نموذج الإضافة -->
+            <div class="col-lg-4">
+                <div class="glass-card p-4">
+                    <h5 class="text-primary mb-3"><i class="bi bi-person-plus-fill"></i> تسجيل موظف / مستخدم جديد</h5>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_user">
+                        
+                        <div class="mb-3">
+                            <label for="{{ user_form.username.id_for_label }}">اسم المستخدم (بالأحرف الإنجليزية والأرقام):</label>
+                            {{ user_form.username }}
+                            {{ user_form.username.errors }}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ user_form.first_name.id_for_label }}">الاسم الأول:</label>
+                                {{ user_form.first_name }}
+                                {{ user_form.first_name.errors }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ user_form.last_name.id_for_label }}">الاسم الأخير:</label>
+                                {{ user_form.last_name }}
+                                {{ user_form.last_name.errors }}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ user_form.email.id_for_label }}">البريد الإلكتروني (اختياري):</label>
+                            {{ user_form.email }}
+                            {{ user_form.email.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ user_form.password.id_for_label }}">كلمة المرور:</label>
+                            {{ user_form.password }}
+                            {{ user_form.password.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ user_form.role.id_for_label }}">نوع المستخدم / الصلاحية:</label>
+                            {{ user_form.role }}
+                            {{ user_form.role.errors }}
+                        </div>
+                        
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-person-check-fill me-2"></i> إنشاء حساب الموظف
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- جدول المعاينة -->
+            <div class="col-lg-8">
+                <div class="glass-card p-4 overflow-auto">
+                    <h5 class="text-secondary mb-3"><i class="bi bi-list-task"></i> قائمة حسابات الموظفين المسجلة</h5>
+                    <table class="table table-dark table-hover table-striped mb-0 text-center align-middle">
+                        <thead>
+                            <tr class="border-secondary text-primary">
+                                <th>اسم المستخدم</th>
+                                <th>الاسم بالكامل</th>
+                                <th>الدور / الصلاحية</th>
+                                <th>البريد الإلكتروني</th>
+                                <th>الحالة</th>
+                                <th>تاريخ الانضمام</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                            <tr>
+                                <td class="text-light fw-bold font-monospace">{{ u.username }}</td>
+                                <td class="text-light">{{ u.get_full_name|default:u.username }}</td>
+                                <td>
+                                    {% for g in u.groups.all %}
+                                        {% if g.name == 'المدير العام' %}
+                                            <span class="badge bg-danger">المدير العام</span>
+                                        {% elif g.name == 'الكاشير والمبيعات' %}
+                                            <span class="badge bg-success">الكاشير والمبيعات</span>
+                                        {% elif g.name == 'فني الصيانة' %}
+                                            <span class="badge bg-warning text-dark">فني الصيانة</span>
+                                        {% elif g.name == 'أمين المخزن' %}
+                                            <span class="badge bg-info text-dark">أمين المخزن</span>
+                                        {% else %}
+                                            <span class="badge bg-primary">{{ g.name }}</span>
+                                        {% endif %}
+                                    {% empty %}
+                                        <span class="badge bg-secondary">بدون صلاحية</span>
+                                    {% endfor %}
+                                </td>
+                                <td class="text-secondary">{{ u.email|default:"-" }}</td>
+                                <td>
+                                    {% if u.is_active %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> نشط</span>
+                                    {% else %}
+                                        <span class="badge bg-danger"><i class="bi bi-x-circle"></i> غير نشط</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-secondary small">{{ u.date_joined|date:"Y-m-d H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-muted py-4">لم يتم تسجيل مستخدمين بعد.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // فلترة الكتالوج بالبحث الفوري
+        const searchInput = document.getElementById("catalogSearch");
+        const rows = document.querySelectorAll(".catalog-row");
+        
+        if (searchInput) {
+            searchInput.addEventListener("input", (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                rows.forEach(row => {
+                    const text = row.dataset.searchText || "";
+                    if (text.includes(query)) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                });
+            });
+        }
+
+        // تحسين سلوك حقل IMEI التلقائي بناءً على نوع الصنف المختار
+        const typeSelect = document.getElementById("id_product_type");
+        const imeiCheckbox = document.getElementById("id_requires_imei");
+        if (typeSelect && imeiCheckbox) {
+            typeSelect.addEventListener("change", (e) => {
+                if (e.target.value === "phone") {
+                    imeiCheckbox.checked = true;
+                } else {
+                    imeiCheckbox.checked = false;
+                }
+            });
+        }
+
+        // البحث التلقائي لمنع تكرار الصنف عند إضافته
+        const productNameInput = document.querySelector('#products form input[name="name"]');
+        const catalogSuggestions = document.getElementById("catalog-product-suggestions");
+        const existsWarning = document.getElementById("product-exists-warning");
+
+        if (productNameInput && catalogSuggestions) {
+            productNameInput.setAttribute("autocomplete", "off");
+
+            productNameInput.addEventListener("input", (e) => {
+                const query = e.target.value.trim();
+                if (query.length < 2) {
+                    catalogSuggestions.classList.add("d-none");
+                    catalogSuggestions.innerHTML = "";
+                    existsWarning.classList.add("d-none");
+                    return;
+                }
+
+                fetch(`/products/search/?q=${encodeURIComponent(query)}&all_types=true`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.products && data.products.length > 0) {
+                            catalogSuggestions.innerHTML = "";
+                            
+                            // إظهار التنبيه بوجود الصنف
+                            existsWarning.classList.remove("d-none");
+
+                            data.products.forEach(p => {
+                                const btn = document.createElement("button");
+                                btn.type = "button";
+                                btn.className = "list-group-item list-group-item-action bg-dark text-light border-secondary py-2 text-start";
+                                btn.style.cursor = "pointer";
+                                btn.innerHTML = `
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong class="text-warning">${p.name}</strong>
+                                            <div class="text-secondary small font-monospace">${p.barcode_qr}</div>
+                                        </div>
+                                        <span class="badge bg-secondary font-monospace">${p.selling_price} ج.م</span>
+                                    </div>
+                                `;
+                                btn.addEventListener("click", () => {
+                                    // عند الضغط على اقتراح، نملأ البيانات في الفورم ونبحث عنه في الجدول الجانبي لتسهيل رؤيته
+                                    productNameInput.value = p.name;
+                                    
+                                    const barcodeInput = document.querySelector('#products form input[name="barcode_qr"]');
+                                    if (barcodeInput) barcodeInput.value = p.barcode_qr;
+                                    
+                                    const priceInput = document.querySelector('#products form input[name="selling_price"]');
+                                    if (priceInput) priceInput.value = p.selling_price;
+                                    
+                                    catalogSuggestions.classList.add("d-none");
+                                    
+                                    // فلترة الجدول الجانبي تلقائياً
+                                    const searchInput = document.getElementById("catalogSearch");
+                                    if (searchInput) {
+                                        searchInput.value = p.name;
+                                        searchInput.dispatchEvent(new Event('input'));
+                                    }
+                                });
+                                catalogSuggestions.appendChild(btn);
+                            });
+                            catalogSuggestions.classList.remove("d-none");
+                        } else {
+                            catalogSuggestions.classList.add("d-none");
+                            catalogSuggestions.innerHTML = "";
+                            existsWarning.classList.add("d-none");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error fetching suggestions:", err);
+                    });
+            });
+
+            // إغلاق الاقتراحات عند الضغط في أي مكان آخر
+            document.addEventListener("click", (e) => {
+                if (e.target !== productNameInput && e.target !== catalogSuggestions && !catalogSuggestions.contains(e.target)) {
+                    catalogSuggestions.classList.add("d-none");
+                }
+            });
+        }
+
+        // توليد باركود وطباعته
+        const btnGenerateBarcode = document.getElementById("btn-generate-barcode");
+        const barcodeInput = document.querySelector('#products form input[name="barcode_qr"]');
+
+        if (btnGenerateBarcode && barcodeInput) {
+            btnGenerateBarcode.addEventListener("click", () => {
+                // توليد كود فريد مكون من بادئة 200 + 9 أرقام عشوائية (12 رقم إجمالاً)
+                const generatedCode = "200" + Math.floor(100000000 + Math.random() * 900000000);
+                barcodeInput.value = generatedCode;
+                
+                // جلب اسم الصنف وسعره لتضمينهما في الملصق المطبوع
+                const productName = productNameInput ? productNameInput.value.trim() || "صنف بدون اسم" : "صنف بدون اسم";
+                const productPriceInput = document.querySelector('#products form input[name="selling_price"]');
+                const productPrice = productPriceInput ? parseFloat(productPriceInput.value) || 0.00 : 0.00;
+
+                // فتح نافذة طباعة صغيرة للملصق
+                const printWindow = window.open("", "_blank", "width=400,height=300");
+                if (printWindow) {
+                    printWindow.document.write(`
+                        <!DOCTYPE html>
+                        <html lang="ar" dir="rtl">
+                        <head>
+                            <meta charset="UTF-8">
+                            <title>طباعة باركود - \${productName}</title>
+                            <style>
+                                @page {
+                                    size: 50mm 30mm;
+                                    margin: 0;
+                                }
+                                body {
+                                    margin: 0;
+                                    padding: 1.5mm;
+                                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                                    text-align: center;
+                                    direction: rtl;
+                                    background: white;
+                                    color: black;
+                                }
+                                .store-title {
+                                    font-size: 8px;
+                                    font-weight: bold;
+                                    margin-bottom: 1px;
+                                    border-bottom: 0.5px dashed #ccc;
+                                    padding-bottom: 1px;
+                                }
+                                .product-title {
+                                    font-size: 9px;
+                                    font-weight: bold;
+                                    white-space: nowrap;
+                                    overflow: hidden;
+                                    text-overflow: ellipsis;
+                                    margin-top: 1px;
+                                }
+                                .price {
+                                    font-size: 9px;
+                                    font-weight: bold;
+                                    margin-top: 1px;
+                                }
+                                svg {
+                                    max-width: 95%;
+                                    height: auto;
+                                    display: block;
+                                    margin: 0 auto;
+                                }
+                            </style>
+                            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
+                        </head>
+                        <body>
+                            <div class="store-title">EasyMB Store</div>
+                            <div class="product-title">\${productName}</div>
+                            <svg id="barcode-img"></svg>
+                            <div class="price">السعر: \${productPrice.toFixed(2)} ج.م</div>
+                            <script>
+                                window.onload = function() {
+                                    try {
+                                        JsBarcode("#barcode-img", "\${generatedCode}", {
+                                            format: "CODE128",
+                                            width: 1.2,
+                                            height: 30,
+                                            displayValue: true,
+                                            fontSize: 9,
+                                            margin: 0
+                                        });
+                                    } catch (err) {
+                                        console.error(err);
+                                    }
+                                    setTimeout(function() {
+                                        window.print();
+                                        window.close();
+                                    }, 400);
+                                };
+                            <\/script>
+                        </body>
+                        </html>
+                    `);
+                    printWindow.document.close();
+                } else {
+                    alert("يرجى السماح بفتح النوافذ المنبثقة (Popups) لطباعة الباركود.");
+                }
+            });
+        }
+        
+        // استعادة التبويب النشط بعد إعادة التحميل لحفظ حالة المستخدم
+        const triggerTabList = document.querySelectorAll('#setupTabs button')
+        triggerTabList.forEach(triggerEl => {
+            triggerEl.addEventListener('click', (event) => {
+                localStorage.setItem('activeSetupTab', event.target.id);
+            })
+        });
+
+        const activeTabId = localStorage.getItem('activeSetupTab');
+        if (activeTabId) {
+            const tabEl = document.querySelector('#' + activeTabId);
+            if (tabEl) {
+                bootstrap.Tab.getOrCreateInstance(tabEl).show();
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,63 @@
+<div class="kanban-card {% if ticket.status == 'pending' %}pending{% elif ticket.status == 'in_progress' %}in_progress{% elif ticket.status == 'waiting_parts' %}waiting_parts{% elif ticket.status == 'done' %}done{% else %}delivered{% endif %}" data-technician-id="{{ ticket.technician.id|default:'' }}">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <span class="badge bg-dark text-secondary">#{{ ticket.id }}</span>
+        <span class="small text-secondary">{{ ticket.get_status_display }}</span>
+    </div>
+    
+    <h6 class="fw-bold mb-1 text-light">{{ ticket.device_model }}</h6>
+    {% if ticket.device_imei %}
+        <small class="text-secondary d-block mb-2"><i class="bi bi-barcode"></i> IMEI: {{ ticket.device_imei }}</small>
+    {% endif %}
+
+    <div class="border-top border-secondary pt-2 mt-2" style="font-size: 0.85rem;">
+        <p class="mb-1 text-light"><strong>العميل:</strong> {{ ticket.customer.name }} ({{ ticket.customer.phone }})</p>
+        <p class="mb-1 text-secondary"><strong>العطل:</strong> {{ ticket.issue_description }}</p>
+        <p class="mb-1 text-secondary"><strong>الفني:</strong> {{ ticket.technician.username|default:"غير معين" }}</p>
+        <p class="mb-1 text-secondary"><strong>المصنعية:</strong> {{ ticket.labor_cost }} ج.م</p>
+        <p class="mb-1 text-info fw-bold"><strong>إجمالي الحساب:</strong> {{ ticket.total_cost }} ج.م</p>
+    </div>
+
+    <!-- قائمة قطع الغيار المستهلكة -->
+    {% if ticket.parts_used.all %}
+        <div class="border-top border-secondary pt-2 mt-2" style="font-size: 0.8rem;">
+            <strong class="text-info d-block mb-1"><i class="bi bi-cpu"></i> قطع الغيار المصروفة:</strong>
+            <ul class="list-unstyled mb-0 text-secondary ps-0">
+                {% for part in ticket.parts_used.all %}
+                    <li class="d-flex justify-content-between mb-1">
+                        <span>- {{ part.product.name }} ({{ part.quantity }}x)</span>
+                        <span>{{ part.price }} ج.م</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <!-- أزرار الإجراءات داخل التذكرة -->
+    {% if perms.erp.change_repairticket %}
+    <div class="border-top border-secondary pt-2 mt-3 d-flex flex-column gap-2">
+        <div class="d-flex gap-1">
+            {% if ticket.status != 'delivered' %}
+                <button class="btn btn-outline-info btn-sm flex-fill" style="font-size:0.75rem;" 
+                        onclick="openAddPartModal({{ ticket.id }}, '{{ ticket.device_model|escapejs }}')">
+                    <i class="bi bi-plus"></i> قطعة غيار
+                </button>
+            {% endif %}
+            <button class="btn btn-outline-warning btn-sm flex-fill" style="font-size:0.75rem;" 
+                    onclick="openEditTicketModal({{ ticket.id }}, '{{ ticket.device_model|escapejs }}', '{{ ticket.labor_cost|stringformat:".2f" }}', '{{ ticket.issue_description|escapejs }}', '{{ ticket.technician.id|default:"" }}', '{{ ticket.status }}')">
+                <i class="bi bi-pencil-square"></i> تعديل التذكرة
+            </button>
+        </div>
+        
+        <!-- تغيير الحالة محلياً -->
+        <div class="d-flex align-items-center gap-2">
+            <span class="small text-secondary" style="font-size: 0.75rem; white-space: nowrap;">الحالة:</span>
+            <select class="form-select form-select-sm bg-dark text-light border-secondary flex-fill" style="font-size: 0.75rem;" 
+                    onchange="updateTicketStatus({{ ticket.id }}, this)">
+                {% for code, name in ticket.STATUS_CHOICES %}
+                    <option value="{{ code }}" {% if ticket.status == code %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    {% endif %}
+</div>

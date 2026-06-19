@@ -1,0 +1,49 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - تسجيل الدخول{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center my-5">
+    <div class="col-md-5">
+        <div class="glass-card p-5">
+            <div class="text-center mb-4">
+                <i class="bi bi-shield-lock-fill text-primary" style="font-size: 3.5rem;"></i>
+                <h4 class="fw-bold mt-2 text-light">تسجيل الدخول للنظام</h4>
+                <p class="text-secondary small">EasyMB Store ERP & POS</p>
+            </div>
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger bg-danger bg-opacity-10 border-danger text-danger py-2 rounded mb-3 small">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form method="POST">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label for="id_username" class="form-label">اسم المستخدم:</label>
+                    <input type="text" name="username" id="id_username" class="form-control" placeholder="أدخل اسم المستخدم (مثال: admin)" required autofocus>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="id_password" class="form-label">كلمة المرور:</label>
+                    <input type="password" name="password" id="id_password" class="form-control" placeholder="أدخل كلمة المرور (مثال: admin123)" required>
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary py-2 fs-5">
+                        <i class="bi bi-box-arrow-in-left me-2"></i> دخول
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-4 text-center border-top border-secondary pt-3 small text-secondary">
+                ملاحظة: حساب التشغيل الافتراضي هو <strong>admin</strong> وكلمة مروره <strong>admin123</strong>.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

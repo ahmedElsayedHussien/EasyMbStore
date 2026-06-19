@@ -1,0 +1,563 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - لوحة الصيانة والتصليح{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3 flex-wrap gap-2">
+    <h4 class="mb-0 text-primary fw-bold"><i class="bi bi-tools"></i> لوحة إدارة الصيانة والتصليح</h4>
+    <div class="d-flex align-items-center gap-3">
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="filterMyTicketsOnly" style="cursor: pointer;">
+            <label class="form-check-label text-light fw-semibold" for="filterMyTicketsOnly" style="cursor: pointer; font-size: 0.95rem;">تذاكري فقط</label>
+        </div>
+        <a href="{% url 'erp:repair_create' %}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> فتح تذكرة صيانة جديدة</a>
+    </div>
+</div>
+
+<!-- أدوات البحث والتحويل السريع -->
+<div class="row g-3 mb-4 align-items-center">
+    <!-- حقل البحث السريع -->
+    <div class="col-md-6 col-lg-7">
+        <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
+            <input type="text" id="searchRepairs" class="form-control bg-dark text-light border-secondary" 
+                   placeholder="بحث باسم العميل، الهاتف، موديل الجهاز، السيريال (IMEI)...">
+        </div>
+    </div>
+    <!-- أزرار التحويل -->
+    <div class="col-md-6 col-lg-5 d-flex justify-content-md-end align-items-center gap-2">
+        <div class="btn-group" role="group">
+            <button type="button" id="btnKanbanView" class="btn btn-primary px-3">
+                <i class="bi bi-kanban me-1"></i> عرض اللوحة
+            </button>
+            <button type="button" id="btnTableView" class="btn btn-outline-primary px-3">
+                <i class="bi bi-table me-1"></i> عرض الجدول
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- عرض اللوحة (Kanban Board View) -->
+<div id="kanbanViewContainer">
+    <div class="row g-3">
+        <!-- قيد الانتظار (Pending) -->
+        <div class="col-md-3 col-sm-6">
+            <div class="kanban-column">
+                <h6 class="text-warning fw-bold mb-3 border-bottom border-warning pb-2">
+                    <i class="bi bi-clock-history"></i> قيد الانتظار
+                </h6>
+                <div id="column-pending">
+                    {% for ticket in tickets %}
+                        {% if ticket.status == 'pending' %}
+                            {% include 'erp/includes/repair_card.html' %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- جاري العمل (In Progress) -->
+        <div class="col-md-3 col-sm-6">
+            <div class="kanban-column">
+                <h6 class="text-primary fw-bold mb-3 border-bottom border-primary pb-2">
+                    <i class="bi bi-gear-fill"></i> جاري العمل
+                </h6>
+                <div id="column-in-progress">
+                    {% for ticket in tickets %}
+                        {% if ticket.status == 'in_progress' %}
+                            {% include 'erp/includes/repair_card.html' %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- في انتظار قطع الغيار (Waiting Parts) -->
+        <div class="col-md-3 col-sm-6">
+            <div class="kanban-column">
+                <h6 class="text-purple fw-bold mb-3 border-bottom border-purple pb-2">
+                    <i class="bi bi-box-seam-fill"></i> انتظار قطع الغيار
+                </h6>
+                <div id="column-waiting-parts">
+                    {% for ticket in tickets %}
+                        {% if ticket.status == 'waiting_parts' %}
+                            {% include 'erp/includes/repair_card.html' %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- جاهز للتسليم (Done) -->
+        <div class="col-md-3 col-sm-6">
+            <div class="kanban-column">
+                <h6 class="text-success fw-bold mb-3 border-bottom border-success pb-2">
+                    <i class="bi bi-check-circle-fill"></i> جاهز للتسليم
+                </h6>
+                <div id="column-done">
+                    {% for ticket in tickets %}
+                        {% if ticket.status == 'done' %}
+                            {% include 'erp/includes/repair_card.html' %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- عرض الجدول (Table List View) -->
+<div id="tableViewContainer" class="d-none">
+    <div class="glass-card p-3 overflow-auto">
+        <table class="table table-dark table-hover table-striped mb-0 text-center align-middle" style="min-width: 900px; font-size: 0.9rem;">
+            <thead>
+                <tr class="border-secondary text-primary fw-bold">
+                    <th># ID</th>
+                    <th>موديل ونوع الجهاز</th>
+                    <th>العميل</th>
+                    <th>الفني المسؤول</th>
+                    <th>المصنعية</th>
+                    <th>قطع الغيار</th>
+                    <th>إجمالي الحساب</th>
+                    <th>الحالة</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in tickets %}
+                <tr class="repair-table-row" 
+                    data-search-text="#{{ ticket.id }} {{ ticket.id }} {{ ticket.device_model|lower }} {{ ticket.device_imei|lower }} {{ ticket.customer.name|lower }} {{ ticket.customer.phone }} {{ ticket.technician.username|lower|default:'' }}"
+                    data-technician-id="{{ ticket.technician.id|default:'' }}">
+                    <td class="text-secondary fw-bold">
+                        <a href="{% url 'erp:repair_detail' ticket.id %}" class="text-primary text-decoration-none fw-bold">
+                            #{{ ticket.id }}
+                        </a>
+                    </td>
+                    <td>
+                        <span class="fw-bold text-light">{{ ticket.device_model }}</span>
+                        {% if ticket.device_imei %}
+                            <small class="text-secondary d-block" style="font-size: 0.75rem;">IMEI: {{ ticket.device_imei }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="text-light">{{ ticket.customer.name }}</span>
+                        <small class="text-secondary d-block" style="font-size: 0.75rem;">{{ ticket.customer.phone }}</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary text-dark fw-semibold">{{ ticket.technician.username|default:"غير معين" }}</span>
+                    </td>
+                    <td class="text-light">{{ ticket.labor_cost }} ج.م</td>
+                    <td>
+                        {% if ticket.parts_used.all %}
+                            <div class="text-start" style="font-size: 0.8rem; max-width: 200px; margin: 0 auto;">
+                                <ul class="list-unstyled mb-0 text-secondary ps-0">
+                                    {% for part in ticket.parts_used.all %}
+                                        <li class="d-flex justify-content-between mb-1">
+                                            <span>• {{ part.product.name }} ({{ part.quantity }}x)</span>
+                                            <span class="text-light">{{ part.price }} ج.م</span>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% else %}
+                            <span class="text-muted small">لا يوجد</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-info fw-bold">{{ ticket.total_cost }} ج.م</td>
+                    <td>
+                        <span class="badge {% if ticket.status == 'pending' %}bg-warning text-dark{% elif ticket.status == 'in_progress' %}bg-primary text-light{% elif ticket.status == 'waiting_parts' %}bg-purple text-light{% elif ticket.status == 'done' %}bg-success text-light{% else %}bg-secondary text-light{% endif %}" style="font-size: 0.8rem; {% if ticket.status == 'waiting_parts' %}background-color: #6f42c1; color: white;{% endif %}">
+                            {{ ticket.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1 justify-content-center">
+                            {% if ticket.status != 'delivered' %}
+                                <button class="btn btn-outline-info btn-sm" style="font-size: 0.8rem;"
+                                        onclick="openAddPartModal({{ ticket.id }}, '{{ ticket.device_model|escapejs }}')">
+                                    <i class="bi bi-plus"></i> قطعة غيار
+                                </button>
+                            {% endif %}
+                            <button class="btn btn-outline-warning btn-sm" style="font-size: 0.8rem;"
+                                    onclick="openEditTicketModal({{ ticket.id }}, '{{ ticket.device_model|escapejs }}', '{{ ticket.labor_cost|stringformat:".2f" }}', '{{ ticket.issue_description|escapejs }}', '{{ ticket.technician.id|default:"" }}', '{{ ticket.status }}')">
+                                <i class="bi bi-pencil-square"></i> تعديل
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-muted py-4">لا توجد تذاكر صيانة مسجلة حالياً.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- مودال إضافة قطعة غيار مستخدمة -->
+<div class="modal fade" id="addPartModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card border border-secondary text-light">
+            <div class="modal-header border-secondary bg-dark">
+                <h5 class="modal-title" id="partModalTitle">إضافة قطعة غيار للتذكرة</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body bg-dark">
+                <form id="addPartForm">
+                    <input type="hidden" id="part-ticket-id">
+                    
+                    <div class="mb-3">
+                        <label for="part-product">قطعة الغيار (صنف):</label>
+                        <select id="part-product" class="form-select" required>
+                            <option value="">-- اختر قطعة الغيار --</option>
+                            {% for part in parts %}
+                                <option value="{{ part.id }}" data-price="{{ part.selling_price|stringformat:".2f" }}">{{ part.name }} ({{ part.selling_price }} ج.م)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="part-warehouse">المستودع المصروف منه:</label>
+                        <select id="part-warehouse" class="form-select" required>
+                            {% for wh in warehouses %}
+                                <option value="{{ wh.id }}">{{ wh.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="part-quantity">الكمية:</label>
+                            <input type="number" id="part-quantity" class="form-control" value="1" min="1" required>
+                        </div>
+                        <div class="col-6">
+                            <label for="part-price">سعر البيع للصيانة (ج.م):</label>
+                            <input type="number" id="part-price" class="form-control" step="0.01" required>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary" onclick="submitAddPart()">
+                            <i class="bi bi-plus-lg me-2"></i> صرف قطعة الغيار وتعديل التذكرة
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال تعديل تذكرة الصيانة -->
+<div class="modal fade" id="editTicketModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card border border-secondary text-light">
+            <div class="modal-header border-secondary bg-dark">
+                <h5 class="modal-title" id="editTicketModalTitle">تعديل تذكرة الصيانة</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body bg-dark">
+                <form id="editTicketForm">
+                    <input type="hidden" id="edit-ticket-id">
+                    
+                    <div class="mb-3">
+                        <label for="edit-labor-cost">أجر المصنعية / الصيانة (ج.م):</label>
+                        <input type="number" id="edit-labor-cost" class="form-control" step="0.01" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit-technician">الفني المسؤول:</label>
+                        <select id="edit-technician" class="form-select">
+                            <option value="">-- غير معين --</option>
+                            {% for tech in technicians %}
+                                <option value="{{ tech.id }}">{{ tech.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit-status">حالة التذكرة:</label>
+                        <select id="edit-status" class="form-select" required>
+                            <option value="pending">قيد الانتظار</option>
+                            <option value="in_progress">جاري العمل</option>
+                            <option value="waiting_parts">في انتظار قطع الغيار</option>
+                            <option value="done">جاهز للتسليم</option>
+                            <option value="delivered">تم التسليم</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit-issue-description">وصف المشكلة / الأعطال:</label>
+                        <textarea id="edit-issue-description" class="form-control" rows="3" required></textarea>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-warning" onclick="submitEditTicket()">
+                            <i class="bi bi-save2-fill me-2"></i> حفظ التعديلات
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // تعبئة سعر بيع الصيانة تلقائيا عند تغيير قطعة الغيار
+    document.getElementById("part-product").addEventListener("change", (e) => {
+        const selectedOption = e.target.options[e.target.selectedIndex];
+        const price = selectedOption.dataset.price || 0;
+        document.getElementById("part-price").value = price;
+    });
+
+    // تغيير حالة التذكرة عبر AJAX
+    function updateTicketStatus(ticketId, selectElement) {
+        const newStatus = selectElement.value;
+        const formData = new FormData();
+        formData.append("status", newStatus);
+
+        fetch(`/repairs/${ticketId}/change-status/`, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": getCsrfToken()
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "success") {
+                // إعادة تحميل الصفحة لرؤية التذكرة في عمودها الجديد مباشرة
+                location.reload();
+            } else {
+                alert(`فشل التحديث: ${data.error}`);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("حدث خطأ في الشبكة أثناء تغيير الحالة.");
+        });
+    }
+
+    // فتح مودال إضافة قطعة غيار
+    function openAddPartModal(ticketId, ticketModel) {
+        document.getElementById("part-ticket-id").value = ticketId;
+        document.getElementById("partModalTitle").textContent = `إضافة قطعة غيار لـ: ${ticketModel}`;
+        const modal = new bootstrap.Modal(document.getElementById("addPartModal"));
+        modal.show();
+    }
+
+    // إرسال طلب إضافة قطعة غيار المستخدمة
+    function submitAddPart() {
+        const ticketId = document.getElementById("part-ticket-id").value;
+        const productId = document.getElementById("part-product").value;
+        const warehouseId = document.getElementById("part-warehouse").value;
+        const qty = document.getElementById("part-quantity").value;
+        const price = document.getElementById("part-price").value;
+
+        if (!productId || !warehouseId || !qty || !price) {
+            alert("يرجى ملء جميع الحقول المطلوبة.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("product_id", productId);
+        formData.append("warehouse_id", warehouseId);
+        formData.append("quantity", qty);
+        formData.append("price", price);
+
+        fetch(`/repairs/${ticketId}/add-part/`, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": getCsrfToken()
+            },
+            body: formData
+        })
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(data => { throw new Error(data.error) });
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data.status === "success") {
+                alert("تمت إضافة قطعة الغيار وخصمها من المخزن بنجاح!");
+                location.reload();
+            }
+        })
+        .catch(err => {
+            alert(err.message || "حدث خطأ غير متوقع.");
+        });
+    }
+
+    // فتح مودال تعديل التذكرة وتعبئة البيانات الحالية
+    function openEditTicketModal(ticketId, ticketModel, laborCost, issueDescription, technicianId, status) {
+        document.getElementById("edit-ticket-id").value = ticketId;
+        document.getElementById("editTicketModalTitle").textContent = `تعديل تذكرة صيانة جهاز: ${ticketModel}`;
+        document.getElementById("edit-labor-cost").value = laborCost;
+        document.getElementById("edit-technician").value = technicianId;
+        document.getElementById("edit-status").value = status;
+        document.getElementById("edit-issue-description").value = issueDescription;
+        
+        const modal = new bootstrap.Modal(document.getElementById("editTicketModal"));
+        modal.show();
+    }
+
+    // إرسال طلب تعديل التذكرة عبر AJAX
+    function submitEditTicket() {
+        const ticketId = document.getElementById("edit-ticket-id").value;
+        const laborCost = document.getElementById("edit-labor-cost").value;
+        const technicianId = document.getElementById("edit-technician").value;
+        const status = document.getElementById("edit-status").value;
+        const issueDescription = document.getElementById("edit-issue-description").value;
+
+        if (!laborCost || !status || !issueDescription) {
+            alert("يرجى ملء الحقول المطلوبة (المصنعية، الحالة، ووصف المشكلة).");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("labor_cost", laborCost);
+        formData.append("technician_id", technicianId);
+        formData.append("status", status);
+        formData.append("issue_description", issueDescription);
+
+        fetch(`/repairs/${ticketId}/edit/`, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": getCsrfToken()
+            },
+            body: formData
+        })
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(data => { throw new Error(data.error) });
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data.status === "success") {
+                location.reload();
+            }
+        })
+        .catch(err => {
+            alert(err.message || "حدث خطأ غير متوقع.");
+        });
+    }
+
+    function getCsrfToken() {
+        return document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+    }
+
+    // تصفية التذاكر ديناميكياً بناءً على الفني المسؤول والبحث السريع
+    const filterCheckbox = document.getElementById("filterMyTicketsOnly");
+    const searchInput = document.getElementById("searchRepairs");
+    const myTechnicianId = "{{ request.user.id }}";
+
+    // تفعيل / تعطيل البحث والتصفية معاً لضمان التكامل
+    function applyFilters() {
+        const showMyOnly = filterCheckbox ? filterCheckbox.checked : false;
+        const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : "";
+        
+        if (filterCheckbox) {
+            localStorage.setItem("filterMyTickets", showMyOnly ? "true" : "false");
+        }
+
+        // 1. فلترة لوحة الكانبان
+        const cards = document.querySelectorAll(".kanban-card");
+        cards.forEach(card => {
+            const cardTechId = card.dataset.technicianId;
+            // البحث النصي داخل الكارت
+            const textContent = card.innerText.toLowerCase();
+            const matchesSearch = textContent.includes(searchQuery);
+            const matchesTech = !showMyOnly || (cardTechId === myTechnicianId);
+
+            if (matchesSearch && matchesTech) {
+                card.style.setProperty('display', '', 'important');
+            } else {
+                card.style.setProperty('display', 'none', 'important');
+            }
+        });
+
+        // 2. فلترة جدول البيانات
+        const tableRows = document.querySelectorAll(".repair-table-row");
+        tableRows.forEach(row => {
+            const rowTechId = row.dataset.technicianId;
+            const searchText = row.dataset.searchText || "";
+            const matchesSearch = searchText.includes(searchQuery);
+            const matchesTech = !showMyOnly || (rowTechId === myTechnicianId);
+
+            if (matchesSearch && matchesTech) {
+                row.style.setProperty('display', '', 'important');
+            } else {
+                row.style.setProperty('display', 'none', 'important');
+            }
+        });
+    }
+
+    // إدارة التحويل بين عرض اللوحة وعرض الجدول
+    const btnKanban = document.getElementById("btnKanbanView");
+    const btnTable = document.getElementById("btnTableView");
+    const kanbanContainer = document.getElementById("kanbanViewContainer");
+    const tableContainer = document.getElementById("tableViewContainer");
+
+    function setViewMode(mode) {
+        localStorage.setItem("repairViewMode", mode);
+        if (mode === "table") {
+            if (kanbanContainer) kanbanContainer.classList.add("d-none");
+            if (tableContainer) tableContainer.classList.remove("d-none");
+            if (btnTable) btnTable.classList.replace("btn-outline-primary", "btn-primary");
+            if (btnKanban) btnKanban.classList.replace("btn-primary", "btn-outline-primary");
+        } else {
+            if (kanbanContainer) kanbanContainer.classList.remove("d-none");
+            if (tableContainer) tableContainer.classList.add("d-none");
+            if (btnKanban) btnKanban.classList.replace("btn-outline-primary", "btn-primary");
+            if (btnTable) btnTable.classList.replace("btn-primary", "btn-outline-primary");
+        }
+    }
+
+    if (btnKanban && btnTable) {
+        btnKanban.addEventListener("click", () => setViewMode("kanban"));
+        btnTable.addEventListener("click", () => setViewMode("table"));
+        
+        // استعادة وضع العرض المفضل للمستخدم
+        const savedView = localStorage.getItem("repairViewMode");
+        if (savedView === "table") {
+            setViewMode("table");
+        } else {
+            setViewMode("kanban");
+        }
+    }
+
+    // إعداد مراقبي الأحداث
+    if (filterCheckbox) {
+        const savedState = localStorage.getItem("filterMyTickets");
+        if (savedState === "true") {
+            filterCheckbox.checked = true;
+        } else if (savedState === "false") {
+            filterCheckbox.checked = false;
+        } else {
+            filterCheckbox.checked = true; // تفعيل تذاكري فقط افتراضياً
+        }
+        filterCheckbox.addEventListener("change", applyFilters);
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener("input", applyFilters);
+    }
+
+    // فحص معلمة البحث q في الرابط عند التحميل وتطبيقها
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlQuery = urlParams.get('q');
+    if (urlQuery && searchInput) {
+        searchInput.value = urlQuery;
+        // إذا كان استعلاماً محدداً عن رقم تذكرة، يفضل إظهار كافة التذاكر بدلاً من تقييدها بـ "تذاكري فقط"
+        if (filterCheckbox) {
+            filterCheckbox.checked = false;
+        }
+    }
+
+    // التشغيل المبدئي للفلترة عند تحميل الصفحة
+    applyFilters();
+</script>
+{% endblock %}

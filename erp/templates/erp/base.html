@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}مركز المبيعات والصيانة{% endblock %}</title>
+    <!-- Bootstrap 5 RTL CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+    <!-- Custom CSS -->
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}?v={% now 'U' %}">
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'dark';
+            if (theme === 'light') {
+                document.documentElement.classList.add('light-theme');
+            }
+        })();
+    </script>
+
+    <!-- شريط التنقل -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% if request.user.is_staff or request.user.is_superuser %}{% url 'erp:dashboard' %}{% elif perms.erp.add_saleinvoice %}{% url 'erp:pos' %}{% elif perms.erp.change_repairticket %}{% url 'erp:repair_list' %}{% else %}{% url 'erp:pos' %}{% endif %}">
+                <i class="bi bi-phone-vibrate-fill"></i> EasyMB Store
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    {% if request.user.is_staff or request.user.is_superuser %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.view_name == 'erp:dashboard' %}active{% endif %}" href="{% url 'erp:dashboard' %}">
+                            <i class="bi bi-speedometer2"></i> الرئيسة
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if perms.erp.add_saleinvoice %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.view_name == 'erp:pos' %}active{% endif %}" href="{% url 'erp:pos' %}">
+                            <i class="bi bi-cart-fill"></i> شاشة البيع (POS)
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if perms.erp.add_device %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.view_name == 'erp:used_purchase' %}active{% endif %}" href="{% url 'erp:used_purchase' %}">
+                            <i class="bi bi-arrow-down-left-circle-fill"></i> شراء المستعمل
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if perms.erp.view_purchaseinvoice %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'purchase' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:purchase_list' %}">
+                            <i class="bi bi-bag-plus-fill"></i> المشتريات
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if perms.erp.view_stock %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'inventory' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:inventory_dashboard' %}">
+                            <i class="bi bi-box-seam-fill"></i> المخزون والمخازن
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if perms.erp.view_stocktransfer %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'transfer' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:transfer_list' %}">
+                            <i class="bi bi-arrow-left-right"></i> حركة المخازن
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if perms.erp.view_repairticket %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'repair' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:repair_list' %}">
+                            <i class="bi bi-tools"></i> الصيانة والتصليح
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if perms.erp.view_cashshift %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'shift' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:shift_manage' %}">
+                            <i class="bi bi-safe-fill"></i> الخزينة والوردية
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if request.user.is_staff or request.user.is_superuser %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'reports' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:reports_dashboard' %}">
+                            <i class="bi bi-graph-up-arrow"></i> التقارير
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <div class="d-flex align-items-center">
+                    <!-- زر تغيير نظام الإضاءة (فاتح/داكن) -->
+                    <button id="themeToggleBtn" class="btn btn-outline-secondary btn-sm me-3 text-secondary" title="تغيير نظام الإضاءة" style="border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0;">
+                        <i id="themeToggleIcon" class="bi bi-sun-fill"></i>
+                    </button>
+                    {% if request.user.is_authenticated %}
+                        <span class="text-secondary me-3">
+                            <i class="bi bi-person-circle"></i> {{ request.user.username }}
+                        </span>
+                        {% if perms.erp.change_storesetting %}
+                        <a href="{% url 'erp:setup_dashboard' %}" class="btn btn-outline-info btn-sm me-2">
+                            <i class="bi bi-sliders"></i> التأسيس والإعداد
+                        </a>
+                        {% endif %}
+                        {% if request.user.is_staff or request.user.is_superuser %}
+                        <a href="/admin/" class="btn btn-outline-light btn-sm me-2" target="_blank">
+                            <i class="bi bi-gear-fill"></i> لوحة الإدارة
+                        </a>
+                        {% endif %}
+                        <form action="{% url 'erp:logout' %}" method="POST" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-box-arrow-right"></i> خروج
+                            </button>
+                        </form>
+                    {% else %}
+                        <a href="{% url 'erp:login' %}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-box-arrow-in-left"></i> دخول
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- الرسائل التنبيهية -->
+    {% if messages %}
+        <div class="alert-container">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show alert-float glass-card" role="alert">
+                    <div class="d-flex align-items-center">
+                        {% if message.tags == 'success' %}
+                            <i class="bi bi-check-circle-fill text-success fs-4 me-2"></i>
+                        {% elif message.tags == 'error' %}
+                            <i class="bi bi-x-circle-fill text-danger fs-4 me-2"></i>
+                        {% else %}
+                            <i class="bi bi-info-circle-fill text-primary fs-4 me-2"></i>
+                        {% endif %}
+                        <div>{{ message|safe }}</div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- محتوى الصفحة الرئيسي -->
+    <div class="container-fluid py-4 px-lg-5">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- HTMX JS -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+        document.body.addEventListener('htmx:configRequest', (event) => {
+            event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        });
+        
+        // كود تفعيل تبديل نظام الإضاءة
+        (function() {
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            const themeToggleIcon = document.getElementById('themeToggleIcon');
+            if (themeToggleBtn && themeToggleIcon) {
+                function updateThemeUI(isLight) {
+                    if (isLight) {
+                        document.documentElement.classList.add('light-theme');
+                        document.body.classList.add('light-theme');
+                        themeToggleIcon.className = 'bi bi-moon-fill';
+                    } else {
+                        document.documentElement.classList.remove('light-theme');
+                        document.body.classList.remove('light-theme');
+                        themeToggleIcon.className = 'bi bi-sun-fill';
+                    }
+                }
+                
+                // تهيئة أولية للواجهة
+                const currentTheme = localStorage.getItem('theme') || 'dark';
+                updateThemeUI(currentTheme === 'light');
+                
+                // التبديل عند النقر
+                themeToggleBtn.addEventListener('click', function() {
+                    const isLight = document.documentElement.classList.contains('light-theme');
+                    const newTheme = isLight ? 'dark' : 'light';
+                    localStorage.setItem('theme', newTheme);
+                    updateThemeUI(!isLight);
+                });
+            }
+
+            // إغلاق الرسائل التنبيهية تلقائياً بعد 3 ثوانٍ
+            setTimeout(function() {
+                const alerts = document.querySelectorAll('.alert-float');
+                alerts.forEach(function(alert) {
+                    const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+                    if (bsAlert) {
+                        bsAlert.close();
+                    }
+                });
+            }, 3000);
+        })();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

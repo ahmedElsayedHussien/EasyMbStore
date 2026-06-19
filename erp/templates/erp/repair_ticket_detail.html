@@ -1,0 +1,414 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - تفاصيل تذكرة الصيانة #{{ ticket.id }}{% endblock %}
+
+{% block styles %}
+<style>
+    .ticket-container {
+        max-width: 950px;
+        margin: 0 auto;
+    }
+    .ticket-header-box {
+        border-bottom: 2px dashed var(--border-color);
+    }
+    .info-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+    .info-value {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    /* أنماط خط سير الحالة (Timeline) */
+    .status-timeline {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        margin-bottom: 30px;
+        padding-top: 10px;
+    }
+    .status-timeline::before {
+        content: '';
+        position: absolute;
+        top: 28px;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background-color: rgba(255,255,255,0.1);
+        z-index: 1;
+    }
+    .timeline-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+        flex: 1;
+    }
+    .step-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #1f2937;
+        border: 3px solid rgba(255,255,255,0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-secondary);
+        font-weight: bold;
+        margin-bottom: 8px;
+        transition: all 0.3s ease;
+    }
+    .step-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-align: center;
+    }
+    
+    /* الحالات النشطة في التايملاين */
+    .timeline-step.active .step-icon {
+        background-color: var(--primary);
+        border-color: rgba(59, 130, 246, 0.4);
+        color: white;
+        box-shadow: 0 0 15px var(--primary-glow);
+    }
+    .timeline-step.active .step-label {
+        color: var(--primary);
+    }
+    
+    .timeline-step.completed .step-icon {
+        background-color: var(--success);
+        border-color: rgba(16, 185, 129, 0.4);
+        color: white;
+    }
+    .timeline-step.completed .step-label {
+        color: var(--success);
+    }
+
+    .timeline-step.waiting .step-icon {
+        background-color: var(--warning);
+        border-color: rgba(245, 158, 11, 0.4);
+        color: white;
+        box-shadow: 0 0 15px rgba(245, 158, 11, 0.25);
+    }
+    .timeline-step.waiting .step-label {
+        color: var(--warning);
+    }
+    
+    @media (max-width: 768px) {
+        .status-timeline {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+            padding-right: 20px;
+        }
+        .status-timeline::before {
+            top: 0;
+            bottom: 0;
+            right: 38px;
+            left: auto;
+            width: 4px;
+            height: auto;
+        }
+        .timeline-step {
+            flex-direction: row;
+            gap: 15px;
+            align-items: center;
+            width: 100%;
+        }
+        .step-icon {
+            margin-bottom: 0;
+        }
+        .step-label {
+            text-align: right;
+        }
+    }
+
+    /* الطباعة */
+    @media print {
+        body {
+            background-color: #fff !important;
+            color: #000 !important;
+            font-family: 'Cairo', 'Inter', sans-serif !important;
+        }
+        .navbar, .btn, .no-print, .alert-container {
+            display: none !important;
+        }
+        .glass-card {
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: #000 !important;
+            padding: 0 !important;
+        }
+        .text-light, .info-value, .step-label {
+            color: #000 !important;
+        }
+        .text-secondary, .info-label {
+            color: #555 !important;
+        }
+        .table {
+            color: #000 !important;
+            border-color: #000 !important;
+        }
+        .table th {
+            background-color: #f3f4f6 !important;
+            color: #000 !important;
+            border-bottom: 2px solid #000 !important;
+        }
+        .table td {
+            border-bottom: 1px solid #ddd !important;
+        }
+        .ticket-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .ticket-header-box {
+            border-bottom: 2px dashed #000 !important;
+        }
+        .status-timeline {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ticket-container py-2">
+    <!-- أزرار التحكم والرجوع -->
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <a href="javascript:history.back()" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-right"></i> رجوع
+        </a>
+        <div>
+            <button onclick="window.print()" class="btn btn-primary">
+                <i class="bi bi-printer-fill"></i> طباعة إيصال الصيانة
+            </button>
+        </div>
+    </div>
+
+    <!-- بطاقة التذكرة الرئيسية -->
+    <div class="glass-card p-4 p-md-5">
+        <!-- ترويسة التذكرة -->
+        <div class="ticket-header-box pb-4 mb-4">
+            <div class="row align-items-center g-3">
+                <div class="col-md-6 text-center text-md-start">
+                    <h3 class="text-primary fw-bold mb-1">
+                        <i class="bi bi-phone-vibrate-fill"></i> {{ store_setting.store_name|default:"EasyMB Store" }}
+                    </h3>
+                    <p class="text-secondary mb-0" style="font-size: 0.9rem;">
+                        {{ store_setting.receipt_header|default:"مركز مبيعات وصيانة الهواتف الذكية" }}
+                    </p>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <h4 class="fw-bold mb-2">إيصال صيانة وتصليح</h4>
+                    <span class="badge bg-primary fs-6">تذكرة رقم #{{ ticket.id }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- معلومات التذكرة والعميل -->
+        <div class="row g-4 mb-4">
+            <div class="col-sm-6 col-md-3">
+                <div class="info-label">اسم العميل</div>
+                <div class="info-value">{{ ticket.customer.name }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="info-label">هاتف العميل</div>
+                <div class="info-value">{{ ticket.customer.phone }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="info-label">الفني المسؤول</div>
+                <div class="info-value text-warning">{{ ticket.technician.username|default:"غير معين" }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="info-label">حالة التذكرة حالياً</div>
+                <div class="info-value">
+                    <span class="badge 
+                        {% if ticket.status == 'pending' %}bg-secondary
+                        {% elif ticket.status == 'in_progress' %}bg-primary
+                        {% elif ticket.status == 'waiting_parts' %}bg-warning
+                        {% elif ticket.status == 'done' %}bg-info
+                        {% else %}bg-success{% endif %}">
+                        {{ ticket.get_status_display }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <hr class="border-secondary mb-4">
+
+        <!-- تفاصيل الجهاز والعطل -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="p-4 rounded border border-secondary h-100" style="background-color: rgba(255,255,255,0.015);">
+                    <h5 class="text-primary mb-3"><i class="bi bi-phone"></i> بيانات الجهاز</h5>
+                    <p class="mb-2"><strong>موديل الجهاز:</strong> <span class="text-light">{{ ticket.device_model }}</span></p>
+                    <p class="mb-0"><strong>السيريال (IMEI):</strong> 
+                        {% if ticket.device_imei %}
+                            <span class="font-monospace text-warning">{{ ticket.device_imei }}</span>
+                        {% else %}
+                            <span class="text-secondary">غير مسجل</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-4 rounded border border-secondary h-100" style="background-color: rgba(255,255,255,0.015);">
+                    <h5 class="text-primary mb-3"><i class="bi bi-chat-left-text"></i> وصف العطل والشكوى</h5>
+                    <p class="mb-0 text-light" style="white-space: pre-wrap; line-height: 1.6;">{{ ticket.issue_description }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- خط سير الحالة (Timeline) - يخفى أثناء الطباعة -->
+        <div class="no-print mb-5">
+            <h5 class="mb-4 text-primary"><i class="bi bi-clock-history"></i> خط سير حالة الصيانة</h5>
+            <div class="status-timeline">
+                <!-- معلق -->
+                <div class="timeline-step {% if ticket.status == 'pending' %}active{% else %}completed{% endif %}">
+                    <div class="step-icon">1</div>
+                    <div class="step-label">معلق / قيد الانتظار</div>
+                </div>
+                <!-- قيد العمل -->
+                <div class="timeline-step 
+                    {% if ticket.status == 'in_progress' %}active
+                    {% elif ticket.status == 'waiting_parts' or ticket.status == 'done' or ticket.status == 'delivered' %}completed
+                    {% endif %}">
+                    <div class="step-icon">2</div>
+                    <div class="step-label">قيد العمل والتصليح</div>
+                </div>
+                <!-- بانتظار قطع الغيار -->
+                <div class="timeline-step 
+                    {% if ticket.status == 'waiting_parts' %}waiting
+                    {% elif ticket.status == 'done' or ticket.status == 'delivered' %}completed
+                    {% endif %}">
+                    <div class="step-icon">
+                        {% if ticket.status == 'waiting_parts' %}<i class="bi bi-hourglass-split"></i>{% else %}3{% endif %}
+                    </div>
+                    <div class="step-label">بانتظار قطع الغيار</div>
+                </div>
+                <!-- جاهز للتسليم -->
+                <div class="timeline-step 
+                    {% if ticket.status == 'done' %}active
+                    {% elif ticket.status == 'delivered' %}completed
+                    {% endif %}">
+                    <div class="step-icon">4</div>
+                    <div class="step-label">تم التصليح (جاهز)</div>
+                </div>
+                <!-- تم التسليم -->
+                <div class="timeline-step {% if ticket.status == 'delivered' %}active{% endif %}">
+                    <div class="step-icon"><i class="bi bi-check-lg"></i></div>
+                    <div class="step-label">تم التسليم للعميل</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- قطع الغيار والتكاليف المالية -->
+        <div class="row g-4 mb-4">
+            <!-- قطع الغيار المستخدمة -->
+            <div class="col-md-7">
+                <h5 class="text-primary mb-3"><i class="bi bi-cpu"></i> قطع الغيار المصروفة</h5>
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover" style="font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th>قطعة الغيار</th>
+                                <th>المخزن</th>
+                                <th>الكمية</th>
+                                <th>سعر الوحدة</th>
+                                <th>الإجمالي</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for part in parts_used %}
+                                <tr>
+                                    <td class="fw-bold text-light">{{ part.product.name }}</td>
+                                    <td>{{ part.warehouse.name }}</td>
+                                    <td>{{ part.quantity }}</td>
+                                    <td>{{ part.price }} ج.م</td>
+                                    <td class="fw-bold text-light">{% widthratio part.quantity 1 part.price %} ج.م</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-secondary py-3">لم يتم صرف أي قطع غيار لهذه التذكرة بعد.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- تفصيل الحساب -->
+            <div class="col-md-5">
+                <h5 class="text-primary mb-3"><i class="bi bi-calculator"></i> ملخص الحساب</h5>
+                <div class="p-4 rounded border border-secondary" style="background-color: rgba(0,0,0,0.15);">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary">تكلفة مصنعية اليد:</span>
+                        <span class="fw-bold text-light">{{ ticket.labor_cost }} ج.م</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary">إجمالي قطع الغيار:</span>
+                        <span class="fw-bold text-light">{{ parts_cost }} ج.م</span>
+                    </div>
+                    {% if ticket.estimated_cost %}
+                        <div class="d-flex justify-content-between mb-2 text-secondary" style="font-size: 0.85rem;">
+                            <span>التكلفة التقديرية المسجلة:</span>
+                            <span>{{ ticket.estimated_cost }} ج.م</span>
+                        </div>
+                    {% endif %}
+                    <hr class="border-secondary my-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fs-5 fw-bold text-primary">إجمالي الحساب:</span>
+                        <span class="fs-4 fw-bold text-success">{{ total_cost }} ج.م</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- سجل الإشعارات والتنبيهات (WhatsApp / SMS) - يخفى بالطباعة -->
+        {% if notifications %}
+            <div class="no-print mt-5">
+                <h5 class="mb-3 text-primary"><i class="bi bi-send-check"></i> سجل التنبيهات المرسلة للعميل</h5>
+                <div class="table-responsive">
+                    <table class="table table-custom table-sm" style="font-size: 0.8rem;">
+                        <thead>
+                            <tr>
+                                <th>نوع التنبيه</th>
+                                <th>التاريخ والوقت</th>
+                                <th>نص الرسالة</th>
+                                <th>حالة الإرسال</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in notifications %}
+                                <tr>
+                                    <td>{{ log.get_notification_type_display|default:"WhatsApp" }}</td>
+                                    <td>{{ log.sent_at|date:"Y-m-d H:i" }}</td>
+                                    <td class="text-start" style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ log.message_body }}">
+                                        {{ log.message_body }}
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if log.status == 'sent' or log.status == 'success' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ log.get_status_display|default:"تم الإرسال" }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- تذييل الإيصال للطباعة -->
+        <div class="mt-5 text-center text-secondary border-top border-secondary pt-3 d-none d-print-block" style="font-size: 0.85rem;">
+            <p>{{ store_setting.receipt_footer|default:"يرجى الاحتفاظ بهذا الإيصال للاستلام والضمان." }}</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

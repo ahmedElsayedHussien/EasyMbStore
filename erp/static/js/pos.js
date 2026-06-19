@@ -1,0 +1,525 @@
+// سلة المبيعات
+let cart = [];
+let allDevices = [];
+let allStocks = [];
+
+// استيراد بيانات الأجهزة عند تحميل الصفحة
+document.addEventListener("DOMContentLoaded", () => {
+    const jsonContainer = document.getElementById("devices-data-json");
+    if (jsonContainer) {
+        try {
+            allDevices = JSON.parse(jsonContainer.textContent);
+        } catch (e) {
+            console.error("فشل قراءة بيانات السيريالات المتاحة:", e);
+        }
+    }
+
+    const stocksContainer = document.getElementById("stocks-data-json");
+    if (stocksContainer) {
+        try {
+            allStocks = JSON.parse(stocksContainer.textContent);
+        } catch (e) {
+            console.error("فشل قراءة بيانات المخزون المتاحة:", e);
+        }
+    }
+
+    // تهيئة مستمع قارئ الباركود والسيريال
+    const scannerInput = document.getElementById("barcode-scanner");
+    if (scannerInput) {
+        scannerInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                handleBarcodeScan(scannerInput.value);
+            }
+        });
+    }
+
+    // البحث في المنتجات محلياً بالاسم
+    const searchInput = document.getElementById("product-search");
+    if (searchInput) {
+        searchInput.addEventListener("input", () => {
+            const query = searchInput.value.toLowerCase();
+            document.querySelectorAll(".product-card-container").forEach(card => {
+                const name = card.dataset.name.toLowerCase();
+                const barcode = card.dataset.barcode.toLowerCase();
+                if (name.includes(query) || barcode.includes(query)) {
+                    card.style.display = "block";
+                } else {
+                    card.style.display = "none";
+                }
+            });
+        });
+    }
+
+    // ربط تغيير طرق الدفع بالرقم المرجعي للمعاملة وتحديث الكاش تلقائياً
+    const cashInput = document.getElementById("pay-cash");
+    const visaInput = document.getElementById("pay-visa");
+    const walletInput = document.getElementById("pay-wallet");
+    const transSection = document.getElementById("transaction-id-section");
+
+    const toggleTransSection = () => {
+        const visa = parseFloat(visaInput.value) || 0;
+        const wallet = parseFloat(walletInput.value) || 0;
+        if (visa > 0 || wallet > 0) {
+            transSection.classList.remove("d-none");
+        } else {
+            transSection.classList.add("d-none");
+        }
+    };
+
+    const adjustPaymentDistribution = () => {
+        const net = parseFloat(document.getElementById("summary-net").textContent) || 0;
+        let visa = parseFloat(visaInput.value) || 0;
+        let wallet = parseFloat(walletInput.value) || 0;
+
+        // منع تلاعب إجمالي المدفوعات وتجاوزه لصافي الفاتورة
+        if (visa > net) {
+            visa = net;
+            visaInput.value = visa.toFixed(2);
+        }
+        if (wallet > net - visa) {
+            wallet = net - visa;
+            walletInput.value = wallet.toFixed(2);
+        }
+        if (visa > net - wallet) {
+            visa = net - wallet;
+            visaInput.value = visa.toFixed(2);
+        }
+
+        const remaining = Math.max(0, net - visa - wallet);
+        cashInput.value = remaining.toFixed(2);
+        toggleTransSection();
+    };
+
+    if (visaInput && walletInput && cashInput) {
+        visaInput.addEventListener("input", adjustPaymentDistribution);
+        walletInput.addEventListener("input", adjustPaymentDistribution);
+    }
+
+    // ربط اختيار جهاز الاستبدال بملء قيمة الاستبدال تلقائياً
+    const tradeInSelect = document.getElementById("trade-in-device-select");
+    const tradeInValInput = document.getElementById("trade-in-value");
+    if (tradeInSelect && tradeInValInput) {
+        tradeInSelect.addEventListener("change", () => {
+            const selectedOpt = tradeInSelect.options[tradeInSelect.selectedIndex];
+            if (selectedOpt && selectedOpt.value) {
+                const cost = parseFloat(selectedOpt.dataset.cost) || 0;
+                tradeInValInput.value = cost.toFixed(2);
+            } else {
+                tradeInValInput.value = "0.00";
+            }
+            calculateInvoiceTotals();
+        });
+    }
+});
+
+// التعامل مع مسح الباركود
+function handleBarcodeScan(code) {
+    if (!code.trim()) return;
+    
+    fetch(`/pos/search/?code=${encodeURIComponent(code)}`)
+        .then(res => res.json())
+        .then(data => {
+            const scannerInput = document.getElementById("barcode-scanner");
+            if (scannerInput) scannerInput.value = ""; // تفريغ الخانة فورا
+
+            if (data.found) {
+                if (data.is_serialized) {
+                    // إذا كان جهاز مسيرل ممسوح بالـ IMEI مباشرة
+                    addProductToCart(data.product_id || data.id, data.name, data.price, true, data.device_id, data.warehouse_id, data.imei);
+                } else {
+                    // إذا كان صنف سائب ممسوح بالباركود
+                    addProductToCart(data.id, data.name, data.price, false);
+                }
+            } else {
+                alert("الباركود أو السيريال غير مسجل بالنظام أو مباع مسبقاً.");
+            }
+        })
+        .catch(err => {
+            console.error("خطأ أثناء الاستعلام عن الباركود:", err);
+        });
+}
+
+// إضافة منتج للسلة
+function addProductToCart(productId, productName, price, requiresImei, deviceId = null, warehouseId = null, imei = "", condition = null) {
+    // تحديد المخزن الافتراضي بناءً على التوفر
+    let selectedWh = warehouseId;
+    if (!selectedWh) {
+        if (requiresImei) {
+            // للهواتف المسيرنة: نختار مخزن أول جهاز متاح للبيع لهذا المنتج وطبقاً للشرط
+            const firstDevice = allDevices.find(d => d.product_id === productId && (!condition || d.condition === condition));
+            if (firstDevice) {
+                selectedWh = firstDevice.warehouse_id;
+                deviceId = firstDevice.id;
+                imei = firstDevice.imei;
+            }
+        } else {
+            // للمنتجات السائبة: نختار أول مخزن يحتوي على رصيد متاح
+            const stockObj = allStocks.find(s => s.product_id === productId && s.quantity > 0);
+            if (stockObj) {
+                selectedWh = stockObj.warehouse_id;
+            }
+        }
+    }
+
+    if (!selectedWh) {
+        selectedWh = document.getElementById("warehouse-select-default") ? document.getElementById("warehouse-select-default").value : 1;
+    }
+
+    if (requiresImei) {
+        cart.push({
+            product_id: productId,
+            name: productName,
+            price: price,
+            requires_imei: true,
+            warehouse_id: parseInt(selectedWh),
+            quantity: 1,
+            device_id: deviceId ? parseInt(deviceId) : null,
+            imei: imei,
+            condition: condition
+        });
+    } else {
+        const existing = cart.find(item => item.product_id === productId && item.warehouse_id === parseInt(selectedWh) && !item.requires_imei);
+        if (existing) {
+            existing.quantity += 1;
+        } else {
+            cart.push({
+                product_id: productId,
+                name: productName,
+                price: price,
+                requires_imei: false,
+                warehouse_id: parseInt(selectedWh),
+                quantity: 1,
+                device_id: null,
+                imei: ""
+            });
+        }
+    }
+    
+    renderCart();
+}
+
+// حذف عنصر من السلة
+function removeCartItem(index) {
+    cart.splice(index, 1);
+    renderCart();
+}
+
+// تعديل كمية المنتجات السائبة
+function updateCartItemQty(index, qty) {
+    if (qty < 1) qty = 1;
+    cart[index].quantity = parseInt(qty);
+    calculateInvoiceTotals();
+}
+
+// تعديل مخزن العنصر
+function updateCartItemWarehouse(index, warehouseId) {
+    cart[index].warehouse_id = parseInt(warehouseId);
+    
+    if (cart[index].requires_imei) {
+        cart[index].device_id = null;
+        cart[index].imei = "";
+    }
+    renderCart();
+}
+
+// ربط الجهاز المختار بـ IMEI محدد وتعديل المخزن آلياً
+function updateCartItemDevice(index, selectElement) {
+    const deviceId = parseInt(selectElement.value);
+    if (deviceId) {
+        cart[index].device_id = deviceId;
+        const fullText = selectElement.options[selectElement.selectedIndex].text;
+        const imeiClean = fullText.split(' (')[0];
+        cart[index].imei = imeiClean;
+        
+        // تعيين المخزن المرتبط بالجهاز آلياً
+        const deviceObj = allDevices.find(d => d.id === deviceId);
+        if (deviceObj) {
+            cart[index].warehouse_id = deviceObj.warehouse_id;
+        }
+    } else {
+        cart[index].device_id = null;
+        cart[index].imei = "";
+    }
+    renderCart();
+}
+
+// رندرة السلة في الواجهة
+function renderCart() {
+    const container = document.getElementById("cart-items-container");
+    
+    if (cart.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-secondary py-5" id="cart-empty-message">
+                <i class="bi bi-basket3 fs-1 d-block mb-3"></i>
+                السلة فارغة، امسح باركود المنتج أو اضغط عليه لإضافته.
+            </div>
+        `;
+        calculateInvoiceTotals();
+        return;
+    }
+    
+    container.innerHTML = "";
+
+    const warehouseOptions = Array.from(document.querySelectorAll("#warehouse-options-hidden option")).map(opt => ({
+        id: parseInt(opt.value),
+        name: opt.textContent
+    }));
+
+    cart.forEach((item, idx) => {
+        const itemRow = document.createElement("div");
+        itemRow.className = "pos-cart-item";
+        
+        // تصفية المستودعات المتاحة التي يوجد بها رصيد أو أجهزة لهذا الصنف فقط
+        let allowedWarehouses = [];
+        if (item.requires_imei) {
+            const productDevices = allDevices.filter(d => d.product_id === item.product_id);
+            const whIds = new Set(productDevices.map(d => d.warehouse_id));
+            if (item.warehouse_id) whIds.add(item.warehouse_id);
+            allowedWarehouses = warehouseOptions.filter(wh => whIds.has(wh.id));
+        } else {
+            const productStocks = allStocks.filter(s => s.product_id === item.product_id && s.quantity > 0);
+            const whIds = new Set(productStocks.map(s => s.warehouse_id));
+            if (item.warehouse_id) whIds.add(item.warehouse_id);
+            allowedWarehouses = warehouseOptions.filter(wh => whIds.has(wh.id));
+        }
+        if (allowedWarehouses.length === 0) {
+            allowedWarehouses = warehouseOptions;
+        }
+
+        let warehouseSelectHTML = `<select class="form-select form-select-sm mt-1" disabled onchange="updateCartItemWarehouse(${idx}, this.value)">`;
+        allowedWarehouses.forEach(wh => {
+            warehouseSelectHTML += `<option value="${wh.id}" ${item.warehouse_id === wh.id ? 'selected' : ''}>${wh.name}</option>`;
+        });
+        warehouseSelectHTML += `</select>`;
+
+        let imeiSelectHTML = "";
+        if (item.requires_imei) {
+            // جلب الأجهزة المتاحة لهذا الموديل في كل المستودعات لتسهيل الاختيار وطبقاً للشرط
+            const availableForProduct = allDevices.filter(d => d.product_id === item.product_id && (!item.condition || d.condition === item.condition));
+            
+            imeiSelectHTML = `<select class="form-select form-select-sm mt-2 text-info border-info" onchange="updateCartItemDevice(${idx}, this)">`;
+            imeiSelectHTML += `<option value="">-- اختر السيريال IMEI --</option>`;
+            
+            if (item.device_id && !availableForProduct.some(d => d.id === item.device_id)) {
+                imeiSelectHTML += `<option value="${item.device_id}" selected>${item.imei}</option>`;
+            }
+            
+            availableForProduct.forEach(d => {
+                const whName = warehouseOptions.find(w => w.id === d.warehouse_id)?.name || "";
+                const conditionStr = d.condition === 'new' ? 'جديد' : 'مستعمل';
+                const specsStr = (d.storage || d.ram) ? ` - ${d.storage || ''}/${d.ram || ''}` : '';
+                imeiSelectHTML += `<option value="${d.id}" ${item.device_id === d.id ? 'selected' : ''}>${d.imei} (${conditionStr}${specsStr}) (${whName})</option>`;
+            });
+            imeiSelectHTML += `</select>`;
+        }
+
+        itemRow.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="mb-0 fw-bold text-light">${item.name}</h6>
+                    <small class="text-secondary">${item.price} ج.م</small>
+                </div>
+                <button class="btn btn-sm btn-outline-danger border-0 p-0" onclick="removeCartItem(${idx})">
+                    <i class="bi bi-trash-fill fs-5"></i>
+                </button>
+            </div>
+            <div class="row g-2 mt-2 align-items-center">
+                <div class="col-7">
+                    ${warehouseSelectHTML}
+                </div>
+                <div class="col-5">
+                    <input type="number" class="form-control form-control-sm text-center" 
+                           value="${item.quantity}" min="1" 
+                           ${item.requires_imei ? 'disabled' : ''} 
+                           oninput="updateCartItemQty(${idx}, this.value)">
+                </div>
+            </div>
+            ${imeiSelectHTML}
+        `;
+        container.appendChild(itemRow);
+    });
+    
+    calculateInvoiceTotals();
+}
+
+// حساب مجاميع الفاتورة
+function calculateInvoiceTotals() {
+    let total = 0;
+    cart.forEach(item => {
+        total += item.price * item.quantity;
+    });
+
+    const discountInput = document.getElementById("invoice-discount");
+    const tradeInInput = document.getElementById("trade-in-value");
+    
+    const discount = parseFloat(discountInput.value) || 0;
+    const tradeInValue = parseFloat(tradeInInput.value) || 0;
+    
+    const netAmount = Math.max(0, (total - discount) - tradeInValue);
+
+    document.getElementById("summary-total").textContent = `${total.toFixed(2)} ج.م`;
+    document.getElementById("summary-discount").textContent = `${discount.toFixed(2)} ج.م`;
+    document.getElementById("summary-trade-in").textContent = `${tradeInValue.toFixed(2)}- ج.م`;
+    document.getElementById("summary-net").textContent = `${netAmount.toFixed(2)} ج.م`;
+
+    // إظهار قسم جهاز الاستبدال عند كتابة قيمة استبدال أكبر من صفر
+    const tradeInSection = document.getElementById("trade-in-device-section");
+    if (tradeInValue > 0) {
+        tradeInSection.classList.remove("d-none");
+    } else {
+        tradeInSection.classList.add("d-none");
+        document.getElementById("trade-in-device-select").value = "";
+    }
+
+    // تحديث طرق الدفع مع الحفاظ على قيم فيزا ومحفظة المدخلة وتعديل الكاش تلقائياً ومنع التلاعب
+    let payVisa = parseFloat(document.getElementById("pay-visa").value) || 0;
+    let payWallet = parseFloat(document.getElementById("pay-wallet").value) || 0;
+
+    if (payVisa > netAmount) {
+        payVisa = netAmount;
+        document.getElementById("pay-visa").value = payVisa.toFixed(2);
+    }
+    if (payWallet > netAmount - payVisa) {
+        payWallet = netAmount - payVisa;
+        document.getElementById("pay-wallet").value = payWallet.toFixed(2);
+    }
+    if (payVisa > netAmount - payWallet) {
+        payVisa = netAmount - payWallet;
+        document.getElementById("pay-visa").value = payVisa.toFixed(2);
+    }
+
+    const remainingCash = Math.max(0, netAmount - payVisa - payWallet);
+    document.getElementById("pay-cash").value = remainingCash.toFixed(2);
+}
+
+// إرسال الفاتورة والتسوية
+function submitPOSInvoice() {
+    if (cart.length === 0) {
+        alert("السلة فارغة. يرجى إضافة عناصر أولاً.");
+        return;
+    }
+
+    // التحقق من تحديد سيريالات الأجهزة المسيرنة
+    for (let i = 0; i < cart.length; i++) {
+        if (cart[i].requires_imei && !cart[i].device_id) {
+            alert(`يرجى تحديد السيريال (IMEI) لـ: ${cart[i].name}`);
+            return;
+        }
+    }
+
+    const customerId = document.getElementById("customer-select").value;
+    const discount = parseFloat(document.getElementById("invoice-discount").value) || 0;
+    const tradeInValue = parseFloat(document.getElementById("trade-in-value").value) || 0;
+    const tradedInDeviceId = document.getElementById("trade-in-device-select").value;
+
+    if (tradeInValue > 0 && !tradedInDeviceId) {
+        alert("يرجى اختيار جهاز الاستبدال من القائمة لربطه بالفاتورة.");
+        return;
+    }
+
+    // حساب ومطابقة الدفع
+    const payCash = parseFloat(document.getElementById("pay-cash").value) || 0;
+    const payVisa = parseFloat(document.getElementById("pay-visa").value) || 0;
+    const payWallet = parseFloat(document.getElementById("pay-wallet").value) || 0;
+    const transactionId = document.getElementById("pay-transaction-id").value;
+
+    const netAmount = parseFloat(document.getElementById("summary-net").textContent);
+    const totalPaid = payCash + payVisa + payWallet;
+
+    if (Math.abs(totalPaid - netAmount) > 0.02) {
+        alert(`المجموع المدفوع (${totalPaid.toFixed(2)}) لا يتطابق مع صافي الفاتورة (${netAmount.toFixed(2)})`);
+        return;
+    }
+
+    const payload = {
+        customer_id: parseInt(customerId),
+        discount: discount,
+        trade_in_value: tradeInValue,
+        traded_in_device_id: tradedInDeviceId ? parseInt(tradedInDeviceId) : null,
+        warranty_days: parseInt(document.getElementById("warranty-days").value) || 14,
+        items: cart.map(item => ({
+            product_id: item.product_id,
+            warehouse_id: item.warehouse_id,
+            device_id: item.device_id,
+            quantity: item.quantity,
+            unit_price: item.price
+        })),
+        payments: []
+    };
+
+    if (payCash > 0) payload.payments.push({ payment_method: 'cash', amount: payCash });
+    if (payVisa > 0) payload.payments.push({ payment_method: 'visa', amount: payVisa, transaction_id: transactionId });
+    if (payWallet > 0) payload.payments.push({ payment_method: 'wallet', amount: payWallet, transaction_id: transactionId });
+
+    fetch("/pos/checkout/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCsrfToken()
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "success") {
+            alert("تم حفظ فاتورة البيع وخصم المخازن بنجاح!");
+            // فتح نافذة طباعة وهمية للفاتورة
+            printSimulatedReceipt(data.invoice_id);
+            location.reload();
+        } else {
+            alert(`فشل الحفظ: ${data.error}`);
+        }
+    })
+    .catch(err => {
+        alert("حدث خطأ أثناء الاتصال بالخادم لحفظ الفاتورة.");
+        console.error(err);
+    });
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+           document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+}
+
+// محاكاة طباعة إيصال حراري حراري للـ POS
+function printSimulatedReceipt(invoiceId) {
+    const printWindow = window.open("", "_blank", "width=400,height=600");
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>طباعة فاتورة #${invoiceId}</title>
+            <style>
+                body { font-family: monospace; direction: rtl; text-align: center; padding: 20px; color: #000; }
+                hr { border-top: 1px dashed #000; }
+                .text-right { text-align: right; }
+                .d-flex { display: flex; justify-content: space-between; }
+            </style>
+        </head>
+        <body>
+            <h3>EasyMB Store</h3>
+            <p>مركز مبيعات وصيانة الهواتف الذكية</p>
+            <hr>
+            <p class="text-right">رقم الفاتورة: #${invoiceId}</p>
+            <p class="text-right">التاريخ: ${new Date().toLocaleString()}</p>
+            <hr>
+            <h4>الأصناف</h4>
+            <div class="text-right">
+                ${cart.map(item => `
+                    <div class="d-flex">
+                        <span>${item.name} (${item.quantity}x)</span>
+                        <span>${(item.price * item.quantity).toFixed(2)} ج.م</span>
+                    </div>
+                    ${item.imei ? `<small style="font-size:0.8rem;color:#555;">IMEI: ${item.imei}</small><br>` : ''}
+                `).join('')}
+            </div>
+            <hr>
+            <div class="d-flex"><strong>الصافي المطلوب:</strong> <strong>${document.getElementById("summary-net").textContent}</strong></div>
+            <hr>
+            <p>شكراً لزيارتكم! نرجو الاحتفاظ بالإيصال للضمان.</p>
+            <script>window.onload = function() { window.print(); window.close(); }</script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}

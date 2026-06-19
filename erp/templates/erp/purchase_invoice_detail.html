@@ -1,0 +1,247 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - تفاصيل فاتورة الشراء #{{ invoice.id }}{% endblock %}
+
+{% block styles %}
+<style>
+    .invoice-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    .invoice-header-box {
+        border-bottom: 2px dashed var(--border-color);
+    }
+    .info-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+    .info-value {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    /* أنماط خاصة بالطباعة */
+    @media print {
+        body {
+            background-color: #fff !important;
+            color: #000 !important;
+            font-family: 'Cairo', 'Inter', sans-serif !important;
+        }
+        .navbar, .btn, .no-print, .alert-container {
+            display: none !important;
+        }
+        .glass-card {
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: #000 !important;
+            padding: 0 !important;
+        }
+        .text-light, .info-value {
+            color: #000 !important;
+        }
+        .text-secondary, .info-label {
+            color: #555 !important;
+        }
+        .table {
+            color: #000 !important;
+            border-color: #000 !important;
+        }
+        .table th {
+            background-color: #f3f4f6 !important;
+            color: #000 !important;
+            border-bottom: 2px solid #000 !important;
+        }
+        .table td {
+            border-bottom: 1px solid #ddd !important;
+        }
+        .invoice-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .invoice-header-box {
+            border-bottom: 2px dashed #000 !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="invoice-container py-2">
+    <!-- أزرار التحكم والرجوع -->
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <a href="{% url 'erp:purchase_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-right"></i> رجوع لقائمة الفواتير
+        </a>
+        <div>
+            <button onclick="window.print()" class="btn btn-primary">
+                <i class="bi bi-printer-fill"></i> طباعة الفاتورة
+            </button>
+        </div>
+    </div>
+
+    <!-- بطاقة الفاتورة الرئيسية -->
+    <div class="glass-card p-4 p-md-5">
+        <!-- ترويسة الفاتورة -->
+        <div class="invoice-header-box pb-4 mb-4">
+            <div class="row align-items-center g-3">
+                <div class="col-md-6 text-center text-md-start">
+                    <h3 class="text-primary fw-bold mb-1">
+                        <i class="bi bi-phone-vibrate-fill"></i> {{ store_setting.store_name|default:"EasyMB Store" }}
+                    </h3>
+                    <p class="text-secondary mb-0" style="font-size: 0.9rem;">
+                        {{ store_setting.receipt_header|default:"مركز مبيعات وصيانة الهواتف الذكية" }}
+                    </p>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <h4 class="fw-bold mb-2">فاتورة شراء بضاعة</h4>
+                    <span class="badge bg-success fs-6">فاتورة رقم #{{ invoice.id }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- معلومات الفاتورة والمورد -->
+        <div class="row g-4 mb-4">
+            <div class="col-sm-6 col-md-3">
+                <div class="info-label">تاريخ الفاتورة</div>
+                <div class="info-value">{{ invoice.invoice_date|date:"Y-m-d H:i" }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="info-label">المستلم / الموظف</div>
+                <div class="info-value">{{ invoice.created_by.username }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="info-label">المورد</div>
+                <div class="info-value">{{ invoice.supplier.name }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="info-label">رقم فاتورة المورد</div>
+                <div class="info-value">{{ invoice.supplier_invoice_number|default:"--" }}</div>
+            </div>
+        </div>
+
+        <hr class="border-secondary mb-4">
+
+        <!-- جدول الأصناف المشتراة -->
+        <h5 class="mb-3 text-primary"><i class="bi bi-box-seam"></i> الأصناف الموردة والمستلمة</h5>
+        <div class="table-responsive mb-4">
+            <table class="table table-custom table-hover">
+                <thead>
+                    <tr>
+                        <th>الصنف / المنتج</th>
+                        <th>المخزن المستلم</th>
+                        <th>المواصفات</th>
+                        <th>الكمية</th>
+                        <th>سعر تكلفة الوحدة</th>
+                        <th>الإجمالي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                        <tr>
+                            <td class="fw-bold text-light">
+                                {{ item.product.name }}
+                                {% if item.product.requires_imei %}
+                                    <span class="fw-normal text-secondary small">(متطلب سيريال)</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.warehouse.name }}</td>
+                            <td>
+                                {% if item.product.requires_imei %}
+                                    <div class="small">
+                                        {% if item.storage or item.ram %}
+                                            <span class="text-info d-block">المساحة: {{ item.get_storage_display|default:"--" }} / الرام: {{ item.get_ram_display|default:"--" }}</span>
+                                        {% endif %}
+                                        {% if item.is_tax_paid %}
+                                            <span class="badge bg-success py-1 mt-1" style="font-size:0.75rem;">خالص الضريبة</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary py-1 mt-1" style="font-size:0.75rem;">غير خالص الضريبة</span>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-secondary">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.unit_cost }} ج.م</td>
+                            <td class="fw-bold text-light">{% widthratio item.quantity 1 item.unit_cost %} ج.م</td>
+                        </tr>
+                        {% if item.imeis %}
+                            <tr class="table-dark" style="background-color: rgba(255,255,255,0.01);">
+                                <td colspan="6" class="py-2 px-3 border-bottom border-secondary">
+                                    <div class="text-secondary small mb-1"><i class="bi bi-barcode"></i> الأرقام التسلسلية (IMEI):</div>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% for imei in item.imeis %}
+                                            <span class="badge bg-dark border border-secondary text-warning font-monospace">{{ imei }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- الحسابات والملخص المالي -->
+        <div class="row g-4">
+            <!-- تفاصيل الدفع -->
+            <div class="col-md-6">
+                <h6 class="text-primary mb-3"><i class="bi bi-credit-card-2-front"></i> تفاصيل الدفع والتسديد</h6>
+                <div class="p-3 rounded border border-secondary" style="font-size: 0.9rem; background-color: rgba(255,255,255,0.02);">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary">طريقة الدفع:</span>
+                        <span class="fw-bold">
+                            {% if invoice.payment_method == 'cash' %}
+                                <span class="badge bg-success">نقدي (كاش)</span>
+                            {% elif invoice.payment_method == 'credit' %}
+                                <span class="badge bg-danger">آجل بالكامل</span>
+                            {% elif invoice.payment_method == 'partial' %}
+                                <span class="badge bg-warning text-dark">مسدد جزئياً</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary">المبلغ المسدد (المدفوع):</span>
+                        <span class="fw-bold text-success">{{ invoice.paid_amount }} ج.م</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-secondary">المبلغ الآجل (المتبقي للمورد):</span>
+                        <span class="fw-bold {% if invoice.remaining_amount > 0 %}text-warning{% else %}text-secondary{% endif %}">
+                            {{ invoice.remaining_amount }} ج.م
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ملخص الحسابات -->
+            <div class="col-md-6">
+                <div class="p-4 rounded border border-secondary" style="background-color: rgba(0,0,0,0.15);">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary">إجمالي البنود:</span>
+                        <span class="fw-bold">{{ invoice.total_amount }} ج.م</span>
+                    </div>
+                    {% if invoice.discount > 0 %}
+                        <div class="d-flex justify-content-between mb-2 text-danger">
+                            <span>الخصم الممنوح:</span>
+                            <span class="fw-bold">-{{ invoice.discount }} ج.م</span>
+                        </div>
+                    {% endif %}
+                    {% if invoice.deduction_addition_tax > 0 %}
+                        <div class="d-flex justify-content-between mb-2 text-danger">
+                            <span>ضريبة الخصم والإضافة (1%):</span>
+                            <span class="fw-bold">-{{ invoice.deduction_addition_tax }} ج.م</span>
+                        </div>
+                    {% endif %}
+                    <div class="d-flex justify-content-between fs-4 border-top border-secondary pt-3 mt-3">
+                        <span class="fw-bold text-light">الصافي للدفع:</span>
+                        <span class="fw-bold text-success">{{ invoice.net_amount }} ج.م</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,153 @@
+<!-- نموذج البحث في تذاكر الصيانة (ثابت لا يتم تبديله مع الاستعلام) -->
+<form method="GET" action="{% url 'erp:reports_dashboard' %}" 
+      hx-get="{% url 'erp:reports_dashboard' %}" 
+      hx-target="#maintenance-tickets-table-container" 
+      hx-swap="innerHTML" 
+      hx-push-url="false"
+      class="row g-2 align-items-center mb-3">
+    <!-- الحفاظ على تاريخ الفلترة في الـ GET parameters -->
+    <input type="hidden" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+    <input type="hidden" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+    
+    <div class="col-md-6 col-sm-8">
+        <div class="input-group">
+            <span class="input-group-text bg-secondary border-secondary text-white"><i class="bi bi-search"></i></span>
+            <input type="text" name="maint_search" class="form-control border-secondary text-white placeholder-secondary" 
+                   style="background: rgba(0, 0, 0, 0.2);" 
+                   placeholder="ابحث باسم العميل، الفني، أو موديل الجهاز..." 
+                   value="{{ maintenance.maint_search|default:'' }}"
+                   hx-get="{% url 'erp:reports_dashboard' %}"
+                   hx-trigger="keyup changed delay:300ms, input changed delay:300ms"
+                   hx-target="#maintenance-tickets-table-container"
+                   hx-swap="innerHTML"
+                   hx-include="[name='start_date'], [name='end_date']"
+                   hx-push-url="false"
+                   id="maint-search-input"
+                   autocomplete="off">
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-4 d-flex gap-2">
+        <button type="submit" class="btn btn-info w-100"><i class="bi bi-funnel-fill"></i> بحث</button>
+        <button type="button" 
+                onclick="document.getElementById('maint-search-input').value = ''; htmx.trigger('#maint-search-input', 'keyup');"
+                class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> إلغاء</button>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-dark table-striped align-middle border border-secondary">
+        <thead>
+            <tr>
+                <th>رقم التذكرة</th>
+                <th>العميل</th>
+                <th>الفني المسؤول</th>
+                <th>الجهاز والسيريال</th>
+                <th>حالة التذكرة</th>
+                <th>تكلفة المصنعية</th>
+                <th>تكلفة قطع الغيار</th>
+                <th>إجمالي الحساب</th>
+                <th>التفاصيل</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in maintenance.tickets_page %}
+            <tr>
+                <td class="fw-bold">#{{ ticket.id }}</td>
+                <td class="fw-bold">{{ ticket.customer.name }}</td>
+                <td>{{ ticket.technician.username|default:"غير معين" }}</td>
+                <td>
+                    <div>{{ ticket.device_model }}</div>
+                    <small class="text-secondary">{{ ticket.device_imei|default:"-" }}</small>
+                </td>
+                <td>
+                    {% if ticket.status == 'pending' %}
+                    <span class="badge bg-secondary border border-secondary-subtle">معلق / قيد الفحص</span>
+                    {% elif ticket.status == 'in_progress' %}
+                    <span class="badge bg-warning text-dark border border-warning-subtle">قيد العمل</span>
+                    {% elif ticket.status == 'waiting_parts' %}
+                    <span class="badge bg-danger border border-danger-subtle">بانتظار قطع غيار</span>
+                    {% elif ticket.status == 'done' %}
+                    <span class="badge bg-info text-dark border border-info-subtle">تم التصليح</span>
+                    {% elif ticket.status == 'delivered' %}
+                    <span class="badge bg-success border border-success-subtle">تم التسليم والإغلاق</span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ ticket.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td class="text-secondary">{{ ticket.labor_cost }} ج.م</td>
+                <td class="text-secondary">{{ ticket.parts_total }} ج.م</td>
+                <td class="text-success fw-bold">{{ ticket.total_cost }} ج.م</td>
+                <td>
+                    <a href="{% url 'erp:repair_detail' ticket.id %}" class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-eye"></i> عرض
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9" class="text-center text-muted py-3">لا توجد تذاكر صيانة مسجلة تطابق البحث.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- أزرار الترقيم والتنقل (Pagination) -->
+{% if maintenance.tickets_page.has_other_pages %}
+<nav aria-label="تنقل بين صفحات التذاكر" class="d-flex justify-content-center mt-3 text-white">
+    <ul class="pagination pagination-sm">
+        {% if maintenance.tickets_page.has_previous %}
+        <li class="page-item">
+            <a class="page-link bg-dark text-white border-secondary" 
+               style="cursor: pointer;"
+               hx-get="?maint_page={{ maintenance.tickets_page.previous_page_number }}&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&maint_search={{ maintenance.maint_search|default:'' }}" 
+               hx-target="#maintenance-tickets-table-container"
+               hx-swap="innerHTML"
+               hx-push-url="false"
+               aria-label="السابق">
+                <span aria-hidden="true">&laquo; السابق</span>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link bg-dark text-muted border-secondary">&laquo; السابق</span>
+        </li>
+        {% endif %}
+
+        {% for num in maintenance.tickets_page.paginator.page_range %}
+            {% if maintenance.tickets_page.number == num %}
+            <li class="page-item active">
+                <span class="page-link bg-primary border-primary text-white">{{ num }}</span>
+            </li>
+            {% elif num > maintenance.tickets_page.number|add:'-3' and num < maintenance.tickets_page.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link bg-dark text-white border-secondary" 
+                   style="cursor: pointer;"
+                   hx-get="?maint_page={{ num }}&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&maint_search={{ maintenance.maint_search|default:'' }}" 
+                   hx-target="#maintenance-tickets-table-container"
+                   hx-swap="innerHTML"
+                   hx-push-url="false">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+
+        {% if maintenance.tickets_page.has_next %}
+        <li class="page-item">
+            <a class="page-link bg-dark text-white border-secondary" 
+               style="cursor: pointer;"
+               hx-get="?maint_page={{ maintenance.tickets_page.next_page_number }}&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&maint_search={{ maintenance.maint_search|default:'' }}" 
+               hx-target="#maintenance-tickets-table-container"
+               hx-swap="innerHTML"
+               hx-push-url="false"
+               aria-label="التالي">
+                <span aria-hidden="true">التالي &raquo;</span>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link bg-dark text-muted border-secondary">التالي &raquo;</span>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}

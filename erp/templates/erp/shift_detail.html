@@ -1,0 +1,245 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - تفاصيل الوردية والخزينة{% endblock %}
+
+{% block content %}
+<div class="row g-4 {% if not request.user.is_staff and not request.user.is_superuser %}justify-content-center{% endif %}">
+    
+    <!-- عمود الإحصائيات والمجاميع -->
+    <div class="col-lg-5 {% if not request.user.is_staff and not request.user.is_superuser %}col-md-8{% endif %}">
+        <div class="glass-card p-4 h-100">
+            <h4 class="text-primary fw-bold mb-4 border-bottom border-secondary pb-3">
+                <i class="bi bi-safe-fill"></i> الوردية المفتوحة الحالية
+            </h4>
+            
+            <div class="list-group list-group-flush bg-transparent">
+                <div class="list-group-item bg-transparent text-light border-secondary py-3 d-flex justify-content-between">
+                    <span>الكاشير الحالي:</span>
+                    <strong class="text-info">{{ active_shift.cashier.username }}</strong>
+                </div>
+                <div class="list-group-item bg-transparent text-light border-secondary py-3 d-flex justify-content-between">
+                    <span>وقت الفتح:</span>
+                    <strong>{{ active_shift.start_time|date:"Y-m-d H:i" }}</strong>
+                </div>
+                <div class="list-group-item bg-transparent text-light border-secondary py-3 d-flex justify-content-between">
+                    <span>رصيد العهدة الابتدائي (البداية):</span>
+                    <strong class="text-light">{{ active_shift.opening_balance }} ج.م</strong>
+                </div>
+                <div class="list-group-item bg-transparent text-light border-secondary py-3 d-flex justify-content-between">
+                    <span>مبيعات نقدي (كاش):</span>
+                    <strong class="text-success">+{{ cash_sales }} ج.م</strong>
+                </div>
+                <div class="list-group-item bg-transparent text-light border-secondary py-3 d-flex justify-content-between">
+                    <span>مبيعات فيزا / كروت:</span>
+                    <strong class="text-info">+{{ visa_sales }} ج.م</strong>
+                </div>
+                <div class="list-group-item bg-transparent text-light border-secondary py-3 d-flex justify-content-between">
+                    <span>مبيعات محفظة إلكترونية:</span>
+                    <strong class="text-warning">+{{ wallet_sales }} ج.م</strong>
+                </div>
+                <div class="list-group-item bg-transparent text-light border-secondary py-3 d-flex justify-content-between">
+                    <span>إجمالي المصروفات من الدرج:</span>
+                    <strong class="text-danger">-<span id="shift-total-expenses-display">0.00</span> ج.م</strong>
+                </div>
+                <div class="list-group-item bg-transparent text-light border-secondary py-4 d-flex justify-content-between fs-5 bg-dark rounded">
+                    <span class="text-success fw-bold">الرصيد النقدي المتوقع بالدرج:</span>
+                    <strong class="text-success fw-bold"><span id="shift-expected-balance-display">{{ active_shift.expected_closing_balance }}</span> ج.م</strong>
+                </div>
+            </div>
+
+            <!-- زر تصفية وإغلاق الوردية -->
+            <div class="d-grid mt-4">
+                <button type="button" class="btn btn-danger py-3 fs-5" data-bs-toggle="modal" data-bs-target="#closeShiftModal">
+                    <i class="bi bi-lock-fill me-2"></i> إغلاق وتصفية الوردية
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% if request.user.is_staff or request.user.is_superuser %}
+    <!-- عمود المصروفات والمبيعات المسجلة بالوردية -->
+    <div class="col-lg-7">
+        <!-- قسم إضافة مصروف من الدرج -->
+        <div class="glass-card p-4 mb-4">
+            <h5 class="text-primary mb-3"><i class="bi bi-cash-stack"></i> تسجيل مصروف تشغيلي من الدرج</h5>
+            <form id="addExpenseForm" class="row g-2 align-items-end">
+                {% csrf_token %}
+                <div class="col-md-4">
+                    <label for="{{ expense_form.category.id_for_label }}">بند المصروف:</label>
+                    {{ expense_form.category }}
+                </div>
+                <div class="col-md-3">
+                    <label for="{{ expense_form.amount.id_for_label }}">المبلغ:</label>
+                    {{ expense_form.amount }}
+                </div>
+                <div class="col-md-3">
+                    <label for="{{ expense_form.description.id_for_label }}">بيان/توضيح:</label>
+                    {{ expense_form.description }}
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-primary w-100" onclick="submitShiftExpense()">
+                        <i class="bi bi-plus-lg"></i> تسجيل
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- جدول المصروفات الحالية -->
+        <div class="glass-card p-4">
+            <h5 class="text-primary mb-3"><i class="bi bi-list-stars"></i> قائمة المصروفات التشغيلية بالوردية</h5>
+            <div class="table-responsive">
+                <table class="table table-custom">
+                    <thead>
+                        <tr>
+                            <th>البند</th>
+                            <th>المبلغ</th>
+                            <th>التفاصيل</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenses-table-body">
+                        {% for exp in expenses %}
+                            <tr class="expense-row-data" data-amount="{{ exp.amount }}">
+                                <td>{{ exp.category.name }}</td>
+                                <td class="text-danger fw-bold">{{ exp.amount }} ج.م</td>
+                                <td>{{ exp.description|default:"--" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr id="no-expenses-row">
+                                <td colspan="3" class="text-center text-secondary py-3">لم يتم تسجيل أي مصروفات في هذه الوردية بعد.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- مودال إغلاق الوردية -->
+<div class="modal fade" id="closeShiftModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card border border-secondary text-light">
+            <div class="modal-header border-secondary bg-dark">
+                <h5 class="modal-title">إغلاق وتصفية الوردية</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body bg-dark">
+                <form method="POST" action="{% url 'erp:shift_close' %}">
+                    {% csrf_token %}
+                    
+                    <p class="text-secondary small mb-3">
+                        * يرجى جرد النقدية الفعلية الموجودة في درج الكاشير بالكامل وأدخل المبلغ الفعلي أدناه. سيقوم النظام بحساب العجز أو الزيادة تلقائياً.
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="text-secondary">الرصيد النقدي المتوقع بالدرج:</label>
+                        <h4 class="text-success fw-bold"><span id="modal-expected-display">{{ active_shift.expected_closing_balance }}</span> ج.م</h4>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ close_form.actual_cash.id_for_label }}">المبلغ الفعلي الموجود بالدرج (جرد الكاشير):</label>
+                        {{ close_form.actual_cash }}
+                        {{ close_form.actual_cash.errors }}
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-danger py-2">
+                            <i class="bi bi-lock-fill"></i> تأكيد الجرد وإغلاق الوردية نهائياً
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        calculateExpensesSum();
+    });
+
+    // حساب مجموع المصروفات الحالي في الواجهة
+    function calculateExpensesSum() {
+        let sum = 0;
+        document.querySelectorAll(".expense-row-data").forEach(row => {
+            sum += parseFloat(row.dataset.amount) || 0;
+        });
+        document.getElementById("shift-total-expenses-display").textContent = sum.toFixed(2);
+    }
+
+    // إرسال مصروف تشغيلي عبر AJAX
+    function submitShiftExpense() {
+        const category = document.getElementById("id_category").value;
+        const amount = document.getElementById("id_amount").value;
+        const desc = document.getElementById("id_description").value;
+
+        if (!category || !amount) {
+            alert("يرجى اختيار البند وإدخال المبلغ.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("category", category);
+        formData.append("amount", amount);
+        formData.append("description", desc);
+
+        fetch("{% url 'erp:shift_add_expense' %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": getCsrfToken()
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "success") {
+                // إخفاء صف "لا توجد مصروفات"
+                const noExpRow = document.getElementById("no-expenses-row");
+                if (noExpRow) noExpRow.remove();
+
+                // إضافة المصروف للجدول
+                const tbody = document.getElementById("expenses-table-body");
+                const tr = document.createElement("tr");
+                tr.className = "expense-row-data";
+                tr.dataset.amount = data.amount;
+                tr.innerHTML = `
+                    <td>${data.category}</td>
+                    <td class="text-danger fw-bold">${data.amount.toFixed(2)} ج.م</td>
+                    <td>${data.description || '--'}</td>
+                `;
+                tbody.appendChild(tr);
+
+                // تنظيف الفورم
+                document.getElementById("id_amount").value = "";
+                document.getElementById("id_description").value = "";
+
+                // إعادة حساب الإجماليات والرصيد المتوقع
+                calculateExpensesSum();
+                
+                // جلب الرصيد المتوقع وتعديله بناء على إرجاع الخادم أو تحديثه محلياً
+                const currentExpected = parseFloat(document.getElementById("shift-expected-balance-display").textContent) || 0;
+                const newExpected = currentExpected - data.amount;
+                
+                document.getElementById("shift-expected-balance-display").textContent = newExpected.toFixed(2);
+                document.getElementById("modal-expected-display").textContent = newExpected.toFixed(2);
+                
+                alert("تم تسجيل المصروف وتحديث رصيد الخزينة بنجاح.");
+            } else {
+                alert(`فشل تسجيل المصروف: ${data.error}`);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("حدث خطأ أثناء تسجيل المصروف.");
+        });
+    }
+
+    function getCsrfToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+</script>
+{% endblock %}

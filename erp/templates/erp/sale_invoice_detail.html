@@ -1,0 +1,256 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - تفاصيل فاتورة البيع #{{ invoice.id }}{% endblock %}
+
+{% block styles %}
+<style>
+    .invoice-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    .invoice-header-box {
+        border-bottom: 2px dashed var(--border-color);
+    }
+    .info-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+    .info-value {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    /* أنماط خاصة بالطباعة */
+    @media print {
+        body {
+            background-color: #fff !important;
+            color: #000 !important;
+            font-family: 'Cairo', 'Inter', sans-serif !important;
+        }
+        .navbar, .btn, .no-print, .alert-container {
+            display: none !important;
+        }
+        .glass-card {
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: #000 !important;
+            padding: 0 !important;
+        }
+        .text-light, .info-value {
+            color: #000 !important;
+        }
+        .text-secondary, .info-label {
+            color: #555 !important;
+        }
+        .table {
+            color: #000 !important;
+            border-color: #000 !important;
+        }
+        .table th {
+            background-color: #f3f4f6 !important;
+            color: #000 !important;
+            border-bottom: 2px solid #000 !important;
+        }
+        .table td {
+            border-bottom: 1px solid #ddd !important;
+        }
+        .invoice-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .invoice-header-box {
+            border-bottom: 2px dashed #000 !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="invoice-container py-2">
+    <!-- أزرار التحكم والرجوع -->
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <a href="javascript:history.back()" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-right"></i> رجوع
+        </a>
+        <div>
+            <button onclick="window.print()" class="btn btn-primary">
+                <i class="bi bi-printer-fill"></i> طباعة الفاتورة
+            </button>
+        </div>
+    </div>
+
+    <!-- بطاقة الفاتورة الرئيسية -->
+    <div class="glass-card p-4 p-md-5">
+        <!-- ترويسة الفاتورة -->
+        <div class="invoice-header-box pb-4 mb-4">
+            <div class="row align-items-center g-3">
+                <div class="col-md-6 text-center text-md-start">
+                    <h3 class="text-primary fw-bold mb-1">
+                        <i class="bi bi-phone-vibrate-fill"></i> {{ store_setting.store_name|default:"EasyMB Store" }}
+                    </h3>
+                    <p class="text-secondary mb-0" style="font-size: 0.9rem;">
+                        {{ store_setting.receipt_header|default:"مركز مبيعات وصيانة الهواتف الذكية" }}
+                    </p>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <h4 class="fw-bold mb-2">فاتورة مبيعات</h4>
+                    <span class="badge bg-success fs-6">فاتورة رقم #{{ invoice.id }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- معلومات الفاتورة والعميل -->
+        <div class="row g-4 mb-4">
+            <div class="col-sm-6 col-md-3">
+                <div class="info-label">تاريخ الفاتورة</div>
+                <div class="info-value">{{ invoice.date_created|date:"Y-m-d H:i" }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="info-label">الكاشير / البائع</div>
+                <div class="info-value">{{ invoice.cashier.username }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="info-label">العميل</div>
+                <div class="info-value">{{ invoice.customer.name }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="info-label">هاتف العميل</div>
+                <div class="info-value">{{ invoice.customer.phone }}</div>
+            </div>
+        </div>
+
+        <hr class="border-secondary mb-4">
+
+        <!-- جدول الأصناف والمنتجات -->
+        <h5 class="mb-3 text-primary"><i class="bi bi-box-seam"></i> تفاصيل المنتجات والأجهزة</h5>
+        <div class="table-responsive mb-4">
+            <table class="table table-custom table-hover">
+                <thead>
+                    <tr>
+                        <th>المنتج / الصنف</th>
+                        <th>المخزن / الفرع</th>
+                        <th>السيريال (IMEI)</th>
+                        <th>الكمية</th>
+                        <th>سعر الوحدة</th>
+                        <th>الإجمالي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                        <tr>
+                            <td class="fw-bold text-light">
+                                {{ item.product.name }}
+                                {% if item.device %}
+                                    <span class="fw-normal text-secondary small">
+                                        ({% if item.device.condition == 'new' %}جديد{% else %}مستعمل{% endif %})
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.warehouse.name }}</td>
+                            <td>
+                                {% if item.device %}
+                                    <span class="font-monospace text-warning">{{ item.device.imei }}</span>
+                                {% else %}
+                                    <span class="text-secondary">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.unit_price }} ج.م</td>
+                            <td class="fw-bold text-light">{% widthratio item.quantity 1 item.unit_price %} ج.م</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- الحسابات والملخص المالي -->
+        <div class="row g-4">
+            <!-- طرق الدفع والضمان -->
+            <div class="col-md-6">
+                <!-- طرق الدفع -->
+                <h6 class="text-primary mb-3"><i class="bi bi-wallet2"></i> تفاصيل الدفع والتحصيل</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-bordered border-secondary table-custom" style="font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th>طريقة الدفع</th>
+                                <th>المبلغ المدفوع</th>
+                                <th>رقم المعاملة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in payments %}
+                                <tr>
+                                    <td>{{ payment.get_payment_method_display }}</td>
+                                    <td class="fw-bold text-success">{{ payment.amount }} ج.م</td>
+                                    <td>{{ payment.transaction_id|default:"-" }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-secondary">لا توجد دفعات مسجلة.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- الضمان -->
+                {% if warranties %}
+                    <h6 class="text-primary mb-2 mt-3"><i class="bi bi-shield-check"></i> تفاصيل الضمان</h6>
+                    {% for warranty in warranties %}
+                        <div class="p-3 rounded border border-secondary" style="font-size: 0.85rem; background-color: rgba(255,255,255,0.02);">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-secondary">الجهاز المسيرن:</span>
+                                <span class="fw-bold text-warning">{{ warranty.device.product.name }} ({{ warranty.device.imei }})</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-secondary">مدة الضمان:</span>
+                                <span>{{ warranty.duration_days }} يوم</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-secondary">تاريخ البدء:</span>
+                                <span>{{ warranty.start_date|date:"Y-m-d" }}</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- ملخص الحسابات -->
+            <div class="col-md-6">
+                <div class="p-4 rounded border border-secondary" style="background-color: rgba(0,0,0,0.15);">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary">إجمالي الفاتورة:</span>
+                        <span class="fw-bold">{{ invoice.total_amount }} ج.م</span>
+                    </div>
+                    {% if invoice.discount > 0 %}
+                        <div class="d-flex justify-content-between mb-2 text-danger">
+                            <span>الخصم الممنوح:</span>
+                            <span>-{{ invoice.discount }} ج.م</span>
+                        </div>
+                    {% endif %}
+                    {% if invoice.traded_in_device %}
+                        <div class="d-flex justify-content-between mb-2 text-info">
+                            <span>استبدال جهاز ({{ invoice.traded_in_device.product.name }}):</span>
+                            <span>-{{ invoice.trade_in_value }} ج.م</span>
+                        </div>
+                    {% endif %}
+                    <hr class="border-secondary my-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fs-5 fw-bold text-primary">الصافي المطلوب:</span>
+                        <span class="fs-4 fw-bold text-success">{{ invoice.net_amount }} ج.م</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- تذييل الفاتورة للطباعة -->
+        <div class="mt-5 text-center text-secondary border-top border-secondary pt-3 d-none d-print-block" style="font-size: 0.85rem;">
+            <p>{{ store_setting.receipt_footer|default:"شكراً لتعاملكم معنا، يسعدنا خدمتكم دائماً." }}</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

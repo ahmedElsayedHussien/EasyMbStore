@@ -1,0 +1,299 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - تحويل مخزني جديد{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
+                <h4 class="mb-0 text-primary fw-bold"><i class="bi bi-arrow-left-right"></i> إنشاء أمر تحويل مخزني</h4>
+                <a href="{% url 'erp:transfer_list' %}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-right"></i> إلغاء وعودة</a>
+            </div>
+
+            <form method="POST">
+                {% csrf_token %}
+                
+                <!-- رأس التحويل -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label for="{{ form.from_warehouse.id_for_label }}">من مستودع:</label>
+                        {{ form.from_warehouse }}
+                        {{ form.from_warehouse.errors }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.to_warehouse.id_for_label }}">إلى مستودع:</label>
+                        {{ form.to_warehouse }}
+                        {{ form.to_warehouse.errors }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.status.id_for_label }}">حالة الطلب:</label>
+                        {{ form.status }}
+                        {{ form.status.errors }}
+                    </div>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- تفاصيل الأصناف المحولة -->
+                <h5 class="text-secondary mb-3"><i class="bi bi-box-seam"></i> الأصناف والكميات المحولة</h5>
+                <p class="text-secondary small mb-3">
+                    * ملاحظة: للأجهزة المسيرنة، يرجى اختيار الجهاز بالسيريال المناسب. للمواد السائبة، اختر الصنف وأدخل الكمية المطلوبة.
+                </p>
+
+                {{ formset.management_form }}
+                <div id="transfer-items-container">
+                    {% for item_form in formset %}
+                        <div class="row g-3 align-items-end formset-row p-3 rounded bg-dark border border-secondary mb-2">
+                            {% for hidden in item_form.hidden_fields %}
+                                {{ hidden }}
+                            {% endfor %}
+                            <div class="col-md-4">
+                                <label>الصنف الموديل:</label>
+                                {{ item_form.product }}
+                            </div>
+                            <div class="col-md-5">
+                                <label>الجهاز المحدد (IMEI) (للهواتف فقط):</label>
+                                {{ item_form.device }}
+                            </div>
+                            <div class="col-md-2">
+                                <label>الكمية (لغير الهواتف):</label>
+                                {{ item_form.quantity }}
+                            </div>
+                            <div class="col-md-1 text-center">
+                                {% if formset.can_delete %}
+                                    <label class="d-block small text-danger mb-1">حذف</label>
+                                    {{ item_form.DELETE }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="d-flex justify-content-start mb-4">
+                    <button type="button" id="add-item-btn" class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-plus-circle me-1"></i> إضافة بند تحويل آخر
+                    </button>
+                </div>
+
+                <!-- زر الإرسال -->
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-primary py-3 fs-5">
+                        <i class="bi bi-file-earmark-check-fill me-2"></i> تأكيد وحفظ أمر التحويل
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script id="warehouse-stock-data" type="application/json">
+    {{ warehouse_stock_json|safe }}
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const warehouseStock = JSON.parse(document.getElementById('warehouse-stock-data').textContent);
+        const fromWarehouseSelect = document.getElementById('id_from_warehouse');
+        const container = document.getElementById('transfer-items-container');
+        const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
+        const addItemBtn = document.getElementById('add-item-btn');
+
+        // دالة لتحديث قائمة المنتجات في سطر معين بناءً على المخزن المحدد
+        function filterProductsInRow(row) {
+            const productSelect = row.querySelector('[id$="-product"]');
+            if (!productSelect) return;
+
+            const selectedWhId = fromWarehouseSelect.value;
+            const previousValue = productSelect.value;
+
+            // إذا لم يتم تحديد مخزن، تفريغ الخيارات
+            if (!selectedWhId) {
+                productSelect.innerHTML = '<option value="">---------</option>';
+                productSelect.value = '';
+                filterDevicesInRow(row);
+                return;
+            }
+
+            const whData = warehouseStock[selectedWhId] || { products: [], devices: {} };
+            
+            // إعادة بناء خيارات الأصناف
+            let optionsHTML = '<option value="">---------</option>';
+            whData.products.forEach(prod => {
+                const reqImeiAttr = prod.requires_imei ? 'true' : 'false';
+                optionsHTML += `<option value="${prod.id}" data-requires-imei="${reqImeiAttr}">${prod.name} (المتاح: ${prod.available_qty})</option>`;
+            });
+
+            productSelect.innerHTML = optionsHTML;
+            
+            // استرجاع القيمة القديمة إن كانت لا تزال متاحة
+            const hasPrevValue = whData.products.some(p => String(p.id) === String(previousValue));
+            if (hasPrevValue) {
+                productSelect.value = previousValue;
+            } else {
+                productSelect.value = '';
+            }
+
+            filterDevicesInRow(row);
+        }
+
+        // دالة لتحديث قائمة الأجهزة (السيريالات) والكمية في سطر معين بناءً على الصنف والمخزن المحدد
+        function filterDevicesInRow(row) {
+            const productSelect = row.querySelector('[id$="-product"]');
+            const deviceSelect = row.querySelector('[id$="-device"]');
+            const quantityInput = row.querySelector('[id$="-quantity"]');
+
+            if (!productSelect || !deviceSelect || !quantityInput) return;
+
+            const selectedWhId = fromWarehouseSelect.value;
+            const selectedOpt = productSelect.options[productSelect.selectedIndex];
+            const selectedProductId = productSelect.value;
+
+            // إذا لم يتم تحديد صنف أو مخزن
+            if (!selectedWhId || !selectedProductId || !selectedOpt) {
+                deviceSelect.innerHTML = '<option value="">---------</option>';
+                deviceSelect.value = '';
+                deviceSelect.disabled = true;
+                deviceSelect.removeAttribute('required');
+                quantityInput.value = '1';
+                quantityInput.removeAttribute('readonly');
+                quantityInput.style.opacity = '1';
+                quantityInput.style.cursor = 'auto';
+                return;
+            }
+
+            const requiresImei = selectedOpt.getAttribute('data-requires-imei') === 'true';
+
+            if (requiresImei) {
+                // الأجهزة التي تتطلب سيريال
+                deviceSelect.disabled = false;
+                deviceSelect.setAttribute('required', 'required');
+
+                const previousDeviceValue = deviceSelect.value;
+                const whData = warehouseStock[selectedWhId] || { products: [], devices: {} };
+                const devices = whData.devices[selectedProductId] || [];
+
+                let optionsHTML = '<option value="">---------</option>';
+                devices.forEach(dev => {
+                    optionsHTML += `<option value="${dev.id}">${dev.display}</option>`;
+                });
+
+                deviceSelect.innerHTML = optionsHTML;
+
+                const hasPrevDevice = devices.some(d => String(d.id) === String(previousDeviceValue));
+                if (hasPrevDevice) {
+                    deviceSelect.value = previousDeviceValue;
+                } else {
+                    deviceSelect.value = '';
+                }
+
+                // قفل الكمية لتكون 1 دائماً للهواتف
+                quantityInput.value = '1';
+                quantityInput.setAttribute('readonly', 'readonly');
+                quantityInput.style.opacity = '0.6';
+                quantityInput.style.cursor = 'not-allowed';
+            } else {
+                // الأصناف العادية
+                deviceSelect.innerHTML = '<option value="">---------</option>';
+                deviceSelect.value = '';
+                deviceSelect.disabled = true;
+                deviceSelect.removeAttribute('required');
+
+                quantityInput.removeAttribute('readonly');
+                quantityInput.style.opacity = '1';
+                quantityInput.style.cursor = 'auto';
+            }
+        }
+
+        // الاستماع لتغيير المخزن الرئيسي
+        fromWarehouseSelect.addEventListener('change', () => {
+            const rows = container.getElementsByClassName('formset-row');
+            Array.from(rows).forEach(row => {
+                filterProductsInRow(row);
+            });
+        });
+
+        // الاستماع لتغيير الصنف في الأسطر الحالية
+        function setupRowEventListeners(row) {
+            const productSelect = row.querySelector('[id$="-product"]');
+            if (productSelect) {
+                productSelect.addEventListener('change', () => {
+                    filterDevicesInRow(row);
+                });
+            }
+        }
+
+        // تهيئة الأسطر الموجودة عند تحميل الصفحة
+        const initialRows = container.getElementsByClassName('formset-row');
+        Array.from(initialRows).forEach(row => {
+            setupRowEventListeners(row);
+            // إذا كان هناك مخزن محدد مسبقاً (مثلاً عند حدوث خطأ في حفظ الفورم) نقوم بالتصفية فوراً
+            if (fromWarehouseSelect.value) {
+                filterProductsInRow(row);
+            }
+        });
+
+        // إضافة سطر جديد ديناميكياً
+        if (addItemBtn) {
+            addItemBtn.addEventListener('click', () => {
+                const rows = container.getElementsByClassName('formset-row');
+                if (rows.length === 0) return;
+
+                const templateRow = rows[0];
+                const newIndex = parseInt(totalFormsInput.value);
+
+                // استنساخ السطر الأول
+                const newRow = templateRow.cloneNode(true);
+
+                // تحديث الـ IDs والـ Names والـ Labels بالـ Index الجديد
+                const regex = /items-(\d+)-/g;
+                newRow.querySelectorAll('input, select, label').forEach(element => {
+                    if (element.hasAttribute('name')) {
+                        element.setAttribute('name', element.getAttribute('name').replace(regex, `items-${newIndex}-`));
+                    }
+                    if (element.hasAttribute('id')) {
+                        element.setAttribute('id', element.getAttribute('id').replace(regex, `items-${newIndex}-`));
+                    }
+                    if (element.hasAttribute('for')) {
+                        element.setAttribute('for', element.getAttribute('for').replace(regex, `items-${newIndex}-`));
+                    }
+
+                    // تصفير القيم الافتراضية
+                    if (element.tagName === 'SELECT') {
+                        element.innerHTML = '<option value="">---------</option>';
+                        element.value = '';
+                        element.disabled = false;
+                        element.removeAttribute('required');
+                    } else if (element.tagName === 'INPUT') {
+                        if (element.type === 'checkbox') {
+                            element.checked = false;
+                        } else if (element.type === 'number') {
+                            element.value = '1';
+                            element.removeAttribute('readonly');
+                            element.style.opacity = '1';
+                            element.style.cursor = 'auto';
+                        } else {
+                            element.value = '';
+                        }
+                    }
+                });
+
+                // تفعيل مستمعي الأحداث للسطر الجديد
+                setupRowEventListeners(newRow);
+
+                // إضافته للكونتينر
+                container.appendChild(newRow);
+
+                // تحديث قيمة TOTAL_FORMS في الـ Management Form
+                totalFormsInput.value = newIndex + 1;
+
+                // تصفية الصنف بناءً على المخزن الحالي
+                filterProductsInRow(newRow);
+            });
+        }
+    });
+</script>
+{% endblock %}

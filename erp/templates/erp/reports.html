@@ -1,0 +1,1283 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - لوحة التقارير الشاملة{% endblock %}
+
+{% block styles %}
+<style>
+    /* تخصيص مظهر لوحة التقارير */
+    .report-kpi-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.3s ease;
+    }
+    .report-kpi-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0, 198, 255, 0.1);
+    }
+    body.light-theme .report-kpi-card {
+        background: rgba(0, 0, 0, 0.02);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+    body.light-theme .report-kpi-card:hover {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+    }
+
+    .report-kpi-card {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .report-kpi-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 30px rgba(59, 130, 246, 0.25) !important;
+        border-color: var(--primary) !important;
+    }
+    body.light-theme .report-kpi-card:hover {
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08) !important;
+    }
+    
+    /* Glassmorphic Modal styling */
+    .modal-content-glass {
+        background: rgba(15, 22, 38, 0.85) !important;
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
+        border-radius: 16px;
+        color: var(--text-primary);
+    }
+    .modal-header-glass {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    .modal-footer-glass {
+        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    body.light-theme .modal-content-glass {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1) !important;
+        color: #0f172a !important;
+    }
+    body.light-theme .modal-content-glass .text-secondary {
+        color: #475569 !important;
+    }
+    body.light-theme .modal-content-glass .table {
+        color: #0f172a !important;
+    }
+    body.light-theme .modal-content-glass .table-striped>tbody>tr:nth-of-type(odd)>* {
+        --bs-table-color-type: #0f172a !important;
+        --bs-table-bg-type: rgba(0, 0, 0, 0.02) !important;
+    }
+    body.light-theme .modal-header-glass {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+    body.light-theme .modal-footer-glass {
+        border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+    body.light-theme .modal-content-glass .btn-close {
+        filter: none !important;
+    }
+
+    .nav-tabs-custom {
+        border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    }
+    body.light-theme .nav-tabs-custom {
+        border-bottom: 2px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .nav-tabs-custom .nav-link {
+        border: none;
+        color: var(--text-secondary);
+        font-weight: 600;
+        padding: 12px 20px;
+        background: transparent;
+        transition: all 0.3s;
+    }
+    .nav-tabs-custom .nav-link.active {
+        color: var(--bs-primary) !important;
+        border-bottom: 3px solid var(--bs-primary);
+        background: transparent;
+    }
+
+    /* أنماط الطباعة */
+    @media print {
+        header, nav, .filter-panel, .nav-tabs-custom, .btn, .print-btn, #themeToggleBtn {
+            display: none !important;
+        }
+        body {
+            background: white !important;
+            color: black !important;
+            padding: 0;
+            margin: 0;
+        }
+        .container, .col-lg-12 {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .tab-pane {
+            display: none !important;
+        }
+        .tab-pane.active {
+            display: block !important;
+            opacity: 1 !important;
+        }
+        .glass-card {
+            border: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+        }
+        .report-kpi-card {
+            background: transparent !important;
+            border: 1px solid #ddd !important;
+            color: black !important;
+            margin-bottom: 15px !important;
+        }
+        .table {
+            color: black !important;
+            border-color: #ddd !important;
+        }
+        .table th, .table td {
+            color: black !important;
+            border-color: #ddd !important;
+        }
+        .text-primary, .text-success, .text-warning, .text-danger, .text-info {
+            color: black !important;
+            font-weight: bold !important;
+        }
+        .badge {
+            border: 1px solid #000 !important;
+            color: black !important;
+            background: transparent !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-12">
+        <!-- لوحة فلترة التواريخ -->
+        <div class="glass-card p-4 mb-4 filter-panel">
+            <h4 class="mb-3 text-primary fw-bold"><i class="bi bi-graph-up-arrow"></i> التقارير والتحليلات الشاملة</h4>
+            <form method="GET" action="{% url 'erp:reports_dashboard' %}" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">من تاريخ:</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">إلى تاريخ:</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-4 d-grid">
+                    <button type="submit" class="btn btn-primary py-2"><i class="bi bi-funnel-fill"></i> تحديث وتصفية البيانات</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- تبويبات التقارير -->
+        <div class="glass-card p-4">
+            <ul class="nav nav-tabs nav-tabs-custom mb-4" id="reportsTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="financials-tab" data-bs-toggle="tab" data-bs-target="#financials" type="button" role="tab" aria-controls="financials" aria-selected="true">
+                        <i class="bi bi-cash-coin me-1"></i> التقارير المالية
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales" type="button" role="tab" aria-controls="sales" aria-selected="false">
+                        <i class="bi bi-cart-check me-1"></i> تقارير المبيعات
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="purchases-tab" data-bs-toggle="tab" data-bs-target="#purchases" type="button" role="tab" aria-controls="purchases" aria-selected="false">
+                        <i class="bi bi-bag-check me-1"></i> تقارير المشتريات
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory" type="button" role="tab" aria-controls="inventory" aria-selected="false">
+                        <i class="bi bi-box-seam me-1"></i> تقارير المخزون
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="maintenance-tab" data-bs-toggle="tab" data-bs-target="#maintenance" type="button" role="tab" aria-controls="maintenance" aria-selected="false">
+                        <i class="bi bi-tools me-1"></i> تقارير الصيانة
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="reportsTabContent">
+                
+                <!-- 1. تبويب التقارير المالية -->
+                <div class="tab-pane fade show active" id="financials" role="tabpanel" aria-labelledby="financials-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-cash-stack"></i> ملخص الأرباح والخسائر والمصاريف</h5>
+                        <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة التقرير المالي</button>
+                    </div>
+
+                    <!-- كروت الأرقام المالية -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center" data-bs-toggle="modal" data-bs-target="#salesRevenueModal">
+                                <h6 class="text-secondary small">إيرادات المبيعات</h6>
+                                <h3 class="text-success fw-bold">{{ financials.total_sales_revenue }} ج.م</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center" data-bs-toggle="modal" data-bs-target="#cogsModal">
+                                <h6 class="text-secondary small">تكلفة البضاعة المباعة (COGS)</h6>
+                                <h3 class="text-danger fw-bold">{{ financials.total_cogs }} ج.م</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center" data-bs-toggle="modal" data-bs-target="#operatingExpensesModal">
+                                <h6 class="text-secondary small">المصروفات التشغيلية</h6>
+                                <h3 class="text-warning fw-bold">{{ financials.total_expenses }} ج.م</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center border-info" data-bs-toggle="modal" data-bs-target="#netProfitModal">
+                                <h6 class="text-secondary small">صافي الأرباح التقديرية</h6>
+                                <h3 class="{% if financials.net_profit >= 0 %}text-info{% else %}text-danger{% endif %} fw-bold">
+                                    {{ financials.net_profit }} ج.م
+                                </h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- كشف حسابات الموردين -->
+                    <h5 class="text-primary mt-4 mb-3"><i class="bi bi-person-lines-fill"></i> كشف حساب الموردين والديون المستحقة</h5>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-dark table-striped align-middle border border-secondary">
+                            <thead>
+                                <tr>
+                                    <th>اسم المورد</th>
+                                    <th>إجمالي التوريدات المستلمة</th>
+                                    <th>إجمالي المسدد له</th>
+                                    <th>المتبقي (الديون المستحقة للمورد)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for statement in financials.supplier_statements %}
+                                <tr style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#supplierModal-{{ statement.supplier.id }}">
+                                    <td class="fw-bold"><span class="text-primary hover-underline">{{ statement.supplier.name }}</span></td>
+                                    <td>{{ statement.total_purchased }} ج.م</td>
+                                    <td>{{ statement.total_paid }} ج.م</td>
+                                    <td class="{% if statement.remaining > 0 %}text-danger fw-bold{% endif %}">{{ statement.remaining }} ج.م</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">لا توجد حركات شراء مسجلة للموردين.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- قائمة المصاريف التشغيلية -->
+                    <h5 class="text-warning mt-4 mb-3"><i class="bi bi-receipt-cutoff"></i> قائمة المصاريف التشغيلية للفترة</h5>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-striped align-middle border border-secondary">
+                            <thead>
+                                <tr>
+                                    <th>بند المصروف</th>
+                                    <th>الكاشير</th>
+                                    <th>القيمة</th>
+                                    <th>التاريخ والوقت</th>
+                                    <th>ملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for exp in financials.expenses_list %}
+                                <tr>
+                                    <td>{{ exp.category.name }}</td>
+                                    <td>{{ exp.shift.cashier.username }}</td>
+                                    <td class="text-danger fw-bold">{{ exp.amount }} ج.م</td>
+                                    <td>{{ exp.shift.start_time|date:"Y-m-d H:i" }}</td>
+                                    <td>{{ exp.description|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-3">لا توجد مصاريف تشغيلية مسجلة في هذه الفترة.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 2. تبويب تقارير المبيعات -->
+                <div class="tab-pane fade" id="sales" role="tabpanel" aria-labelledby="sales-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-cart"></i> تفاصيل وتحليلات المبيعات</h5>
+                        <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة تقرير المبيعات</button>
+                    </div>
+
+                    <!-- كروت المبيعات -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">عدد الفواتير الصادرة</h6>
+                                <h3 class="text-primary fw-bold">{{ sales.count }} فاتورة</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">إجمالي المبيعات قبل الخصم</h6>
+                                <h3 class="text-success fw-bold">{{ sales.gross }} ج.م</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">إجمالي الخصومات الممنوحة</h6>
+                                <h3 class="text-danger fw-bold">{{ sales.discount }} ج.م</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center border-success">
+                                <h6 class="text-secondary small">صافي إيرادات المبيعات</h6>
+                                <h3 class="text-success fw-bold">{{ sales.net }} ج.م</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <!-- قنوات الدفع -->
+                        <div class="col-md-6 mb-3">
+                            <h5 class="text-primary mb-3"><i class="bi bi-wallet2"></i> توزيع طرق التحصيل</h5>
+                            <div class="glass-card p-3">
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>نقدي (كاش)</span>
+                                        <span class="fw-bold">{{ sales.payment_breakdown.cash }} ج.م</span>
+                                    </div>
+                                    <div class="progress" style="height: 10px;">
+                                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>بطاقة ائتمان (فيزا)</span>
+                                        <span class="fw-bold">{{ sales.payment_breakdown.card }} ج.م</span>
+                                    </div>
+                                    <div class="progress" style="height: 10px;">
+                                        <div class="progress-bar bg-info" style="width: 100%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>محفظة إلكترونية</span>
+                                        <span class="fw-bold">{{ sales.payment_breakdown.wallet }} ج.م</span>
+                                    </div>
+                                    <div class="progress" style="height: 10px;">
+                                        <div class="progress-bar bg-warning" style="width: 100%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- الأصناف الأكثر مبيعاً -->
+                        <div class="col-md-6 mb-3">
+                            <h5 class="text-primary mb-3"><i class="bi bi-star"></i> الأصناف الأكثر طلباً ومبيعاً</h5>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-striped align-middle border border-secondary">
+                                    <thead>
+                                        <tr>
+                                            <th>الصنف</th>
+                                            <th>الكمية المباعة</th>
+                                            <th>إجمالي الإيرادات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in sales.top_items %}
+                                        <tr>
+                                            <td class="fw-bold">{{ item.product__name }}</td>
+                                            <td>{{ item.total_qty }} قطعة</td>
+                                            <td class="text-success fw-bold">{{ item.total_revenue }} ج.م</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted py-3">لا توجد أصناف مباعة في هذه الفترة.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. تبويب تقارير المشتريات -->
+                <div class="tab-pane fade" id="purchases" role="tabpanel" aria-labelledby="purchases-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-cart-plus"></i> تفاصيل المشتريات والتوريدات</h5>
+                        <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة تقرير المشتريات</button>
+                    </div>
+
+                    <!-- كروت المشتريات -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center" data-bs-toggle="modal" data-bs-target="#purchaseInvoicesModal">
+                                <h6 class="text-secondary small">عدد فواتير التوريد</h6>
+                                <h3 class="text-primary fw-bold">{{ purchases.count }} فاتورة</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">إجمالي قيمة المشتريات الصافية</h6>
+                                <h3 class="text-success fw-bold">{{ purchases.total_net }} ج.م</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">إجمالي المدفوع نقداً/فوراً</h6>
+                                <h3 class="text-info fw-bold">{{ purchases.total_paid }} ج.م</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center border-danger">
+                                <h6 class="text-secondary small">إجمالي المتبقي كديون مستحقة</h6>
+                                <h3 class="text-danger fw-bold">{{ purchases.total_remaining }} ج.م</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <!-- توزيع فواتير الشراء حسب السداد -->
+                        <div class="col-md-6 mb-3">
+                            <h5 class="text-primary mb-3"><i class="bi bi-tags"></i> فواتير المشتريات حسب طريقة السداد</h5>
+                            <div class="glass-card p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span>نقدي (سداد كامل كاش)</span>
+                                    <span class="badge bg-success fs-6">{{ purchases.by_method.cash }} فاتورة</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span>آجل (بدون سداد مقدم)</span>
+                                    <span class="badge bg-danger fs-6">{{ purchases.by_method.credit }} فاتورة</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>جزئي (سداد جزء من الفاتورة)</span>
+                                    <span class="badge bg-warning text-dark fs-6">{{ purchases.by_method.partial }} فاتورة</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. تبويب تقارير المخزون -->
+                <div class="tab-pane fade" id="inventory" role="tabpanel" aria-labelledby="inventory-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-box"></i> حالة وتقييم المخزون الحالي</h5>
+                        <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة تقرير المخزون</button>
+                    </div>
+
+                    <!-- كروت المخزون -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">تقييم المخزون بالتكلفة (سعر الشراء)</h6>
+                                <h3 class="text-primary fw-bold">{{ inventory.cost_valuation }} ج.م</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">تقييم المخزون بالبيع (المتوقع)</h6>
+                                <h3 class="text-success fw-bold">{{ inventory.selling_valuation }} ج.م</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="report-kpi-card text-center border-success">
+                                <h6 class="text-secondary small">الأرباح المتوقعة عند البيع بالكامل</h6>
+                                <h3 class="text-success fw-bold">{{ inventory.expected_profit }} ج.م</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <h5 class="text-primary mb-3"><i class="bi bi-phone"></i> تصنيف الهواتف في المخزن حالياً</h5>
+                            <div class="glass-card p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span>هواتف جديدة (New Devices)</span>
+                                    <span class="badge bg-success fs-6">{{ inventory.new_devices }} جهاز</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>هواتف مستعملة (Used Devices)</span>
+                                    <span class="badge bg-danger fs-6">{{ inventory.used_devices }} جهاز</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <h5 class="text-info mb-3"><i class="bi bi-box-seam"></i> تصنيف الإكسسوارات وقطع الغيار حالياً</h5>
+                            <div class="glass-card p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#accessoriesStockModal">
+                                    <span>إكسسوارات (Accessories) <i class="bi bi-info-circle small text-secondary"></i></span>
+                                    <span class="badge bg-info text-dark fs-6">{{ inventory.accessories_count }} قطعة</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#sparePartsStockModal">
+                                    <span>قطع غيار (Spare Parts) <i class="bi bi-info-circle small text-secondary"></i></span>
+                                    <span class="badge bg-warning text-dark fs-6">{{ inventory.spare_parts_count }} قطعة</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- النواقص وتحذيرات المخزون -->
+                    <h5 class="text-danger mb-3"><i class="bi bi-exclamation-triangle-fill"></i> النواقص وتنبيهات إعادة الطلب</h5>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-striped align-middle border border-secondary">
+                            <thead>
+                                <tr>
+                                    <th>الصنف</th>
+                                    <th>المستودع</th>
+                                    <th>الكمية المتبقية</th>
+                                    <th>حالة النقص</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stock in inventory.low_stock_items %}
+                                <tr>
+                                    <td class="fw-bold">{{ stock.product.name }}</td>
+                                    <td>{{ stock.warehouse.name }}</td>
+                                    <td class="text-danger fw-bold fs-5">{{ stock.quantity }} قطعة</td>
+                                    <td>
+                                        {% if stock.quantity == 0 %}
+                                        <span class="badge bg-danger">منتهي تماماً</span>
+                                        {% else %}
+                                        <span class="badge bg-warning text-dark">حرج (أقل من 5)</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-success py-3"><i class="bi bi-check-circle-fill"></i> ممتاز! لا توجد أصناف منخفضة المخزون حالياً.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- تقرير رصيد الأصناف التفصيلي -->
+                    <hr class="border-secondary my-4">
+                    <h5 class="text-primary mb-3"><i class="bi bi-list-stars"></i> تقرير رصيد الأصناف التفصيلي</h5>
+                    
+                    <!-- نموذج البحث في الأصناف (ثابت لا يتم تبديله مع الاستعلام) -->
+                    <form method="GET" action="{% url 'erp:reports_dashboard' %}" 
+                          hx-get="{% url 'erp:reports_dashboard' %}" 
+                          hx-target="#inventory-products-table-container" 
+                          hx-swap="innerHTML" 
+                          hx-push-url="false"
+                          class="row g-2 align-items-center mb-3">
+                        <!-- الحفاظ على تاريخ الفلترة في الـ GET parameters -->
+                        <input type="hidden" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+                        <input type="hidden" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+                        
+                        <div class="col-md-6 col-sm-8">
+                            <div class="input-group">
+                                <span class="input-group-text bg-secondary border-secondary text-white"><i class="bi bi-search"></i></span>
+                                <input type="text" name="inv_search" class="form-control border-secondary text-white placeholder-secondary" 
+                                       style="background: rgba(0, 0, 0, 0.2);" 
+                                       placeholder="ابحث باسم الصنف أو الباركود..." 
+                                       value="{{ inventory.inv_search|default:'' }}"
+                                       hx-get="{% url 'erp:reports_dashboard' %}"
+                                       hx-trigger="keyup changed delay:300ms, input changed delay:300ms"
+                                       hx-target="#inventory-products-table-container"
+                                       hx-swap="innerHTML"
+                                       hx-include="[name='start_date'], [name='end_date']"
+                                       hx-push-url="false"
+                                       id="inv-search-input"
+                                       autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-sm-4 d-flex gap-2">
+                            <button type="submit" class="btn btn-info w-100"><i class="bi bi-funnel-fill"></i> بحث</button>
+                            <button type="button" 
+                                    onclick="document.getElementById('inv-search-input').value = ''; htmx.trigger('#inv-search-input', 'keyup');"
+                                    class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> إلغاء</button>
+                        </div>
+                    </form>
+
+                    <div id="inventory-products-table-container">
+                        {% include 'erp/includes/reports_inventory_table.html' %}
+                    </div>
+                </div>
+
+                <!-- 5. تبويب تقارير الصيانة -->
+                <div class="tab-pane fade" id="maintenance" role="tabpanel" aria-labelledby="maintenance-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-wrench"></i> إحصائيات قسم الصيانة والتصليحات</h5>
+                        <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة تقرير الصيانة</button>
+                    </div>
+
+                    <!-- كروت الصيانة -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">إجمالي تذاكر الصيانة بالفترة</h6>
+                                <h3 class="text-primary fw-bold">{{ maintenance.count }} تذكرة</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">قطع الغيار المستهلكة (بالتكلفة)</h6>
+                                <h3 class="text-danger fw-bold">{{ maintenance.parts_cost }} ج.م</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">تذاكر تم تسليمها بنجاح</h6>
+                                <h3 class="text-success fw-bold">{{ maintenance.status_breakdown.delivered }} تذكرة</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center border-success" data-bs-toggle="modal" data-bs-target="#maintProfitModal" style="cursor: pointer;">
+                                <h6 class="text-secondary small">أرباح الصيانة للفترة</h6>
+                                <h3 class="text-success fw-bold">{{ maintenance.total_profit }} ج.م</h3>
+                                <div class="text-muted small mt-1" style="font-size: 0.75rem;">
+                                    مصنعية: {{ maintenance.total_labor }} | قطع: {{ maintenance.parts_profit }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- تفاصيل حالات التذاكر للفترة -->
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <h5 class="text-primary mb-3"><i class="bi bi-clock-history"></i> توزيع تذاكر الصيانة حسب الحالة</h5>
+                            <div class="glass-card p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>بانتظار الفحص (معلق)</span>
+                                    <span class="badge bg-secondary">{{ maintenance.status_breakdown.pending }} تذكرة</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>قيد العمل والتصليح</span>
+                                    <span class="badge bg-warning text-dark">{{ maintenance.status_breakdown.in_progress }} تذكرة</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>بانتظار قطع الغيار</span>
+                                    <span class="badge bg-danger">{{ maintenance.status_breakdown.waiting_parts }} تذكرة</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>تم التصليح وبانتظار العميل</span>
+                                    <span class="badge bg-info text-dark">{{ maintenance.status_breakdown.done }} تذكرة</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>تم التسليم للعميل والإغلاق</span>
+                                    <span class="badge bg-success">{{ maintenance.status_breakdown.delivered }} تذكرة</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- إنتاجية فنيي الصيانة -->
+                        <div class="col-md-6 mb-3">
+                            <h5 class="text-primary mb-3"><i class="bi bi-people-fill"></i> إنتاجية ومصنعيات فنيي الصيانة</h5>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-striped align-middle border border-secondary">
+                                    <thead>
+                                        <tr>
+                                            <th>اسم الفني</th>
+                                            <th>تذاكر تم إنجازها</th>
+                                            <th>إجمالي قيمة مصنعيات التصليح</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for tech in maintenance.tech_performance %}
+                                        <tr>
+                                            <td class="fw-bold">{{ tech.technician__username|default:"غير معين" }}</td>
+                                            <td>{{ tech.tickets_done }} تذكرة</td>
+                                            <td class="text-success fw-bold">{{ tech.total_labor|default:0.00 }} ج.م</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted py-3">لا توجد مصنعيات مسجلة للفنيين في هذه الفترة.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- تقرير تذاكر الصيانة بالتفصيل -->
+                    <hr class="border-secondary my-4">
+                    <h5 class="text-primary mb-3"><i class="bi bi-list-stars"></i> سجل تذاكر الصيانة التفصيلي</h5>
+                    
+                    <div id="maintenance-tickets-table-container">
+                        {% include 'erp/includes/reports_maintenance_table.html' %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- FINANCIAL DETAIL MODALS -->
+<!-- ========================================== -->
+
+<!-- 1. Sales Revenue Modal -->
+<div class="modal fade" id="salesRevenueModal" tabindex="-1" aria-labelledby="salesRevenueModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content modal-content-glass">
+            <div class="modal-header modal-header-glass">
+                <h5 class="modal-title fw-bold text-success" id="salesRevenueModalLabel">
+                    <i class="bi bi-cart-check-fill me-2"></i> تفاصيل إيرادات المبيعات
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped align-middle border border-secondary">
+                        <thead>
+                            <tr>
+                                <th>رقم الفاتورة</th>
+                                <th>التاريخ والوقت</th>
+                                <th>العميل</th>
+                                <th>الكاشير</th>
+                                <th>صافي الفاتورة</th>
+                                <th>التفاصيل</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inv in financials.sales_list %}
+                            <tr>
+                                <td class="fw-bold">#{{ inv.id }}</td>
+                                <td>{{ inv.date_created|date:"Y-m-d H:i" }}</td>
+                                <td>{{ inv.customer.name }}</td>
+                                <td>{{ inv.cashier.username }}</td>
+                                <td class="text-success fw-bold">{{ inv.net_amount }} ج.م</td>
+                                <td>
+                                    <a href="{% url 'erp:sale_detail' inv.id %}" class="btn btn-outline-info btn-sm">
+                                        <i class="bi bi-eye"></i> عرض
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">لا توجد حركات مبيعات مسجلة في هذه الفترة.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-glass">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. COGS Modal -->
+<div class="modal fade" id="cogsModal" tabindex="-1" aria-labelledby="cogsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content modal-content-glass">
+            <div class="modal-header modal-header-glass">
+                <h5 class="modal-title fw-bold text-danger" id="cogsModalLabel">
+                    <i class="bi bi-tags-fill me-2"></i> تفاصيل تكلفة البضاعة المباعة (COGS)
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped align-middle border border-secondary">
+                        <thead>
+                            <tr>
+                                <th>الفاتورة</th>
+                                <th>الصنف</th>
+                                <th>السيريال / IMEI</th>
+                                <th>الكمية</th>
+                                <th>تكلفة الوحدة</th>
+                                <th>إجمالي التكلفة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in financials.cogs_list %}
+                            <tr>
+                                <td>#{{ item.invoice.id }}</td>
+                                <td class="fw-bold">{{ item.product.name }}</td>
+                                <td class="text-secondary small">{{ item.device_imei|default:"-" }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.unit_cost }} ج.م</td>
+                                <td class="text-danger fw-bold">{{ item.total_cost }} ج.م</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">لا توجد تفاصيل تكلفة متاحة لهذه الفترة.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-glass">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Operating Expenses Modal -->
+<div class="modal fade" id="operatingExpensesModal" tabindex="-1" aria-labelledby="operatingExpensesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content modal-content-glass">
+            <div class="modal-header modal-header-glass">
+                <h5 class="modal-title fw-bold text-warning" id="operatingExpensesModalLabel">
+                    <i class="bi bi-wallet2 me-2"></i> تفاصيل المصروفات التشغيلية
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped align-middle border border-secondary">
+                        <thead>
+                            <tr>
+                                <th>بند المصروف</th>
+                                <th>الكاشير</th>
+                                <th>القيمة</th>
+                                <th>التاريخ والوقت</th>
+                                <th>ملاحظات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for exp in financials.expenses_all %}
+                            <tr>
+                                <td class="fw-bold">{{ exp.category.name }}</td>
+                                <td>{{ exp.shift.cashier.username }}</td>
+                                <td class="text-danger fw-bold">{{ exp.amount }} ج.م</td>
+                                <td>{{ exp.shift.start_time|date:"Y-m-d H:i" }}</td>
+                                <td>{{ exp.description|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">لا توجد مصروفات مسجلة في هذه الفترة.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-glass">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 4. Net Profit Modal -->
+<div class="modal fade" id="netProfitModal" tabindex="-1" aria-labelledby="netProfitModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-glass">
+            <div class="modal-header modal-header-glass">
+                <h5 class="modal-title fw-bold text-info" id="netProfitModalLabel">
+                    <i class="bi bi-calculator-fill me-2"></i> كشف الأرباح والخسائر التقديري
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-3 rounded mb-4" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-secondary"><i class="bi bi-graph-up-arrow me-1 text-success"></i> إجمالي الإيرادات (المبيعات)</span>
+                        <span class="text-success fw-bold">+ {{ financials.total_sales_revenue }} ج.م</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-secondary"><i class="bi bi-tags me-1 text-danger"></i> تكلفة البضاعة المباعة (COGS)</span>
+                        <span class="text-danger fw-bold">- {{ financials.total_cogs }} ج.م</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-secondary"><i class="bi bi-cash me-1 text-warning"></i> المصروفات التشغيلية</span>
+                        <span class="text-warning fw-bold">- {{ financials.total_expenses }} ج.م</span>
+                    </div>
+                    <hr class="border-secondary my-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fs-5 fw-bold text-info"><i class="bi bi-pie-chart me-1"></i> صافي الأرباح التقديرية</span>
+                        <span class="fs-4 fw-bold {% if financials.net_profit >= 0 %}text-info{% else %}text-danger{% endif %}">
+                            {{ financials.net_profit }} ج.م
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info border-0 bg-info-subtle text-info-emphasis d-flex align-items-center p-3 rounded" role="alert">
+                    <i class="bi bi-info-circle-fill fs-4 me-2"></i>
+                    <div>
+                        هذا التقرير تقديري للفترة المحددة. يتم احتساب تكلفة البضاعة بناءً على تكلفة الأجهزة المسجلة أو متوسط التكلفة للاكسسوارات.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-glass">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 5. Supplier Invoices Modals (Loops) -->
+{% for statement in financials.supplier_statements %}
+<div class="modal fade" id="supplierModal-{{ statement.supplier.id }}" tabindex="-1" aria-labelledby="supplierModalLabel-{{ statement.supplier.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content modal-content-glass">
+            <div class="modal-header modal-header-glass">
+                <h5 class="modal-title fw-bold text-primary" id="supplierModalLabel-{{ statement.supplier.id }}">
+                    <i class="bi bi-person-badge-fill me-2"></i> كشف الحساب التفصيلي للمورد: {{ statement.supplier.name }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Supplier Info & Overall Balance Cards -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="p-3 rounded text-center" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
+                            <h6 class="text-secondary small">الهاتف</h6>
+                            <h5 class="fw-bold">{{ statement.supplier.phone|default:"غير مسجل" }}</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 rounded text-center" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.15);">
+                            <h6 class="text-primary small">إجمالي التوريدات (المشتريات)</h6>
+                            <h5 class="text-primary fw-bold">{{ statement.total_purchased }} ج.م</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 rounded text-center" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15);">
+                            <h6 class="text-success small">إجمالي المسدد</h6>
+                            <h5 class="text-success fw-bold">{{ statement.total_paid }} ج.م</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 rounded text-center" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15);">
+                            <h6 class="text-danger small">المتبقي (الديون المستحقة للمورد)</h6>
+                            <h5 class="text-danger fw-bold">{{ statement.remaining }} ج.م</h5>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supplier Purchase Invoices Table -->
+                <h6 class="text-primary fw-bold mb-3"><i class="bi bi-list-task me-1"></i> سجل فواتير الشراء والتوريد</h6>
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped align-middle border border-secondary">
+                        <thead>
+                            <tr>
+                                <th>كود الفاتورة</th>
+                                <th>التاريخ</th>
+                                <th>رقم فاتورة المورد</th>
+                                <th>طريقة الدفع</th>
+                                <th>قيمة المشتريات</th>
+                                <th>المدفوع</th>
+                                <th>المتبقي</th>
+                                <th>التفاصيل</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inv in statement.invoices %}
+                            <tr>
+                                <td class="fw-bold">#{{ inv.id }}</td>
+                                <td>{{ inv.invoice_date|date:"Y-m-d H:i" }}</td>
+                                <td>{{ inv.supplier_invoice_number|default:"-" }}</td>
+                                <td>
+                                    {% if inv.payment_method == 'cash' %}
+                                    <span class="badge bg-success-subtle text-success">نقدي</span>
+                                    {% elif inv.payment_method == 'credit' %}
+                                    <span class="badge bg-danger-subtle text-danger">آجل</span>
+                                    {% else %}
+                                    <span class="badge bg-warning-subtle text-warning">جزء آجل</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ inv.net_amount }} ج.م</td>
+                                <td class="text-success">{{ inv.paid_amount }} ج.م</td>
+                                <td class="{% if inv.remaining_amount > 0 %}text-danger fw-bold{% endif %}">
+                                    {{ inv.remaining_amount }} ج.م
+                                </td>
+                                <td>
+                                    <a href="{% url 'erp:purchase_detail' inv.id %}" class="btn btn-outline-info btn-sm">
+                                        <i class="bi bi-eye"></i> عرض
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-3">لا توجد فواتير شراء وتوريد مسجلة لهذا المورد.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-glass">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- 6. Purchase Invoices Modal -->
+<div class="modal fade" id="purchaseInvoicesModal" tabindex="-1" aria-labelledby="purchaseInvoicesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content modal-content-glass">
+            <div class="modal-header modal-header-glass">
+                <h5 class="modal-title fw-bold text-primary" id="purchaseInvoicesModalLabel">
+                    <i class="bi bi-file-earmark-text-fill me-2"></i> بيان فواتير الشراء والتوريد في الفترة المحددة
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped align-middle border border-secondary">
+                        <thead>
+                            <tr>
+                                <th>كود الفاتورة</th>
+                                <th>التاريخ والوقت</th>
+                                <th>المورد</th>
+                                <th>الموظف المستلم</th>
+                                <th>رقم فاتورة المورد</th>
+                                <th>طريقة الدفع</th>
+                                <th>صافي الفاتورة</th>
+                                <th>المدفوع</th>
+                                <th>المتبقي</th>
+                                <th>التفاصيل</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inv in purchases.purchases_list %}
+                            <tr>
+                                <td class="fw-bold">#{{ inv.id }}</td>
+                                <td>{{ inv.invoice_date|date:"Y-m-d H:i" }}</td>
+                                <td>{{ inv.supplier.name }}</td>
+                                <td>{{ inv.created_by.username }}</td>
+                                <td>{{ inv.supplier_invoice_number|default:"-" }}</td>
+                                <td>
+                                    {% if inv.payment_method == 'cash' %}
+                                    <span class="badge bg-success-subtle text-success">نقدي</span>
+                                    {% elif inv.payment_method == 'credit' %}
+                                    <span class="badge bg-danger-subtle text-danger">آجل</span>
+                                    {% else %}
+                                    <span class="badge bg-warning-subtle text-warning">جزء آجل</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ inv.net_amount }} ج.م</td>
+                                <td class="text-success">{{ inv.paid_amount }} ج.م</td>
+                                <td class="{% if inv.remaining_amount > 0 %}text-danger fw-bold{% endif %}">{{ inv.remaining_amount }} ج.م</td>
+                                <td>
+                                    <a href="{% url 'erp:purchase_detail' inv.id %}" class="btn btn-outline-info btn-sm">
+                                        <i class="bi bi-eye"></i> عرض
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="10" class="text-center text-muted py-3">لا توجد فواتير شراء وتوريد مسجلة في هذه الفترة.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-glass">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 7. Accessories Details Modal -->
+<div class="modal fade" id="accessoriesStockModal" tabindex="-1" aria-labelledby="accessoriesStockModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content modal-content-glass">
+            <div class="modal-header modal-header-glass">
+                <h5 class="modal-title fw-bold text-info" id="accessoriesStockModalLabel">
+                    <i class="bi bi-box-seam me-2"></i> تفاصيل الإكسسوارات المتوفرة في المخزن
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped align-middle border border-secondary">
+                        <thead>
+                            <tr>
+                                <th>اسم الصنف</th>
+                                <th>الباركود</th>
+                                <th>المستودع</th>
+                                <th>الكمية المتوفرة</th>
+                                <th>سعر البيع</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stock in inventory.accessories_stock %}
+                            <tr>
+                                <td class="fw-bold">{{ stock.product.name }}</td>
+                                <td class="text-secondary small">{{ stock.product.barcode_qr }}</td>
+                                <td>{{ stock.warehouse.name }}</td>
+                                <td class="text-info fw-bold">{{ stock.quantity }} قطعة</td>
+                                <td>{{ stock.product.selling_price }} ج.م</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">لا توجد إكسسوارات متوفرة في المخزن حالياً.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-glass">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 8. Spare Parts Details Modal -->
+<div class="modal fade" id="sparePartsStockModal" tabindex="-1" aria-labelledby="sparePartsStockModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content modal-content-glass">
+            <div class="modal-header modal-header-glass">
+                <h5 class="modal-title fw-bold text-warning" id="sparePartsStockModalLabel">
+                    <i class="bi bi-wrench me-2"></i> تفاصيل قطع الغيار المتوفرة في المخزن
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped align-middle border border-secondary">
+                        <thead>
+                            <tr>
+                                <th>اسم الصنف</th>
+                                <th>الباركود</th>
+                                <th>المستودع</th>
+                                <th>الكمية المتوفرة</th>
+                                <th>سعر البيع</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stock in inventory.spare_parts_stock %}
+                            <tr>
+                                <td class="fw-bold">{{ stock.product.name }}</td>
+                                <td class="text-secondary small">{{ stock.product.barcode_qr }}</td>
+                                <td>{{ stock.warehouse.name }}</td>
+                                <td class="text-warning fw-bold">{{ stock.quantity }} قطعة</td>
+                                <td>{{ stock.product.selling_price }} ج.م</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">لا توجد قطع غيار متوفرة في المخزن حالياً.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-glass">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 8. Maintenance Profit Detail Modal -->
+<div class="modal fade" id="maintProfitModal" tabindex="-1" aria-labelledby="maintProfitModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content modal-content-glass">
+            <div class="modal-header modal-header-glass">
+                <h5 class="modal-title fw-bold text-success" id="maintProfitModalLabel">
+                    <i class="bi bi-tools me-2"></i> تفاصيل أرباح الصيانة للفترة
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped align-middle border border-secondary">
+                        <thead>
+                            <tr>
+                                <th>رقم التذكرة</th>
+                                <th>الجهاز</th>
+                                <th>العميل</th>
+                                <th>الفني</th>
+                                <th>المصنعية</th>
+                                <th>سعر قطع الغيار</th>
+                                <th>تكلفة قطع الغيار</th>
+                                <th>ربح قطع الغيار</th>
+                                <th>إجمالي ربح التذكرة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ticket in maintenance.tickets_list %}
+                            <tr>
+                                <td class="fw-bold">#{{ ticket.id }}</td>
+                                <td>{{ ticket.device_model }}</td>
+                                <td>{{ ticket.customer.name }}</td>
+                                <td>{{ ticket.technician.username|default:"غير معين" }}</td>
+                                <td class="text-info fw-bold">{{ ticket.labor_cost }} ج.م</td>
+                                <td>{{ ticket.parts_price_total }} ج.م</td>
+                                <td>{{ ticket.parts_cost_total }} ج.م</td>
+                                <td class="text-warning fw-bold">{{ ticket.parts_profit }} ج.م</td>
+                                <td class="text-success fw-bold">{{ ticket.ticket_profit }} ج.م</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-3">لا توجد تذاكر صيانة مسجلة للفترة المحددة.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-active fw-bold border-top border-secondary">
+                                <td colspan="4" class="text-end">الإجمالي:</td>
+                                <td class="text-info">{{ maintenance.total_labor }} ج.م</td>
+                                <td></td>
+                                <td></td>
+                                <td class="text-warning">{{ maintenance.parts_profit }} ج.م</td>
+                                <td class="text-success">{{ maintenance.total_profit }} ج.m</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-glass">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Restore active tab from localStorage if exists
+        const activeTabTarget = localStorage.getItem("activeReportsTab");
+        if (activeTabTarget) {
+            const tabButton = document.querySelector(`button[data-bs-target="${activeTabTarget}"]`);
+            if (tabButton) {
+                if (window.bootstrap && window.bootstrap.Tab) {
+                    const tab = new bootstrap.Tab(tabButton);
+                    tab.show();
+                } else {
+                    document.querySelectorAll('.nav-tabs-custom .nav-link').forEach(btn => {
+                        btn.classList.remove('active');
+                        btn.setAttribute('aria-selected', 'false');
+                    });
+                    document.querySelectorAll('.tab-content .tab-pane').forEach(pane => {
+                        pane.classList.remove('show', 'active');
+                    });
+                    tabButton.classList.add('active');
+                    tabButton.setAttribute('aria-selected', 'true');
+                    const targetPane = document.querySelector(activeTabTarget);
+                    if (targetPane) {
+                        targetPane.classList.add('show', 'active');
+                    }
+                }
+            }
+        }
+
+        // Listen for tab show events to save active tab to localStorage
+        const tabElList = document.querySelectorAll('button[data-bs-toggle="tab"]');
+        tabElList.forEach(tabEl => {
+            tabEl.addEventListener('shown.bs.tab', function(event) {
+                const target = event.target.getAttribute('data-bs-target');
+                localStorage.setItem("activeReportsTab", target);
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,594 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Inter:wght@300;400;600;700&display=swap');
+
+:root {
+    --bg-primary: #080c14;
+    --bg-secondary: #0f1626;
+    --bg-card: rgba(22, 33, 54, 0.65);
+    --border-color: rgba(255, 255, 255, 0.06);
+    --border-color-focus: rgba(59, 130, 246, 0.5);
+    
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    
+    --primary: #3b82f6;
+    --primary-glow: rgba(59, 130, 246, 0.35);
+    --secondary: #a855f7;
+    --secondary-glow: rgba(168, 85, 247, 0.35);
+    --success: #10b981;
+    --success-glow: rgba(16, 185, 129, 0.25);
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --danger-glow: rgba(239, 68, 68, 0.25);
+}
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Cairo', 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    direction: rtl; /* اتجاه عربي افتراضي للنظام */
+}
+
+/* التمرير السلس */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+}
+
+/* شريط التنقل */
+.navbar-custom {
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    backdrop-filter: blur(10px);
+}
+.navbar-brand {
+    font-weight: 700;
+    color: var(--text-primary) !important;
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.navbar-brand img {
+    max-height: 40px;
+    margin-left: 10px;
+}
+.nav-link {
+    color: var(--text-secondary) !important;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+.nav-link:hover, .nav-link.active {
+    color: var(--primary) !important;
+    transform: translateY(-1px);
+}
+
+/* الحاويات الزجاجية (Glassmorphism Cards) */
+.glass-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.glass-card:hover {
+    border-color: rgba(59, 130, 246, 0.2);
+    box-shadow: 0 10px 40px 0 rgba(59, 130, 246, 0.08);
+}
+
+/* مؤشرات الأرقام الكبيرة (KPI Cards) */
+.kpi-card {
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+}
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 150px;
+    height: 150px;
+    background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+    opacity: 0.5;
+    pointer-events: none;
+}
+.kpi-card.secondary::before {
+    background: radial-gradient(circle, var(--secondary-glow) 0%, transparent 70%);
+}
+.kpi-card.success::before {
+    background: radial-gradient(circle, var(--success-glow) 0%, transparent 70%);
+}
+.kpi-card.danger::before {
+    background: radial-gradient(circle, var(--danger-glow) 0%, transparent 70%);
+}
+.kpi-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-top: 10px;
+    background: linear-gradient(to left, #ffffff, #d1d5db);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* الحقول والنماذج (Dark Inputs) */
+.form-control, .form-select {
+    background-color: rgba(15, 22, 38, 0.8) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    border-radius: 8px;
+    padding: 10px 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px var(--primary-glow) !important;
+    outline: none;
+}
+.form-control:disabled, .form-select:disabled {
+    background-color: rgba(15, 22, 38, 0.45) !important;
+    color: var(--text-secondary) !important;
+    border-color: rgba(255, 255, 255, 0.03) !important;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+.form-control::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+label {
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+}
+
+/* الأزرار المضيئة (Neon Glow Buttons) */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), #2563eb) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 10px 20px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 14px var(--primary-glow) !important;
+    transition: all 0.3s ease !important;
+}
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--primary-glow) !important;
+}
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    transform: translateY(-2px);
+}
+.btn-success {
+    background: linear-gradient(135deg, var(--success), #059669) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 14px var(--success-glow) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--success-glow) !important;
+}
+
+/* الجداول (Table Styling) */
+.table-custom {
+    color: var(--text-primary) !important;
+}
+.table-custom th {
+    background-color: var(--bg-secondary) !important;
+    border-bottom: 2px solid var(--border-color) !important;
+    color: var(--text-secondary) !important;
+    font-weight: 600;
+    padding: 14px;
+}
+.table-custom td {
+    background-color: transparent !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    padding: 14px;
+    vertical-align: middle;
+}
+.table-custom tr:hover td {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* الشارات والأوسمة (Badges) */
+.badge-custom {
+    padding: 6px 12px;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+.badge-pending {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: var(--warning);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.badge-in-progress {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: var(--primary);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+.badge-waiting-parts {
+    background-color: rgba(168, 85, 247, 0.15);
+    color: var(--secondary);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+}
+.badge-done {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.badge-delivered {
+    background-color: rgba(156, 163, 175, 0.15);
+    color: var(--text-secondary);
+    border: 1px solid rgba(156, 163, 175, 0.3);
+}
+
+/* شاشة البيع التفاعلية (POS layout) */
+.pos-container {
+    height: calc(100vh - 70px);
+    display: flex;
+    overflow: hidden;
+}
+.pos-main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+.pos-sidebar {
+    width: 380px;
+    border-right: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+.pos-product-card {
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+}
+.pos-product-card:hover {
+    transform: scale(1.02);
+    border-color: var(--primary);
+}
+
+/* لوحة الصيانة (Maintenance Kanban Board) */
+.kanban-column {
+    background-color: rgba(15, 22, 38, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    min-height: 500px;
+}
+.kanban-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 12px;
+    cursor: grab;
+    transition: transform 0.2s;
+}
+.kanban-card:hover {
+    transform: translateY(-2px);
+}
+.kanban-card.pending { border-left-color: var(--warning); }
+.kanban-card.in_progress { border-left-color: var(--primary); }
+.kanban-card.waiting_parts { border-left-color: var(--secondary); }
+.kanban-card.done { border-left-color: var(--success); }
+.kanban-card.delivered { border-left-color: var(--text-secondary); }
+
+/* إشعار عائم */
+.alert-float {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1050;
+    min-width: 300px;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    white-space: pre-line;
+    color: var(--text-primary) !important;
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.alert-float.alert-success {
+    border-left: 5px solid var(--success) !important;
+    background: rgba(16, 185, 129, 0.15) !important;
+}
+.alert-float.alert-danger, .alert-float.alert-error {
+    border-left: 5px solid var(--danger) !important;
+    background: rgba(239, 68, 68, 0.15) !important;
+}
+.alert-float.alert-warning {
+    border-left: 5px solid var(--warning) !important;
+    background: rgba(245, 158, 11, 0.15) !important;
+}
+.alert-float.alert-info {
+    border-left: 5px solid var(--primary) !important;
+    background: rgba(59, 130, 246, 0.15) !important;
+}
+.alert-float div, .alert-float span {
+    color: var(--text-primary) !important;
+}
+
+/* حقول ديناميكية للفورم سيت */
+.formset-row {
+    border-bottom: 1px dashed var(--border-color);
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+.formset-row:last-child {
+    border-bottom: none;
+}
+
+/* ==========================================
+   9. Light Mode Overrides (نظام الإضاءة الفاتح)
+   ========================================== */
+body {
+    transition: background-color 0.3s ease, color 0.3s ease !important;
+}
+.glass-card, .table-custom, .pos-checkout-sidebar, .pos-cart-item, .pos-summary {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+body.light-theme {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #ffffff;
+    --bg-card: rgba(255, 255, 255, 0.85);
+    --border-color: rgba(15, 23, 42, 0.08);
+    --border-color-focus: rgba(59, 130, 246, 0.5);
+    
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    
+    --primary-glow: rgba(59, 130, 246, 0.1);
+    --secondary-glow: rgba(168, 85, 247, 0.15);
+    --success-glow: rgba(16, 185, 129, 0.15);
+    --danger-glow: rgba(239, 68, 68, 0.1);
+}
+
+/* Light mode specific element overrides */
+body.light-theme .table-dark {
+    --bs-table-color: var(--text-primary) !important;
+    --bs-table-bg: var(--bg-secondary) !important;
+    --bs-table-border-color: var(--border-color) !important;
+    --bs-table-striped-bg: rgba(0, 0, 0, 0.02) !important;
+    --bs-table-striped-color: var(--text-primary) !important;
+    --bs-table-hover-bg: rgba(0, 0, 0, 0.04) !important;
+    --bs-table-hover-color: var(--text-primary) !important;
+    --bs-table-active-color: var(--text-primary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.light-theme .table-dark th {
+    background-color: #f1f5f9 !important;
+    color: var(--text-primary) !important;
+}
+
+body.light-theme .bg-dark {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+body.light-theme .bg-black {
+    background-color: #f1f5f9 !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+body.light-theme .modal-content {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1) !important;
+}
+
+body.light-theme .modal-header,
+body.light-theme .modal-header.bg-dark,
+body.light-theme .modal-body,
+body.light-theme .modal-body.bg-dark {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.light-theme .modal-footer {
+    border-color: var(--border-color) !important;
+}
+
+body.light-theme .btn-close,
+body.light-theme .btn-close-white {
+    filter: none !important;
+}
+
+body.light-theme .navbar-custom {
+    background-color: var(--bg-secondary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+body.light-theme .navbar-dark .navbar-brand,
+body.light-theme .navbar-dark .nav-link {
+    color: var(--text-primary) !important;
+}
+
+body.light-theme .navbar-dark .nav-link.active {
+    color: var(--primary) !important;
+}
+
+body.light-theme .form-control,
+body.light-theme .form-select {
+    background-color: #ffffff !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.light-theme .form-control:focus,
+body.light-theme .form-select:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 0.25rem var(--primary-glow) !important;
+}
+
+body.light-theme .form-control:disabled,
+body.light-theme .form-select:disabled,
+body.light-theme input[readonly] {
+    background-color: #e2e8f0 !important;
+    color: var(--text-secondary) !important;
+}
+
+body.light-theme .input-group-text,
+body.light-theme .input-group-text.bg-dark {
+    background-color: #f1f5f9 !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Specific text color fixes for light mode */
+body.light-theme .text-light:not(.badge):not(.btn),
+body.light-theme .text-white:not(.badge):not(.btn) {
+    color: var(--text-primary) !important;
+}
+
+body.light-theme .text-muted,
+body.light-theme .text-secondary {
+    color: var(--text-secondary) !important;
+}
+
+body.light-theme .badge.bg-secondary {
+    background-color: #e2e8f0 !important;
+    color: #475569 !important;
+}
+
+body.light-theme .badge.bg-dark {
+    background-color: #f1f5f9 !important;
+    color: var(--text-primary) !important;
+}
+
+body.light-theme .form-check-input {
+    background-color: #ffffff !important;
+    border-color: var(--border-color) !important;
+}
+
+body.light-theme .form-check-input:checked {
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
+}
+
+body.light-theme .glass-card {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.05) !important;
+}
+
+body.light-theme .glass-card:hover {
+    border-color: rgba(59, 130, 246, 0.3) !important;
+    box-shadow: 0 10px 40px 0 rgba(59, 130, 246, 0.06) !important;
+}
+
+body.light-theme .alert-float {
+    background-color: var(--bg-secondary) !important;
+    box-shadow: 0 10px 40px rgba(15, 23, 42, 0.15) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+body.light-theme .alert-float div,
+body.light-theme .alert-float span {
+    color: var(--text-primary) !important;
+}
+
+body.light-theme .pos-checkout-sidebar {
+    background: #f8fafc !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+body.light-theme .pos-cart-item {
+    background: #ffffff !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+body.light-theme .pos-summary {
+    background: #f1f5f9 !important;
+    border-top: 1px solid var(--border-color) !important;
+}
+
+body.light-theme .btn-outline-light {
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.light-theme .btn-outline-light:hover {
+    background-color: #f1f5f9 !important;
+}
+
+body.light-theme .btn-outline-secondary {
+    color: var(--text-secondary) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.light-theme .btn-outline-secondary:hover {
+    background-color: #f1f5f9 !important;
+    color: var(--text-primary) !important;
+}
+
+/* Fix for KPI values using text gradients */
+body.light-theme .kpi-value {
+    background: linear-gradient(to left, var(--text-primary), #475569) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+}
+
+/* Placeholders override */
+body.light-theme ::placeholder,
+body.light-theme .form-control::placeholder {
+    color: #94a3b8 !important;
+    opacity: 1;
+}
+
+/* Active tab text alignment */
+body.light-theme .nav-link.active,
+body.light-theme .nav-link.active * {
+    color: var(--primary) !important;
+}
+
+/* Dropdowns in light mode */
+body.light-theme .dropdown-menu {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1) !important;
+}
+body.light-theme .dropdown-item {
+    color: var(--text-primary) !important;
+}
+body.light-theme .dropdown-item:hover {
+    background-color: #f1f5f9 !important;
+}

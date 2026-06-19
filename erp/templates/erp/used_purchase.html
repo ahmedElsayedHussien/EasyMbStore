@@ -1,0 +1,381 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - تسجيل شراء جهاز مستعمل{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
+                <h4 class="mb-0 text-primary fw-bold">
+                    <i class="bi bi-arrow-down-left-circle-fill"></i> تسجيل شراء جهاز مستعمل وقيد مستنداته
+                </h4>
+                <a href="{% url 'erp:dashboard' %}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-right"></i> عودة للرئيسة</a>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <!-- القسم الأول: بيانات البائع (المستندات القانونية) -->
+                <div class="mb-4">
+                    <h5 class="text-secondary mb-3"><i class="bi bi-person-lines-fill"></i> 1. البيانات القانونية للبائع</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="{{ contact_form.name.id_for_label }}">الاسم بالكامل:</label>
+                            {{ contact_form.name }}
+                            {{ contact_form.name.errors }}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ contact_form.phone.id_for_label }}">رقم الهاتف:</label>
+                            {{ contact_form.phone }}
+                            {{ contact_form.phone.errors }}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ contact_form.national_id.id_for_label }}">الرقم القومي للبائع (14 رقماً):</label>
+                            {{ contact_form.national_id }}
+                            {{ contact_form.national_id.errors }}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ contact_form.address.id_for_label }}">العنوان بالكامل:</label>
+                            {{ contact_form.address }}
+                            {{ contact_form.address.errors }}
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- القسم الثاني: مواصفات الجهاز المستعمل -->
+                <div class="mb-4">
+                    <h5 class="text-secondary mb-3"><i class="bi bi-phone"></i> 2. مواصفات وتكلفة الجهاز</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6 col-lg-3">
+                            <label for="{{ device_form.product.id_for_label }}">الموديل / الصنف:</label>
+                            <div class="input-group">
+                                {{ device_form.product }}
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#quickProductModal" title="إضافة موديل جديد سريعاً">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </div>
+                            {{ device_form.product.errors }}
+                        </div>
+                        <div class="col-md-6 col-lg-2">
+                            <label for="{{ device_form.imei.id_for_label }}">السيريال الأول IMEI 1:</label>
+                            {{ device_form.imei }}
+                            {{ device_form.imei.errors }}
+                        </div>
+                        <div class="col-md-6 col-lg-2">
+                            <label for="{{ device_form.imei2.id_for_label }}">السيريال الثاني IMEI 2:</label>
+                            {{ device_form.imei2 }}
+                            {{ device_form.imei2.errors }}
+                        </div>
+                        <div class="col-md-6 col-lg-2">
+                            <label for="{{ device_form.warehouse.id_for_label }}">المخزن المستلم:</label>
+                            {{ device_form.warehouse }}
+                            {{ device_form.warehouse.errors }}
+                        </div>
+                        <div class="col-md-6 col-lg-3">
+                            <label for="{{ device_form.cost.id_for_label }}">سعر الشراء المتفق عليه (ج.م):</label>
+                            {{ device_form.cost }}
+                            {{ device_form.cost.errors }}
+                        </div>
+                    </div>
+
+                    <!-- تفاصيل ومواصفات إضافية للجهاز المستعمل -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-4 col-lg-3">
+                            <label for="{{ device_form.storage.id_for_label }}">المساحة:</label>
+                            {{ device_form.storage }}
+                            {{ device_form.storage.errors }}
+                        </div>
+                        <div class="col-md-4 col-lg-3">
+                            <label for="{{ device_form.ram.id_for_label }}">الرام (RAM):</label>
+                            {{ device_form.ram }}
+                            {{ device_form.ram.errors }}
+                        </div>
+                        <div class="col-md-4 col-lg-3">
+                            <label for="{{ device_form.used_status.id_for_label }}">حالة الجهاز المستعمل:</label>
+                            {{ device_form.used_status }}
+                            {{ device_form.used_status.errors }}
+                        </div>
+                        <div class="col-md-12 col-lg-3 d-flex align-items-end gap-3 pb-2 flex-wrap">
+                            <div class="form-check">
+                                {{ device_form.has_box }}
+                                <label class="form-check-label ms-1" for="{{ device_form.has_box.id_for_label }}">
+                                    يوجد كرتونة
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                {{ device_form.has_charger }}
+                                <label class="form-check-label ms-1" for="{{ device_form.has_charger.id_for_label }}">
+                                    يوجد شاحن
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                {{ device_form.is_tax_paid }}
+                                <label class="form-check-label ms-1" for="{{ device_form.is_tax_paid.id_for_label }}">
+                                    خالص الضريبة
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- الملاحظات -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-12">
+                            <label for="{{ device_form.notes.id_for_label }}">ملاحظات إضافية حول حالة الجهاز:</label>
+                            {{ device_form.notes }}
+                            {{ device_form.notes.errors }}
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- القسم الثالث: إرفاق المستندات والصور (DeviceAttachment Formset) -->
+                <div class="mb-4">
+                    <h5 class="text-secondary mb-3"><i class="bi bi-file-earmark-arrow-up-fill"></i> 3. الأوراق الرسمية وصور حالة الجهاز</h5>
+                    <p class="text-secondary small mb-3">
+                        * يرجى إرفاق صور البطاقة الشخصية (وجه وظهر) وعقد المبايعة لتأمين المركز ضد أي مساءلة قانونية.
+                    </p>
+                    
+                    {{ attachment_formset.management_form }}
+                    <div id="attachments-container">
+                        {% for form in attachment_formset %}
+                            <div class="row g-3 align-items-end formset-row p-3 rounded bg-dark border border-secondary mb-3">
+                                {% for hidden in form.hidden_fields %}
+                                    {{ hidden }}
+                                {% endfor %}
+                                <div class="col-md-3">
+                                    <label>نوع المرفق:</label>
+                                    {{ form.attachment_type }}
+                                </div>
+                                <div class="col-md-5">
+                                    <label>الملف / الصورة:</label>
+                                    {{ form.image }}
+                                </div>
+                                <div class="col-md-3">
+                                    <label>ملاحظات:</label>
+                                    {{ form.notes }}
+                                </div>
+                                <div class="col-md-1 text-center">
+                                    {% if attachment_formset.can_delete %}
+                                        <label class="d-block small text-danger mb-1">حذف</label>
+                                        {{ form.DELETE }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- زر الحفظ النهائي -->
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-primary py-3 fs-5">
+                        <i class="bi bi-cloud-arrow-up-fill me-2"></i> حفظ وتأكيد شراء الجهاز
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: إضافة موديل سريع -->
+<div class="modal fade" id="quickProductModal" tabindex="-1" aria-labelledby="quickProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light border-secondary glass-card">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-primary fw-bold" id="quickProductModalLabel"><i class="bi bi-plus-circle-fill"></i> إضافة موديل هاتف جديد</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body col-12">
+                <div id="modal-error-alert" class="alert alert-danger d-none" role="alert"></div>
+                <form id="quick-product-form">
+                    <div class="mb-3 position-relative">
+                        <label for="modal-product-name" class="form-label">اسم الموديل (مثال: iPhone 16 Pro):</label>
+                        <input type="text" id="modal-product-name" class="form-control" autocomplete="off" required placeholder="أدخل اسم الهاتف للبحث أو الإضافة...">
+                        <div id="product-suggestions" class="list-group position-absolute w-100 z-3 d-none shadow-lg" style="max-height: 200px; overflow-y: auto; background-color: #212529; border: 1px solid #495057;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal-product-barcode" class="form-label">الباركود / QR:</label>
+                        <input type="text" id="modal-product-barcode" class="form-control" required placeholder="أدخل باركود فريد للبحث...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal-product-price" class="form-label">سعر البيع المتوقع (ج.م):</label>
+                        <input type="number" id="modal-product-price" class="form-control" required step="0.01" min="0" placeholder="0.00">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary" onclick="submitQuickProductForm()">حفظ الموديل</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function submitQuickProductForm() {
+        const name = document.getElementById("modal-product-name").value.trim();
+        const barcode = document.getElementById("modal-product-barcode").value.trim();
+        const price = document.getElementById("modal-product-price").value.trim();
+        const errorAlert = document.getElementById("modal-error-alert");
+
+        if (!name || !barcode || !price) {
+            errorAlert.textContent = "يرجى ملء جميع الحقول المطلوبة.";
+            errorAlert.classList.remove("d-none");
+            return;
+        }
+
+        const payload = {
+            name: name,
+            barcode_qr: barcode,
+            selling_price: price
+        };
+
+        fetch("{% url 'erp:quick_add_product' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => {
+            if (!res.ok) {
+                return res.json().then(errData => { throw new Error(errData.error || 'حدث خطأ أثناء الاتصال بالخادم.') });
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data.status === "success") {
+                // إغلاق المودال
+                const modalEl = document.getElementById("quickProductModal");
+                const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                modal.hide();
+
+                // إضافة الخيار الجديد للمنسدلة وتحديده
+                const selectEl = document.getElementById("id_product");
+                const option = new Option(data.name, data.id, true, true);
+                selectEl.add(option);
+                
+                // تفريغ النموذج والأخطاء
+                document.getElementById("quick-product-form").reset();
+                errorAlert.classList.add("d-none");
+                
+                // إغلاق المودال يدوياً لضمان إزالة الخلفية المظلمة (backdrop)
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) backdrop.remove();
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+            } else {
+                errorAlert.textContent = data.error;
+                errorAlert.classList.remove("d-none");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            errorAlert.textContent = err.message || "حدث خطأ أثناء الاتصال بالخادم.";
+            errorAlert.classList.remove("d-none");
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const modalProductName = document.getElementById("modal-product-name");
+        const suggestionsBox = document.getElementById("product-suggestions");
+
+        if (modalProductName && suggestionsBox) {
+            modalProductName.addEventListener("input", (e) => {
+                const query = e.target.value.trim();
+                if (query.length < 2) {
+                    suggestionsBox.classList.add("d-none");
+                    suggestionsBox.innerHTML = "";
+                    return;
+                }
+
+                fetch(`/products/search/?q=${encodeURIComponent(query)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.products && data.products.length > 0) {
+                            suggestionsBox.innerHTML = "";
+                            data.products.forEach(p => {
+                                const btn = document.createElement("button");
+                                btn.type = "button";
+                                btn.className = "list-group-item list-group-item-action bg-dark text-light border-secondary py-2 text-start";
+                                btn.style.cursor = "pointer";
+                                btn.innerHTML = `
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong class="text-primary">${p.name}</strong>
+                                            <div class="text-secondary small font-monospace">${p.barcode_qr}</div>
+                                        </div>
+                                        <span class="badge bg-secondary font-monospace">${p.selling_price} ج.م</span>
+                                    </div>
+                                `;
+                                btn.addEventListener("click", () => {
+                                    selectSuggestion(p.id, p.name);
+                                });
+                                suggestionsBox.appendChild(btn);
+                            });
+                            suggestionsBox.classList.remove("d-none");
+                        } else {
+                            suggestionsBox.classList.add("d-none");
+                            suggestionsBox.innerHTML = "";
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error fetching suggestions:", err);
+                    });
+            });
+
+            // إغلاق قائمة الاقتراحات عند النقر خارجها
+            document.addEventListener("click", (e) => {
+                if (e.target !== modalProductName && e.target !== suggestionsBox && !suggestionsBox.contains(e.target)) {
+                    suggestionsBox.classList.add("d-none");
+                }
+            });
+        }
+    });
+
+    function selectSuggestion(id, name) {
+        // إغلاق المودال
+        const modalEl = document.getElementById("quickProductModal");
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.hide();
+
+        // اختيار المنتج في القائمة المنسدلة الرئيسية
+        const selectEl = document.getElementById("id_product");
+        
+        let optionExists = false;
+        for (let i = 0; i < selectEl.options.length; i++) {
+            if (selectEl.options[i].value == id) {
+                selectEl.selectedIndex = i;
+                optionExists = true;
+                break;
+            }
+        }
+
+        if (!optionExists) {
+            const option = new Option(name, id, true, true);
+            selectEl.add(option);
+        }
+
+        selectEl.dispatchEvent(new Event('change'));
+
+        // إعادة ضبط نموذج المودال والرسائل
+        document.getElementById("quick-product-form").reset();
+        document.getElementById("modal-error-alert").classList.add("d-none");
+        document.getElementById("product-suggestions").classList.add("d-none");
+
+        // إزالة خلفية المودال
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) backdrop.remove();
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    }
+</script>
+{% endblock %}

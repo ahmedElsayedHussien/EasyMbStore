@@ -1,0 +1,40 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - خطأ 403 غير مسموح{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center my-5">
+    <div class="col-md-6">
+        <div class="glass-card p-5 text-center" style="border: 1px solid rgba(220, 53, 69, 0.25);">
+            <div class="mb-4">
+                <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 4rem; filter: drop-shadow(0 0 15px rgba(220, 53, 69, 0.4));"></i>
+                <h3 class="fw-bold mt-3 text-light">خطأ 403 - وصول غير مصرح به</h3>
+                <p class="text-secondary small">EasyMB Store Security Shield</p>
+            </div>
+
+            <div class="alert alert-danger bg-danger bg-opacity-10 border-danger border-opacity-20 text-danger p-4 rounded mb-4">
+                <div class="d-flex align-items-center justify-content-center">
+                    <i class="bi bi-shield-slash-fill fs-3 me-3"></i>
+                    <div class="text-start">
+                        <h6 class="fw-bold mb-1">تفاصيل الصلاحية المطلوبة:</h6>
+                        <span class="fs-6 font-semibold" style="color: #ff8585;">{{ message|default:"عذراً، لا تمتلك الصلاحية الكافية للوصول لهذه الصفحة." }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-secondary mb-4">
+                إذا كنت تعتقد أن هذا خطأ، يرجى التواصل مع المدير العام للنظام لتعديل صلاحيات حسابك.
+            </p>
+
+            <div class="d-flex gap-3 justify-content-center">
+                <button onclick="window.history.back()" class="btn btn-outline-light px-4">
+                    <i class="bi bi-arrow-right me-2"></i> العودة للخلف
+                </button>
+                <a href="{% if request.user.is_staff or request.user.is_superuser %}{% url 'erp:dashboard' %}{% elif perms.erp.add_saleinvoice %}{% url 'erp:pos' %}{% elif perms.erp.change_repairticket %}{% url 'erp:repair_list' %}{% else %}{% url 'erp:pos' %}{% endif %}" class="btn btn-primary px-4">
+                    <i class="bi bi-house-door-fill me-2"></i> الصفحة الرئيسية
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

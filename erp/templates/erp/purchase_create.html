@@ -1,0 +1,587 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - تسجيل فاتورة شراء مورد{% endblock %}
+
+{% block content %}
+<script id="imei-products-json" type="application/json">
+    {{ products_require_imei|safe }}
+</script>
+<div class="row justify-content-center">
+    <div class="col-lg-11">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
+                <h4 class="mb-0 text-primary fw-bold"><i class="bi bi-bag-plus-fill"></i> تسجيل فاتورة توريد بضاعة جديدة</h4>
+                <a href="{% url 'erp:purchase_list' %}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-right"></i> إلغاء وعودة</a>
+            </div>
+
+            <form method="POST">
+                {% csrf_token %}
+                
+                <!-- رأس الفاتورة -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label for="{{ invoice_form.supplier.id_for_label }}">المورد:</label>
+                        {{ invoice_form.supplier }}
+                        {{ invoice_form.supplier.errors }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ invoice_form.supplier_invoice_number.id_for_label }}">رقم فاتورة المورد (اختياري):</label>
+                        {{ invoice_form.supplier_invoice_number }}
+                        {{ invoice_form.supplier_invoice_number.errors }}
+                    </div>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- بنود الفاتورة (Inline Formset) -->
+                <h5 class="text-secondary mb-3"><i class="bi bi-tags-fill"></i> الأصناف الموردة</h5>
+                <p class="text-secondary small mb-3">
+                    * ملاحظة: للأصناف التي تتطلب سيريال/IMEI (الهواتف)، يرجى كتابة قائمة السيريالات مفصولة بفاصلة في الخانة المخصصة (مثال: IMEI1, IMEI2).
+                </p>
+
+                {{ formset.management_form }}
+                <div id="items-formset-container">
+                    {% for form in formset %}
+                        <div class="p-3 rounded bg-dark border border-secondary mb-2 item-row formset-row">
+                            {% for hidden in form.hidden_fields %}
+                                {{ hidden }}
+                            {% endfor %}
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-3">
+                                    <label>الصنف:</label>
+                                    {{ form.product }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label>المخزن المستلم:</label>
+                                    {{ form.warehouse }}
+                                </div>
+                                <div class="col-md-1">
+                                    <label>الكمية:</label>
+                                    {{ form.quantity }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label>سعر التكلفة للوحدة:</label>
+                                    {{ form.unit_cost }}
+                                </div>
+                                <div class="col-md-3">
+                                    <label>سيريالات الأجهزة (IMEI):</label>
+                                    {{ form.imei_list }}
+                                </div>
+                                <div class="col-md-1 text-center">
+                                    {% if formset.can_delete %}
+                                        <label class="d-block small text-danger mb-1">حذف</label>
+                                        <div class="d-none">
+                                            {{ form.DELETE }}
+                                        </div>
+                                        <button type="button" class="btn btn-outline-danger btn-sm btn-delete-row w-100" title="حذف هذا السطر">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <!-- specs-container for phones (IMEI-required items) -->
+                            <div class="row g-2 mt-2 pt-2 border-top border-secondary specs-container d-none">
+                                <div class="col-md-4">
+                                    <label class="small text-secondary">المساحة:</label>
+                                    {{ form.storage }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="small text-secondary">الرامات (RAM):</label>
+                                    {{ form.ram }}
+                                </div>
+                                <div class="col-md-4 d-flex align-items-center mt-4">
+                                    <div class="form-check">
+                                        {{ form.is_tax_paid }}
+                                        <label class="form-check-label ms-2 small text-secondary" for="{{ form.is_tax_paid.id_for_label }}">
+                                            خالص الضريبة (فاتورة ضريبية)
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="d-flex justify-content-start mb-4">
+                    <button type="button" class="btn btn-outline-success btn-sm" id="btn-add-item-row">
+                        <i class="bi bi-plus-circle-fill me-1"></i> إضافة صنف آخر للفاتورة
+                    </button>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <!-- الحسابات الإجمالية للخصم والضرائب -->
+                <div class="row justify-content-end">
+                    <div class="col-md-5">
+                        <div class="glass-card p-3 bg-dark">
+                            <h5 class="text-primary mb-3">ملخص حساب الفاتورة</h5>
+                            <div class="mb-2">
+                                <label>إجمالي البنود:</label>
+                                {{ invoice_form.total_amount }}
+                            </div>
+                            <div class="mb-2">
+                                <label>الخصم الممنوح:</label>
+                                {{ invoice_form.discount }}
+                            </div>
+                            <div class="mb-2">
+                                <label>ضريبة الخصم والإضافة (ض.أ.خ):</label>
+                                <div class="input-group">
+                                    {{ invoice_form.deduction_addition_tax }}
+                                    <button class="btn btn-outline-secondary" type="button" onclick="autoCalculateTax(0.01)">احسب 1%</button>
+                                </div>
+                                <div class="form-text text-secondary mt-1">عادةً ما تخصم بنسبة 1% من إجمالي البنود وتورد لمصلحة الضرائب.</div>
+                            </div>
+                            <div class="border-top border-secondary pt-3 mt-3">
+                                <label class="fs-5 fw-bold text-success">الصافي النهائي للدفع:</label>
+                                {{ invoice_form.net_amount }}
+                            </div>
+                            <div class="border-top border-secondary pt-3 mt-3">
+                                <h6 class="text-primary mb-3"><i class="bi bi-wallet2"></i> تفاصيل الدفع والتسديد</h6>
+                                <div class="mb-2">
+                                    <label>طريقة الدفع:</label>
+                                    {{ invoice_form.payment_method }}
+                                </div>
+                                <div class="mb-2" id="paid-amount-wrapper">
+                                    <label>المبلغ المدفوع:</label>
+                                    {{ invoice_form.paid_amount }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- أزرار الإجراءات -->
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-primary py-3 fs-5">
+                        <i class="bi bi-save2-fill me-2"></i> حفظ الفاتورة وإدخال المخزن
+                    </button>
+                </div>
+
+            </form>
+        </div>
+            <!-- مودال إدخال سيريالات الأجهزة (IMEI) للكميات المطلوبة -->
+            <div class="modal fade" id="imeiModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content glass-card border border-secondary text-light">
+                        <div class="modal-header border-secondary bg-dark">
+                            <h5 class="modal-title" id="imeiModalTitle"><i class="bi bi-barcode text-primary"></i> إدخال الأرقام التسلسلية (IMEI) للأجهزة</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body bg-dark">
+                            <div class="alert alert-info small py-2 mb-3">
+                                <i class="bi bi-info-circle-fill me-1"></i> يرجى إدخال السيريال الأول (IMEI 1) لكل جهاز. السيريال الثاني (IMEI 2) اختياري إذا كان الهاتف يدعم خطين.
+                            </div>
+                            <div id="imei-inputs-list" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+                                <!-- سيتم توليد حقول الإدخال ديناميكياً بواسطة جافا سكريبت -->
+                            </div>
+                            <div class="d-grid mt-4">
+                                <button type="button" class="btn btn-success py-2" id="btn-save-imeis">
+                                    <i class="bi bi-check-circle-fill me-1"></i> حفظ وتأكيد السيريالات
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // توليد رقم فاتورة تلقائي إذا كان فارغاً
+        const invoiceNumInput = document.getElementById("id_supplier_invoice_number");
+        if (invoiceNumInput && !invoiceNumInput.value.trim()) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const randomNum = Math.floor(100 + Math.random() * 900); // 3 أرقام عشوائية
+            invoiceNumInput.value = `PINV-${year}${month}${day}-${hours}${minutes}${seconds}-${randomNum}`;
+        }
+
+        // الاستماع للتغييرات في الأسعار والكميات لتحديث الفاتورة تلقائياً
+        const formsetContainer = document.getElementById("items-formset-container");
+        
+        formsetContainer.addEventListener("input", (e) => {
+            if (e.target.classList.contains("row-qty") || e.target.classList.contains("row-cost")) {
+                recalculatePurchaseTotals();
+            }
+        });
+
+        document.getElementById("id_discount").addEventListener("input", recalculatePurchaseTotals);
+        document.getElementById("id_deduction_addition_tax").addEventListener("input", recalculatePurchaseTotals);
+
+        // تحديث ظهور خانات السيريال في البداية
+        document.querySelectorAll(".item-row").forEach(row => {
+            updateImeiFieldVisibility(row);
+        });
+
+        // الاستماع لتغيير الصنف لتحديث خانات السيريالات
+        formsetContainer.addEventListener("change", (e) => {
+            if (e.target.name && e.target.name.endsWith("-product")) {
+                const row = e.target.closest(".item-row");
+                if (row) updateImeiFieldVisibility(row);
+            }
+        });
+
+        // الاستماع لتغيير الكمية لتحديث خانات السيريالات
+        formsetContainer.addEventListener("input", (e) => {
+            if (e.target.name && e.target.name.endsWith("-quantity")) {
+                const row = e.target.closest(".item-row");
+                if (row) {
+                    const btn = row.querySelector(".btn-imei-setup");
+                    if (btn) {
+                        const qty = parseInt(e.target.value) || 0;
+                        btn.innerHTML = `<i class="bi bi-barcode me-1"></i> أدخل السيريالات (${qty} أجهزة)`;
+                        btn.className = "btn btn-outline-info btn-sm btn-imei-setup w-100";
+                        const input = row.querySelector("input[name$='imei_list']");
+                        if (input) input.value = ""; // تصفير السيريالات القديمة إذا تغيرت الكمية
+                    }
+                }
+            }
+        });
+
+        // مراقبة حقول طريقة الدفع والتسديد
+        const paymentMethodSelect = document.getElementById("id_payment_method");
+        const paidAmountInput = document.getElementById("id_paid_amount");
+
+        if (paymentMethodSelect && paidAmountInput) {
+            paymentMethodSelect.addEventListener("change", updatePaidAmountStatus);
+            paidAmountInput.addEventListener("input", validatePaidAmount);
+        }
+
+        function updatePaidAmountStatus() {
+            const method = paymentMethodSelect.value;
+            const netVal = parseFloat(document.getElementById("id_net_amount").value) || 0;
+
+            if (method === "cash") {
+                paidAmountInput.value = netVal.toFixed(2);
+                paidAmountInput.setAttribute("readonly", "readonly");
+            } else if (method === "credit") {
+                paidAmountInput.value = "0.00";
+                paidAmountInput.setAttribute("readonly", "readonly");
+            } else if (method === "partial") {
+                paidAmountInput.removeAttribute("readonly");
+                if (parseFloat(paidAmountInput.value) === netVal || parseFloat(paidAmountInput.value) === 0) {
+                    paidAmountInput.value = "0.00";
+                }
+            }
+        }
+
+        function validatePaidAmount() {
+            const netVal = parseFloat(document.getElementById("id_net_amount").value) || 0;
+            let paidVal = parseFloat(paidAmountInput.value) || 0;
+            if (paidVal < 0) {
+                paidAmountInput.value = "0.00";
+            } else if (paidVal > netVal) {
+                paidAmountInput.value = netVal.toFixed(2);
+            }
+        }
+
+        recalculatePurchaseTotals();
+        if (paymentMethodSelect) {
+            updatePaidAmountStatus();
+        }
+    });
+
+    // حساب المجاميع
+    function recalculatePurchaseTotals() {
+        let total = 0;
+        document.querySelectorAll(".item-row").forEach(row => {
+            // التحقق من أن الصف غير محذوف
+            const deleteInput = row.querySelector("input[name$='DELETE']");
+            if (deleteInput && deleteInput.checked) return;
+
+            const qtyVal = parseFloat(row.querySelector("input[name$='quantity']").value) || 0;
+            const costVal = parseFloat(row.querySelector("input[name$='unit_cost']").value) || 0;
+            total += qtyVal * costVal;
+        });
+
+        document.getElementById("id_total_amount").value = total.toFixed(2);
+        
+        const discount = parseFloat(document.getElementById("id_discount").value) || 0;
+        const tax = parseFloat(document.getElementById("id_deduction_addition_tax").value) || 0;
+        
+        const net = Math.max(0, (total - discount) - tax);
+        document.getElementById("id_net_amount").value = net.toFixed(2);
+
+        // تحديث المبلغ المدفوع تلقائياً بناء على طريقة الدفع
+        const paymentMethodSelect = document.getElementById("id_payment_method");
+        const paidAmountInput = document.getElementById("id_paid_amount");
+        if (paymentMethodSelect && paidAmountInput) {
+            const method = paymentMethodSelect.value;
+            if (method === "cash") {
+                paidAmountInput.value = net.toFixed(2);
+            } else if (method === "credit") {
+                paidAmountInput.value = "0.00";
+            } else if (method === "partial") {
+                const currentPaid = parseFloat(paidAmountInput.value) || 0;
+                if (currentPaid > net) {
+                    paidAmountInput.value = net.toFixed(2);
+                }
+            }
+        }
+    }
+
+    // احتساب الضريبة تلقائياً
+    function autoCalculateTax(percent) {
+        const total = parseFloat(document.getElementById("id_total_amount").value) || 0;
+        const tax = total * percent;
+        document.getElementById("id_deduction_addition_tax").value = tax.toFixed(2);
+        recalculatePurchaseTotals();
+    }
+
+    let activeImeiRow = null;
+
+    // قراءة مصفوفة معرفات المنتجات التي تتطلب سيريال
+    const imeiProducts = JSON.parse(document.getElementById("imei-products-json").textContent);
+
+    function updateImeiFieldVisibility(row) {
+        const productSelect = row.querySelector("select[name$='product']");
+        if (!productSelect) return;
+
+        const selectedProductId = parseInt(productSelect.value);
+        const requiresImei = imeiProducts.includes(selectedProductId);
+
+        const imeiInput = row.querySelector("input[name$='imei_list']");
+        if (!imeiInput) return;
+
+        // إخفاء حقل الإدخال النصي الأصلي دائماً لمنع اللبس والتوهان
+        imeiInput.style.display = "none";
+        
+        // إزالة أي أزرار أو عناصر نصوص قديمة
+        const parent = imeiInput.parentNode;
+        const oldBtn = parent.querySelector(".btn-imei-setup");
+        if (oldBtn) oldBtn.remove();
+        const oldLabel = parent.querySelector(".imei-not-required-text");
+        if (oldLabel) oldLabel.remove();
+
+        const specsContainer = row.querySelector(".specs-container");
+
+        if (requiresImei) {
+            const qty = parseInt(row.querySelector("input[name$='quantity']").value) || 0;
+            const btn = document.createElement("button");
+            btn.type = "button";
+            
+            const hasValues = imeiInput.value.trim().length > 0;
+            if (hasValues) {
+                const count = imeiInput.value.split(",").length;
+                btn.className = "btn btn-success btn-sm btn-imei-setup w-100";
+                btn.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> تم إدخال السيريالات (${count} أجهزة)`;
+            } else {
+                btn.className = "btn btn-outline-info btn-sm btn-imei-setup w-100";
+                btn.innerHTML = `<i class="bi bi-barcode me-1"></i> أدخل السيريالات (${qty} أجهزة)`;
+            }
+
+            btn.addEventListener("click", () => {
+                openImeiModal(btn);
+            });
+
+            parent.appendChild(btn);
+
+            if (specsContainer) {
+                specsContainer.classList.remove("d-none");
+            }
+        } else {
+            const span = document.createElement("span");
+            span.className = "text-secondary small d-block py-2 text-center imei-not-required-text";
+            span.innerHTML = `<i class="bi bi-slash-circle me-1"></i> غير مطلوب`;
+            parent.appendChild(span);
+            imeiInput.value = ""; // مسح القيمة إذا كان لا يتطلب IMEI
+
+            if (specsContainer) {
+                specsContainer.classList.add("d-none");
+                // Reset specifications values
+                const storageSelect = specsContainer.querySelector("select[name$='storage']");
+                const ramSelect = specsContainer.querySelector("select[name$='ram']");
+                const taxCheckbox = specsContainer.querySelector("input[name$='is_tax_paid']");
+                if (storageSelect) storageSelect.value = "";
+                if (ramSelect) ramSelect.value = "";
+                if (taxCheckbox) taxCheckbox.checked = false;
+            }
+        }
+    }
+
+    function openImeiModal(btn) {
+        activeImeiRow = btn.closest(".item-row");
+        if (!activeImeiRow) return;
+
+        const productSelect = activeImeiRow.querySelector("select[name$='product']");
+        const productName = productSelect ? productSelect.options[productSelect.selectedIndex].text : "الجهاز";
+        const qty = parseInt(activeImeiRow.querySelector("input[name$='quantity']").value) || 0;
+
+        if (qty <= 0) {
+            alert("يرجى تحديد كمية الأجهزة المطلوبة أولاً.");
+            return;
+        }
+
+        // تحديث العنوان
+        document.getElementById("imeiModalTitle").innerHTML = `<i class="bi bi-barcode text-primary"></i> إدخال سيريالات: ${productName} (العدد: ${qty})`;
+
+        // قراءة السيريالات المسجلة حالياً
+        const imeiInput = activeImeiRow.querySelector("input[name$='imei_list']");
+        const currentVal = imeiInput ? imeiInput.value.trim() : "";
+        const currentDevices = currentVal ? currentVal.split(",").map(item => item.trim()) : [];
+
+        // توليد صفوف الإدخال في المودال
+        const container = document.getElementById("imei-inputs-list");
+        container.innerHTML = "";
+
+        for (let i = 0; i < qty; i++) {
+            const deviceVal = currentDevices[i] || "";
+            const parts = deviceVal.split("/");
+            const imei1 = parts[0] ? parts[0].trim() : "";
+            const imei2 = parts[1] ? parts[1].trim() : "";
+
+            const rowDiv = document.createElement("div");
+            rowDiv.className = "row g-2 align-items-center mb-3 p-2 rounded bg-dark border border-secondary";
+            rowDiv.innerHTML = `
+                <div class="col-md-2 text-start fw-bold text-secondary">جهاز #${i + 1}:</div>
+                <div class="col-md-5">
+                    <input type="text" class="form-control form-control-sm imei1-input font-monospace bg-black text-light border-secondary" placeholder="السيريال الأول / IMEI 1" value="${imei1}" required>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" class="form-control form-control-sm imei2-input font-monospace bg-black text-light border-secondary" placeholder="السيريال الثاني / IMEI 2 (اختياري)" value="${imei2}">
+                </div>
+            `;
+            container.appendChild(rowDiv);
+        }
+
+        const myModal = new bootstrap.Modal(document.getElementById('imeiModal'));
+        myModal.show();
+    }
+
+    // حفظ السيريالات المجمعة من المودال
+    document.getElementById("btn-save-imeis").addEventListener("click", () => {
+        if (!activeImeiRow) return;
+
+        const container = document.getElementById("imei-inputs-list");
+        const imei1Inputs = container.querySelectorAll(".imei1-input");
+        const imei2Inputs = container.querySelectorAll(".imei2-input");
+
+        const deviceValues = [];
+        let hasEmptyImei1 = false;
+
+        for (let i = 0; i < imei1Inputs.length; i++) {
+            const imei1 = imei1Inputs[i].value.trim();
+            const imei2 = imei2Inputs[i].value.trim();
+
+            if (!imei1) {
+                hasEmptyImei1 = true;
+            }
+
+            if (imei2) {
+                deviceValues.push(`${imei1}/${imei2}`);
+            } else if (imei1) {
+                deviceValues.push(imei1);
+            }
+        }
+
+        if (hasEmptyImei1) {
+            alert("يرجى إدخال السيريال الأول (IMEI 1) لجميع الأجهزة.");
+            return;
+        }
+
+        // دمج السيريالات بالصيغة المطلوبة وتحديث الحقل المخفي
+        const compiledString = deviceValues.join(", ");
+        const imeiInput = activeImeiRow.querySelector("input[name$='imei_list']");
+        if (imeiInput) {
+            imeiInput.value = compiledString;
+        }
+
+        // تحديث مظهر ونص زر التنبيه في السطر
+        const btn = activeImeiRow.querySelector(".btn-imei-setup");
+        if (btn) {
+            btn.className = "btn btn-success btn-sm btn-imei-setup w-100";
+            btn.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> تم إدخال السيريالات (${deviceValues.length} أجهزة)`;
+        }
+
+        // إغلاق المودال
+        const modalEl = document.getElementById("imeiModal");
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    });
+
+    // إعادة تعيين الفهارس (re-indexing) لصفوف بنود الفاتورة
+    function reindexRows() {
+        const rows = document.querySelectorAll(".item-row");
+        const totalFormsInput = document.getElementById("id_items-TOTAL_FORMS");
+        
+        rows.forEach((row, index) => {
+            row.querySelectorAll("input, select, textarea, label").forEach(el => {
+                if (el.name) {
+                    el.name = el.name.replace(/items-\d+-/, `items-${index}-`);
+                }
+                if (el.id) {
+                    el.id = el.id.replace(/id_items-\d+-/, `id_items-${index}-`);
+                }
+                if (el.getAttribute("for")) {
+                    el.setAttribute("for", el.getAttribute("for").replace(/id_items-\d+-/, `id_items-${index}-`));
+                }
+            });
+        });
+        
+        if (totalFormsInput) {
+            totalFormsInput.value = rows.length;
+        }
+    }
+
+    // إضافة سطر جديد عند النقر على زر "إضافة صنف آخر للفاتورة"
+    document.getElementById("btn-add-item-row").addEventListener("click", () => {
+        const container = document.getElementById("items-formset-container");
+        const rows = container.querySelectorAll(".item-row");
+        if (rows.length === 0) return;
+
+        // استنساخ السطر الأول
+        const firstRow = rows[0];
+        const newRow = firstRow.cloneNode(true);
+
+        // مسح وتفريغ البيانات المستنسخة
+        newRow.querySelectorAll("input, select, textarea").forEach(el => {
+            if (el.tagName === "SELECT") {
+                el.selectedIndex = 0;
+            } else if (el.type === "checkbox") {
+                el.checked = false;
+            } else {
+                el.value = "";
+            }
+        });
+
+        // إلحاق السطر الجديد بالحاوية
+        container.appendChild(newRow);
+
+        // إعادة الفهرسة للتأكد من عدم وجود أخطاء في الـ POST
+        reindexRows();
+
+        // تحديث إظهار حقل الـ IMEI للسطر الجديد
+        updateImeiFieldVisibility(newRow);
+
+        // إعادة احتساب إجمالي الفاتورة
+        recalculatePurchaseTotals();
+    });
+
+    // حذف سطر الفاتورة عند النقر على أيقونة الحذف (Trash icon)
+    document.getElementById("items-formset-container").addEventListener("click", (e) => {
+        const deleteBtn = e.target.closest(".btn-delete-row");
+        if (deleteBtn) {
+            const row = deleteBtn.closest(".item-row");
+            if (row) {
+                const allRows = document.querySelectorAll(".item-row");
+                if (allRows.length <= 1) {
+                    alert("يجب أن تحتوي الفاتورة على صنف واحد على الأقل.");
+                    return;
+                }
+
+                // بما أن الصفحة مخصصة لإنشاء فاتورة جديدة فقط، نقوم بالحذف من واجهة المستخدم مباشرة وإعادة فهرسة باقي العناصر
+                row.remove();
+                reindexRows();
+                recalculatePurchaseTotals();
+            }
+        }
+    });
+</script>
+{% endblock %}

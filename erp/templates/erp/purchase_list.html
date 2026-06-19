@@ -1,0 +1,67 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - قائمة فواتير المشتريات{% endblock %}
+
+{% block content %}
+<div class="glass-card p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0 text-primary fw-bold"><i class="bi bi-receipt"></i> فواتير الشراء من الموردين</h4>
+        <a href="{% url 'erp:purchase_create' %}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> تسجيل فاتورة شراء</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-custom">
+            <thead>
+                <tr>
+                    <th>رقم القيد</th>
+                    <th>رقم فاتورة المورد</th>
+                    <th>المورد</th>
+                    <th>المستلم</th>
+                    <th>الإجمالي</th>
+                    <th>ضريبة الخصم والإضافة</th>
+                    <th>صافي الفاتورة</th>
+                    <th>طريقة الدفع</th>
+                    <th>المدفوع</th>
+                    <th>الآجل (المتبقي)</th>
+                    <th>التاريخ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for purchase in purchases %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'erp:purchase_detail' purchase.id %}" class="fw-bold text-primary text-decoration-none">
+                                #{{ purchase.id }}
+                            </a>
+                        </td>
+                        <td>{{ purchase.supplier_invoice_number|default:"--" }}</td>
+                        <td>{{ purchase.supplier.name }}</td>
+                        <td>{{ purchase.created_by.username }}</td>
+                        <td>{{ purchase.total_amount }} ج.م</td>
+                        <td class="text-danger">-{{ purchase.deduction_addition_tax }} ج.م</td>
+                        <td class="text-success fw-bold">{{ purchase.net_amount }} ج.م</td>
+                        <td>
+                            {% if purchase.payment_method == 'cash' %}
+                                <span class="badge bg-success">نقدي (كاش)</span>
+                            {% elif purchase.payment_method == 'credit' %}
+                                <span class="badge bg-danger">آجل بالكامل</span>
+                            {% elif purchase.payment_method == 'partial' %}
+                                <span class="badge bg-warning text-dark">مسدد جزئياً</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-light">{{ purchase.paid_amount }} ج.م</td>
+                        <td class="fw-bold {% if purchase.remaining_amount > 0 %}text-warning{% else %}text-secondary{% endif %}">
+                            {{ purchase.remaining_amount }} ج.م
+                        </td>
+                        <td>{{ purchase.invoice_date|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center text-secondary py-4">لا توجد فواتير مشتريات مسجلة حتى الآن.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,238 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - فتح تذكرة صيانة{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
+                <h4 class="mb-0 text-primary fw-bold"><i class="bi bi-tools"></i> فتح تذكرة صيانة جديدة</h4>
+                <a href="{% url 'erp:repair_list' %}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-right"></i> إلغاء وعودة</a>
+            </div>
+
+            <form method="POST">
+                {% csrf_token %}
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.customer.id_for_label }}">العميل (صاحب الجهاز):</label>
+                        <div class="mb-2">
+                            <input type="text" id="customer-search-input" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="🔍 اكتب للبحث في أسماء العملاء...">
+                        </div>
+                        <div class="input-group">
+                            {{ form.customer }}
+                            <button class="btn btn-outline-success" type="button" id="btn-add-customer" data-bs-toggle="modal" data-bs-target="#addCustomerModal" title="إضافة عميل جديد">
+                                <i class="bi bi-person-plus-fill"></i>
+                            </button>
+                        </div>
+                        {{ form.customer.errors }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.technician.id_for_label }}">الفني المسؤول:</label>
+                        {{ form.technician }}
+                        {{ form.technician.errors }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.device_model.id_for_label }}">موديل ونوع الجهاز:</label>
+                        {{ form.device_model }}
+                        {{ form.device_model.errors }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.device_imei.id_for_label }}">السيريال IMEI (اختياري):</label>
+                        {{ form.device_imei }}
+                        {{ form.device_imei.errors }}
+                    </div>
+                    <div class="col-12">
+                        <label for="{{ form.issue_description.id_for_label }}">وصف المشكلة / الأعطال بالتفصيل:</label>
+                        {{ form.issue_description }}
+                        {{ form.issue_description.errors }}
+                    </div>
+                    <div class="col-12">
+                        <label for="{{ form.labor_cost.id_for_label }}">أجر المصنعية / الصيانة (ج.م):</label>
+                        {{ form.labor_cost }}
+                        {{ form.labor_cost.errors }}
+                    </div>
+                    <div class="col-12">
+                        <label for="{{ form.status.id_for_label }}">حالة التذكرة المبدئية:</label>
+                        {{ form.status }}
+                        {{ form.status.errors }}
+                    </div>
+                </div>
+
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-primary py-3 fs-5">
+                        <i class="bi bi-save2-fill me-2"></i> حفظ وفتح تذكرة الصيانة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal لإضافة عميل جديد -->
+<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card border border-secondary text-light" style="background: rgba(30, 30, 40, 0.95); backdrop-filter: blur(10px);">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-bold text-primary" id="addCustomerModalLabel">
+                    <i class="bi bi-person-plus-fill me-2"></i> إضافة عميل جديد
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger d-none" id="customer-modal-errors"></div>
+                <form id="add-customer-form">
+                    <div class="mb-3">
+                        <label for="modal-customer-name" class="form-label">الاسم بالكامل <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control bg-dark text-light border-secondary" id="modal-customer-name" required placeholder="مثال: أحمد محمد علي">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal-customer-phone" class="form-label">رقم الهاتف <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control bg-dark text-light border-secondary" id="modal-customer-phone" required placeholder="أدخل 11 رقم">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal-customer-national-id" class="form-label">الرقم القومي (14 رقم - اختياري)</label>
+                        <input type="text" class="form-control bg-dark text-light border-secondary" id="modal-customer-national-id" placeholder="أدخل 14 رقم">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal-customer-address" class="form-label">العنوان (اختياري)</label>
+                        <textarea class="form-control bg-dark text-light border-secondary" id="modal-customer-address" rows="2" placeholder="العنوان بالتفصيل"></textarea>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-success py-2">
+                            <i class="bi bi-check-circle-fill me-1"></i> حفظ وإضافة العميل
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const searchInput = document.getElementById("customer-search-input");
+    const customerSelect = document.getElementById("id_customer");
+    
+    // تخزين الخيارات الأصلية للبحث والتصفية
+    let originalOptions = Array.from(customerSelect.options);
+    
+    // 1. تفعيل فلترة البحث
+    if (searchInput && customerSelect) {
+        searchInput.addEventListener("input", function() {
+            const query = searchInput.value.toLowerCase().trim();
+            const selectedValue = customerSelect.value;
+            
+            // مسح الخيارات الحالية
+            customerSelect.innerHTML = "";
+            
+            // إعادة تعبئة الخيارات المطابقة للبحث
+            originalOptions.forEach(opt => {
+                if (opt.text.toLowerCase().includes(query) || opt.value === "") {
+                    const clonedOpt = opt.cloneNode(true);
+                    if (clonedOpt.value === selectedValue) {
+                        clonedOpt.selected = true;
+                    }
+                    customerSelect.appendChild(clonedOpt);
+                }
+            });
+        });
+    }
+
+    // 2. إرسال نموذج إضافة عميل جديد عبر AJAX
+    const addCustomerForm = document.getElementById("add-customer-form");
+    const errorsDiv = document.getElementById("customer-modal-errors");
+    
+    if (addCustomerForm) {
+        addCustomerForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            errorsDiv.classList.add("d-none");
+            errorsDiv.innerHTML = "";
+            
+            const name = document.getElementById("modal-customer-name").value;
+            const phone = document.getElementById("modal-customer-phone").value;
+            const nationalId = document.getElementById("modal-customer-national-id").value;
+            const address = document.getElementById("modal-customer-address").value;
+            
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            fetch("{% url 'erp:ajax_create_customer' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-CSRFToken": csrfToken
+                },
+                body: new URLSearchParams({
+                    name: name,
+                    phone: phone,
+                    national_id: nationalId,
+                    address: address
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    // إنشاء خيار جديد واختياره
+                    const newOpt = document.createElement("option");
+                    newOpt.value = data.customer.id;
+                    newOpt.text = `${data.customer.name} (${data.customer.phone})`;
+                    newOpt.selected = true;
+                    
+                    // إضافته للقائمة
+                    customerSelect.appendChild(newOpt);
+                    
+                    // تحديث مصفوفة الخيارات الأصلية لضمان عمل البحث مستقبلاً
+                    originalOptions.push(newOpt);
+                    
+                    // تفريغ النموذج وإغلاق الـ Modal
+                    addCustomerForm.reset();
+                    const modalElement = document.getElementById("addCustomerModal");
+                    const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                    }
+                    
+                    // تفريغ حقل البحث
+                    if (searchInput) {
+                        searchInput.value = "";
+                    }
+                    
+                    // إعادة عرض القائمة كاملة مع تحديد العميل الجديد
+                    customerSelect.innerHTML = "";
+                    originalOptions.forEach(opt => {
+                        const cloned = opt.cloneNode(true);
+                        if (cloned.value === String(data.customer.id)) {
+                            cloned.selected = true;
+                        }
+                        customerSelect.appendChild(cloned);
+                    });
+                    
+                } else {
+                    errorsDiv.classList.remove("d-none");
+                    if (data.errors) {
+                        let errText = "<ul>";
+                        for (const [field, msg] of Object.entries(data.errors)) {
+                            errText += `<li>${msg}</li>`;
+                        }
+                        errText += "</ul>";
+                        errorsDiv.innerHTML = errText;
+                    } else if (data.message) {
+                        errorsDiv.textContent = data.message;
+                    } else {
+                        errorsDiv.textContent = "حدث خطأ غير متوقع.";
+                    }
+                }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                errorsDiv.classList.remove("d-none");
+                errorsDiv.textContent = "حدث خطأ في الاتصال بالسيرفر.";
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
