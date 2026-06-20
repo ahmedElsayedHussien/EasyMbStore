@@ -353,7 +353,10 @@ def pos_checkout(request):
             )
             # ربط جهاز الاستبدال إن وجد
             if traded_in_device_id:
-                traded_device = get_object_or_404(Device, id=traded_in_device_id)
+                try:
+                    traded_device = Device.objects.select_for_update().get(id=traded_in_device_id)
+                except Device.DoesNotExist:
+                    raise ValidationError("جهاز الاستبدال المحدد غير موجود.")
                 invoice.traded_in_device = traded_device
             invoice.save()
             # 2. إنشاء بنود الفاتورة وحساب الإجمالي
@@ -374,7 +377,11 @@ def pos_checkout(request):
                     unit_price=unit_price
                 )
                 if product.requires_imei and device_id:
-                    device = get_object_or_404(Device, id=device_id)
+                    try:
+                        # نستخدم select_for_update() لحجز القفل على مستوى الصف ومنع تسابق العمليات
+                        device = Device.objects.select_for_update().get(id=device_id)
+                    except Device.DoesNotExist:
+                        raise ValidationError("الجهاز المحدد غير موجود.")
                     # التحقق من أن الجهاز ليس مباعاً بالفعل
                     if device.is_sold:
                         raise ValidationError(f"الجهاز بالسيريال {device.imei} مباع بالفعل.")
@@ -654,8 +661,6 @@ def purchase_invoice_pay(request, pk):
     from django.contrib import messages
     from erp.models import Expense, ExpenseCategory, CashShift, PurchaseInvoice
     
-    invoice = get_object_or_404(PurchaseInvoice, pk=pk)
-    
     if request.method == 'POST':
         amount_str = request.POST.get('amount')
         deduct_from_shift = request.POST.get('deduct_from_shift') == 'on'
@@ -669,46 +674,49 @@ def purchase_invoice_pay(request, pk):
         if amount <= 0:
             messages.error(request, "خطأ: يجب أن يكون مبلغ السداد أكبر من صفر.")
             return redirect('erp:purchase_list')
+
+        with transaction.atomic():
+            invoice = get_object_or_404(PurchaseInvoice.objects.select_for_update(), pk=pk)
             
-        remaining = invoice.remaining_amount
-        if amount > remaining:
-            messages.error(request, f"خطأ: لا يمكن سداد مبلغ أكبر من المبلغ المتبقي ({remaining} ج.م).")
-            return redirect('erp:purchase_list')
-            
-        # إذا تم طلب الخصم من الوردية الحالية
-        if deduct_from_shift:
-            # التحقق من وجود وردية مفتوحة للمستخدم الحالي
-            shift = CashShift.objects.filter(cashier=request.user, status='open').first()
-            if not shift:
-                messages.error(request, "خطأ: لا توجد وردية مفتوحة لحسابك حالياً للخصم منها. تم إلغاء عملية السداد.")
-                next_url = request.META.get('HTTP_REFERER')
-                if next_url:
-                    return redirect(next_url)
+            remaining = invoice.remaining_amount
+            if amount > remaining:
+                messages.error(request, f"خطأ: لا يمكن سداد مبلغ أكبر من المبلغ المتبقي ({remaining} ج.م).")
                 return redirect('erp:purchase_list')
                 
-            # التحقق من كفاية الرصيد المتوفر في الوردية
-            if amount > shift.expected_closing_balance:
-                messages.error(request, f"خطأ: لا يمكن سداد المبلغ من الوردية الحالية لأن النقدية المتوفرة في درج الوردية ({shift.expected_closing_balance} ج.م) أقل من المبلغ المراد سداده ({amount} ج.م).")
-                next_url = request.META.get('HTTP_REFERER')
-                if next_url:
-                    return redirect(next_url)
-                return redirect('erp:purchase_list')
+            # إذا تم طلب الخصم من الوردية الحالية
+            if deduct_from_shift:
+                # التحقق من وجود وردية مفتوحة للمستخدم الحالي مع قفلها
+                shift = CashShift.objects.select_for_update().filter(cashier=request.user, status='open').first()
+                if not shift:
+                    messages.error(request, "خطأ: لا توجد وردية مفتوحة لحسابك حالياً للخصم منها. تم إلغاء عملية السداد.")
+                    next_url = request.META.get('HTTP_REFERER')
+                    if next_url:
+                        return redirect(next_url)
+                    return redirect('erp:purchase_list')
+                    
+                # التحقق من كفاية الرصيد المتوفر في الوردية
+                if amount > shift.expected_closing_balance:
+                    messages.error(request, f"خطأ: لا يمكن سداد المبلغ من الوردية الحالية لأن النقدية المتوفرة في درج الوردية ({shift.expected_closing_balance} ج.م) أقل من المبلغ المراد سداده ({amount} ج.م).")
+                    next_url = request.META.get('HTTP_REFERER')
+                    if next_url:
+                        return redirect(next_url)
+                    return redirect('erp:purchase_list')
+                    
+                # إيجاد أو إنشاء تصنيف سداد الموردين
+                category, created = ExpenseCategory.objects.get_or_create(name="سداد موردين")
                 
-            # إيجاد أو إنشاء تصنيف سداد الموردين
-            category, created = ExpenseCategory.objects.get_or_create(name="سداد موردين")
+                # تسجيل المصروف
+                Expense.objects.create(
+                    shift=shift,
+                    category=category,
+                    amount=amount,
+                    description=f"سداد دفعة لفاتورة المشتريات رقم {invoice.supplier_invoice_number or invoice.id} للمورد {invoice.supplier.name}"
+                )
+                
+            # تحديث قيمة المبلغ المدفوع في الفاتورة
+            invoice.paid_amount += amount
+            invoice.save()
             
-            # تسجيل المصروف
-            Expense.objects.create(
-                shift=shift,
-                category=category,
-                amount=amount,
-                description=f"سداد دفعة لفاتورة المشتريات رقم {invoice.supplier_invoice_number or invoice.id} للمورد {invoice.supplier.name}"
-            )
-            
-        # تحديث قيمة المبلغ المدفوع في الفاتورة
-        invoice.paid_amount += amount
-        invoice.save()
-        
         messages.success(request, f"تم تسجيل سداد مبلغ {amount} ج.م للمورد {invoice.supplier.name} بنجاح.")
         
         # التوجيه لنفس الصفحة التي تم استدعاء الطلب منها
@@ -806,13 +814,14 @@ def transfer_complete(request, pk):
     """
     تأكيد استلام الشحنة وتحديث مواقع المخازن وتفعيل السجنل.
     """
-    transfer = get_object_or_404(StockTransfer, pk=pk)
-    if transfer.status == 'pending':
-        transfer.status = 'completed'
-        transfer.save()  # سيقوم الـ pre_save بنقل البضائع للأجهزة والأصناف
-        messages.success(request, f"تم تأكيد استلام الشحنة #{transfer.id} بنجاح.")
-    else:
-        messages.warning(request, "هذه الحركة مستلمة ومغلقة مسبقاً.")
+    with transaction.atomic():
+        transfer = get_object_or_404(StockTransfer.objects.select_for_update(), pk=pk)
+        if transfer.status == 'pending':
+            transfer.status = 'completed'
+            transfer.save()  # سيقوم الـ pre_save بنقل البضائع للأجهزة والأصناف
+            messages.success(request, f"تم تأكيد استلام الشحنة #{transfer.id} بنجاح.")
+        else:
+            messages.warning(request, "هذه الحركة مستلمة ومغلقة مسبقاً.")
     return redirect('erp:transfer_list')
 # ==========================================
 # 6. الصيانة وتذاكر التصليح (Maintenance Cycle)
@@ -1035,50 +1044,54 @@ def shift_manage_view(request):
 def shift_add_expense(request):
     if not (request.user.is_staff or request.user.is_superuser):
         return JsonResponse({'error': 'غير مسموح للكاشير بتسجيل مصروفات'}, status=403)
-    active_shift = CashShift.objects.filter(cashier=request.user, status='open').first()
-    if not active_shift:
-        return JsonResponse({'error': 'لا توجد وردية مفتوحة لتسجيل المصاريف'}, status=400)
-    form = ExpenseForm(request.POST)
-    if form.is_valid():
-        expense = form.save(commit=False)
-        expense.shift = active_shift
+    
+    with transaction.atomic():
+        active_shift = CashShift.objects.select_for_update().filter(cashier=request.user, status='open').first()
+        if not active_shift:
+            return JsonResponse({'error': 'لا توجد وردية مفتوحة لتسجيل المصاريف'}, status=400)
         
-        # منع تسجيل مصروف أكبر من الرصيد المتوفر في درج الوردية
-        if expense.amount > active_shift.expected_closing_balance:
-            return JsonResponse({
-                'error': f'عذراً، لا يمكن تسجيل مصروف بقيمة {expense.amount} ج.م لأن النقدية المتوفرة في درج الوردية حالياً هي {active_shift.expected_closing_balance} ج.م فقط.'
-            }, status=400)
+        form = ExpenseForm(request.POST)
+        if form.is_valid():
+            expense = form.save(commit=False)
+            expense.shift = active_shift
             
-        expense.save() # سيقوم الـ Signal بإعادة حساب الوردية تلقائياً
-        return JsonResponse({
-            'status': 'success',
-            'amount': float(expense.amount),
-            'category': expense.category.name,
-            'description': expense.description
-        })
+            # منع تسجيل مصروف أكبر من الرصيد المتوفر في درج الوردية
+            if expense.amount > active_shift.expected_closing_balance:
+                return JsonResponse({
+                    'error': f'عذراً، لا يمكن تسجيل مصروف بقيمة {expense.amount} ج.م لأن النقدية المتوفرة في درج الوردية حالياً هي {active_shift.expected_closing_balance} ج.م فقط.'
+                }, status=400)
+                
+            expense.save() # سيقوم الـ Signal بإعادة حساب الوردية تلقائياً
+            return JsonResponse({
+                'status': 'success',
+                'amount': float(expense.amount),
+                'category': expense.category.name,
+                'description': expense.description
+            })
     return JsonResponse({'error': 'بيانات غير صالحة'}, status=400)
 @login_required
 @permission_required('erp.change_cashshift', raise_exception=True)
 @require_POST
 def shift_close(request):
-    active_shift = CashShift.objects.filter(cashier=request.user, status='open').first()
-    if not active_shift:
-        messages.error(request, "لا توجد وردية مفتوحة لإغلاقها.")
-        return redirect('erp:shift_manage')
-    form = CashShiftCloseForm(request.POST, instance=active_shift)
-    if form.is_valid():
-        shift = form.save(commit=False)
-        shift.status = 'closed'
-        shift.end_time = timezone.now()
-        shift.save() # سيقوم الـ pre_save بتحديث expected_closing_balance للمرة الأخيرة
-        discrepancy = shift.actual_cash - shift.expected_closing_balance
-        if discrepancy == 0:
-            messages.success(request, "تم إغلاق الوردية وتصفيتها بنجاح بدون أي فروقات.")
-        elif discrepancy > 0:
-            messages.warning(request, f"تم إغلاق الوردية بوجود فائض قدره {discrepancy} ج.م.")
-        else:
-            messages.error(request, f"تم إغلاق الوردية بوجود عجز قدره {abs(discrepancy)} ج.م.")
-        return redirect('erp:dashboard')
+    with transaction.atomic():
+        active_shift = CashShift.objects.select_for_update().filter(cashier=request.user, status='open').first()
+        if not active_shift:
+            messages.error(request, "لا توجد وردية مفتوحة لإغلاقها.")
+            return redirect('erp:shift_manage')
+        form = CashShiftCloseForm(request.POST, instance=active_shift)
+        if form.is_valid():
+            shift = form.save(commit=False)
+            shift.status = 'closed'
+            shift.end_time = timezone.now()
+            shift.save() # سيقوم الـ pre_save بتحديث expected_closing_balance للمرة الأخيرة
+            discrepancy = shift.actual_cash - shift.expected_closing_balance
+            if discrepancy == 0:
+                messages.success(request, "تم إغلاق الوردية وتصفيتها بنجاح بدون أي فروقات.")
+            elif discrepancy > 0:
+                messages.warning(request, f"تم إغلاق الوردية بوجود فائض قدره {discrepancy} ج.م.")
+            else:
+                messages.error(request, f"تم إغلاق الوردية بوجود عجز قدره {abs(discrepancy)} ج.م.")
+            return redirect('erp:dashboard')
     messages.error(request, "حدث خطأ أثناء محاولة إغلاق الوردية.")
     return redirect('erp:shift_manage')
 @login_required
