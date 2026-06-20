@@ -25,7 +25,8 @@ SECRET_KEY = 'django-insecure-l)b6cp3j)c29r)9^^(5lz_9ei2(p5ox4^i01d^^z)l687)0__(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'mbstore.pythonanywhere.com', '.pythonanywhere.com']
+CSRF_TRUSTED_ORIGINS = ['https://*.pythonanywhere.com', 'http://127.0.0.1:8000', 'http://localhost:8000']
 
 
 # Application definition
@@ -84,6 +85,22 @@ DATABASES = {
     }
 }
 
+# إعدادات قاعدة بيانات MySQL خارجية (قم بإلغاء التعليق لتفعيلها واستبدل البيانات ببياناتك الفعالة)
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'easymbstore_db',
+#         'USER': 'db_user',
+#         'PASSWORD': 'db_password',
+#         'HOST': 'localhost',  # أو عنوان السيرفر الخارجي مثل '192.168.1.50'
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+#             'charset': 'utf8mb4',
+#         }
+#     }
+# }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -120,6 +137,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
