@@ -205,6 +205,41 @@
                         <i class="bi bi-tools me-1"></i> تقارير الصيانة
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="cashier-tab" data-bs-toggle="tab" data-bs-target="#cashier" type="button" role="tab">
+                        <i class="bi bi-person-badge me-1"></i> الكاشير والورديات
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="customers-tab" data-bs-toggle="tab" data-bs-target="#customers" type="button" role="tab">
+                        <i class="bi bi-people-fill me-1"></i> العملاء المميزون
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="used-devices-tab" data-bs-toggle="tab" data-bs-target="#used-devices" type="button" role="tab">
+                        <i class="bi bi-phone-flip me-1"></i> الأجهزة المستعملة
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="warranty-tab" data-bs-toggle="tab" data-bs-target="#warranty" type="button" role="tab">
+                        <i class="bi bi-shield-check me-1"></i> الضمانات
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="receivables-tab" data-bs-toggle="tab" data-bs-target="#receivables" type="button" role="tab">
+                        <i class="bi bi-currency-dollar me-1"></i> الذمم المدينة
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tech-report-tab" data-bs-toggle="tab" data-bs-target="#tech-report" type="button" role="tab">
+                        <i class="bi bi-award me-1"></i> أداء الفنيين
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="cashflow-tab" data-bs-toggle="tab" data-bs-target="#cashflow" type="button" role="tab">
+                        <i class="bi bi-graph-up me-1"></i> التدفق النقدي
+                    </button>
+                </li>
             </ul>
 
             <div class="tab-content" id="reportsTabContent">
@@ -706,12 +741,401 @@
                     <div id="maintenance-tickets-table-container">
                         {% include 'erp/includes/reports_maintenance_table.html' %}
                     </div>
+                    </div>
+
+                <!-- ═══ تقرير 6: الكاشير والورديات ═══ -->
+                <div class="tab-pane fade" id="cashier" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-person-badge"></i> تقرير الكاشير والورديات</h5>
+                        <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة</button>
+                    </div>
+                    <h6 class="text-primary mb-3"><i class="bi bi-people"></i> ملخص أداء كل كاشير في الفترة</h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-dark table-striped align-middle border border-secondary">
+                            <thead><tr>
+                                <th>الكاشير</th><th>الورديات</th><th>الفواتير</th>
+                                <th>المبيعات</th><th>المصاريف</th><th>فارق الصندوق</th>
+                            </tr></thead>
+                            <tbody>
+                                {% for c in cashier_report.summary %}
+                                <tr>
+                                    <td class="fw-bold text-info"><i class="bi bi-person-circle me-1"></i>{{ c.username }}</td>
+                                    <td>{{ c.shifts_count }}</td>
+                                    <td>{{ c.total_sales }}</td>
+                                    <td class="text-success fw-bold">{{ c.total_revenue }} ج.م</td>
+                                    <td class="text-danger">{{ c.total_expenses }} ج.م</td>
+                                    <td>—</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="6" class="text-center text-muted py-3">لا توجد ورديات في هذه الفترة.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <h6 class="text-warning mb-3"><i class="bi bi-clock-history"></i> تفاصيل كل وردية</h6>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover align-middle border border-secondary small">
+                            <thead><tr>
+                                <th>#</th><th>الكاشير</th><th>بداية الوردية</th><th>نهاية الوردية</th>
+                                <th>المدة</th><th>المبيعات</th><th>المصاريف</th><th>فارق الصندوق</th><th>الحالة</th>
+                            </tr></thead>
+                            <tbody>
+                                {% for s in cashier_report.shifts %}
+                                <tr>
+                                    <td class="text-muted">{{ s.shift.id }}</td>
+                                    <td class="fw-bold">{{ s.cashier.username|default:"—" }}</td>
+                                    <td>{{ s.shift.start_time|date:"Y-m-d H:i" }}</td>
+                                    <td>{{ s.shift.end_time|date:"H:i"|default:"مفتوحة" }}</td>
+                                    <td>{% if s.duration_min %}{{ s.duration_min }} د{% else %}—{% endif %}</td>
+                                    <td class="text-success fw-bold">{{ s.revenue }} ج.م</td>
+                                    <td class="text-danger">{{ s.expenses }} ج.م</td>
+                                    <td class="{% if s.cash_diff >= 0 %}text-success{% else %}text-danger fw-bold{% endif %}">
+                                        {% if s.cash_diff >= 0 %}+{% endif %}{{ s.cash_diff }} ج.م
+                                    </td>
+                                    <td>
+                                        {% if s.status == 'open' %}<span class="badge bg-success">مفتوحة</span>
+                                        {% else %}<span class="badge bg-secondary">مغلقة</span>{% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="9" class="text-center text-muted py-3">لا توجد ورديات.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-            </div>
-        </div>
-    </div>
-</div>
+                <!-- ═══ تقرير 7: العملاء المميزون ═══ -->
+                <div class="tab-pane fade" id="customers" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-people-fill"></i> تقرير العملاء المميزين</h5>
+                        <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة</button>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-7 mb-4">
+                            <h6 class="text-success mb-3"><i class="bi bi-trophy-fill"></i> أكبر العملاء من حيث الإنفاق</h6>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-striped align-middle border border-secondary small">
+                                    <thead><tr><th>#</th><th>العميل</th><th>الهاتف</th><th>الفواتير</th><th>متوسط</th><th>الإجمالي</th></tr></thead>
+                                    <tbody>
+                                        {% for c in customers_report.top_buyers %}
+                                        <tr>
+                                            <td class="text-warning fw-bold">{{ forloop.counter }}</td>
+                                            <td class="fw-bold text-info">{{ c.customer__name }}</td>
+                                            <td class="text-muted small">{{ c.customer__phone }}</td>
+                                            <td>{{ c.orders_count }}</td>
+                                            <td>{{ c.avg_order|floatformat:0 }} ج.م</td>
+                                            <td class="text-success fw-bold">{{ c.total_spent }} ج.م</td>
+                                        </tr>
+                                        {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">لا توجد بيانات.</td></tr>{% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-lg-5 mb-4">
+                            <h6 class="text-warning mb-3"><i class="bi bi-tools"></i> أكثر العملاء طلباً للصيانة</h6>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-striped align-middle border border-secondary small">
+                                    <thead><tr><th>العميل</th><th>التذاكر</th><th>المصنعية</th></tr></thead>
+                                    <tbody>
+                                        {% for c in customers_report.top_repair %}
+                                        <tr>
+                                            <td class="fw-bold text-info">{{ c.customer__name }}</td>
+                                            <td><span class="badge bg-warning text-dark">{{ c.tickets_count }}</span></td>
+                                            <td class="text-success fw-bold">{{ c.total_labor|default:0 }} ج.م</td>
+                                        </tr>
+                                        {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">لا يوجد.</td></tr>{% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ تقرير 8: الأجهزة المستعملة P&L ═══ -->
+                <div class="tab-pane fade" id="used-devices" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-phone-flip"></i> تقرير أرباح الأجهزة المستعملة</h5>
+                        <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة</button>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">أجهزة تم شراؤها</h6>
+                                <h3 class="text-primary fw-bold">{{ used_devices_report.purchased_count }}</h3>
+                                <p class="text-muted small mb-0">بتكلفة {{ used_devices_report.purchased_cost }} ج.م</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">أجهزة تم بيعها</h6>
+                                <h3 class="text-success fw-bold">{{ used_devices_report.sold_count }}</h3>
+                                <p class="text-muted small mb-0">بإيراد {{ used_devices_report.sold_revenue }} ج.م</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center border-success">
+                                <h6 class="text-secondary small">صافي الربح</h6>
+                                <h3 class="{% if used_devices_report.profit >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">{{ used_devices_report.profit }} ج.م</h3>
+                                <p class="text-muted small mb-0">هامش {{ used_devices_report.margin }}%</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center border-warning">
+                                <h6 class="text-secondary small">في المخزن حالياً</h6>
+                                <h3 class="text-warning fw-bold">{{ used_devices_report.in_stock.count }}</h3>
+                                <p class="text-muted small mb-0">بتكلفة {{ used_devices_report.in_stock_cost }} ج.م</p>
+                            </div>
+                        </div>
+                    </div>
+                    <h6 class="text-warning mb-3"><i class="bi bi-box-seam"></i> الأجهزة المستعملة المتاحة</h6>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-striped align-middle border border-secondary small">
+                            <thead><tr><th>الجهاز</th><th>IMEI</th><th>الحالة</th><th>التكلفة</th><th>المشترى من</th><th>تاريخ الشراء</th></tr></thead>
+                            <tbody>
+                                {% for dev in used_devices_report.in_stock %}
+                                <tr>
+                                    <td class="fw-bold">{{ dev.product.name }}</td>
+                                    <td class="text-muted font-monospace small">{{ dev.imei }}</td>
+                                    <td><span class="badge bg-secondary">{{ dev.used_status|default:"مستعمل" }}</span></td>
+                                    <td class="text-danger fw-bold">{{ dev.cost }} ج.م</td>
+                                    <td>{{ dev.purchased_from.name|default:"—" }}</td>
+                                    <td class="text-muted">{{ dev.created_at|date:"Y-m-d" }}</td>
+                                </tr>
+                                {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">لا توجد أجهزة مستعملة في المخزن.</td></tr>{% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ═══ تقرير 9: الضمانات ═══ -->
+                <div class="tab-pane fade" id="warranty" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-shield-check"></i> تقرير الضمانات</h5>
+                        <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة</button>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="report-kpi-card text-center border-success">
+                                <h6 class="text-secondary small">ضمانات نشطة</h6>
+                                <h3 class="text-success fw-bold">{{ warranty_report.active|length }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="report-kpi-card text-center border-warning">
+                                <h6 class="text-secondary small">تنتهي خلال 30 يوم ⚠️</h6>
+                                <h3 class="text-warning fw-bold">{{ warranty_report.expiring_soon|length }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="report-kpi-card text-center border-danger">
+                                <h6 class="text-secondary small">ضمانات منتهية</h6>
+                                <h3 class="text-danger fw-bold">{{ warranty_report.expired|length }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    {% if warranty_report.expiring_soon %}
+                    <div class="alert" style="background:rgba(234,179,8,0.1);border:1px solid #ca8a04;border-radius:8px;" class="mb-3">
+                        <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+                        <strong>تنبيه:</strong> {{ warranty_report.expiring_soon|length }} ضمانة ستنتهي خلال 30 يوم.
+                    </div>
+                    {% endif %}
+                    <ul class="nav nav-tabs mb-3">
+                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#w-active">نشطة</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#w-expiring">تنتهي قريباً</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#w-expired">منتهية</button></li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="w-active">
+                            <div class="table-responsive">
+                                <table class="table table-dark table-striped align-middle border border-secondary small">
+                                    <thead><tr><th>الجهاز</th><th>العميل</th><th>بداية الضمان</th><th>نهاية الضمان</th><th>الأيام المتبقية</th></tr></thead>
+                                    <tbody>
+                                        {% for w in warranty_report.active %}
+                                        <tr>
+                                            <td class="fw-bold">{{ w.device.product.name|default:"—" }}</td>
+                                            <td class="text-info">{{ w.customer.name|default:"—" }}</td>
+                                            <td>{{ w.start_date|date:"Y-m-d" }}</td>
+                                            <td>{{ w.end_date|date:"Y-m-d" }}</td>
+                                            <td><span class="badge bg-success">{{ w.days_remaining }} يوم</span></td>
+                                        </tr>
+                                        {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">لا توجد ضمانات نشطة.</td></tr>{% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="w-expiring">
+                            <div class="table-responsive">
+                                <table class="table table-dark table-striped align-middle border border-secondary small">
+                                    <thead><tr><th>الجهاز</th><th>العميل</th><th>الهاتف</th><th>تنتهي في</th><th>باقي</th></tr></thead>
+                                    <tbody>
+                                        {% for w in warranty_report.expiring_soon %}
+                                        <tr>
+                                            <td class="fw-bold">{{ w.device.product.name|default:"—" }}</td>
+                                            <td class="text-info">{{ w.customer.name|default:"—" }}</td>
+                                            <td class="text-muted small">{{ w.customer.phone|default:"—" }}</td>
+                                            <td>{{ w.end_date|date:"Y-m-d" }}</td>
+                                            <td><span class="badge bg-warning text-dark">{{ w.days_remaining }} يوم</span></td>
+                                        </tr>
+                                        {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">لا توجد.</td></tr>{% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="w-expired">
+                            <div class="table-responsive">
+                                <table class="table table-dark table-striped align-middle border border-secondary small">
+                                    <thead><tr><th>الجهاز</th><th>العميل</th><th>انتهت في</th></tr></thead>
+                                    <tbody>
+                                        {% for w in warranty_report.expired %}
+                                        <tr>
+                                            <td class="fw-bold">{{ w.device.product.name|default:"—" }}</td>
+                                            <td class="text-info">{{ w.customer.name|default:"—" }}</td>
+                                            <td class="text-danger">{{ w.end_date|date:"Y-m-d" }}</td>
+                                        </tr>
+                                        {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">لا توجد.</td></tr>{% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ تقرير 10: الذمم المدينة ═══ -->
+                <div class="tab-pane fade" id="receivables" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-currency-dollar"></i> تقرير الذمم المدينة</h5>
+                        <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة</button>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="report-kpi-card text-center border-danger">
+                                <h6 class="text-secondary small">إجمالي الذمم المدينة</h6>
+                                <h3 class="text-danger fw-bold">{{ receivables_report.total }} ج.م</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="report-kpi-card text-center">
+                                <h6 class="text-secondary small">عدد الفواتير غير المحصلة</h6>
+                                <h3 class="text-warning fw-bold">{{ receivables_report.count }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-striped align-middle border border-secondary">
+                            <thead><tr>
+                                <th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th>
+                                <th>الهاتف</th><th>قيمة الفاتورة</th><th>المدفوع</th><th>المتبقي</th>
+                            </tr></thead>
+                            <tbody>
+                                {% for r in receivables_report.list %}
+                                <tr>
+                                    <td class="text-muted font-monospace">#{{ r.invoice.id }}</td>
+                                    <td class="small">{{ r.date|date:"Y-m-d" }}</td>
+                                    <td class="fw-bold text-info">{{ r.customer.name|default:"بدون اسم" }}</td>
+                                    <td class="text-muted small">{{ r.customer.phone|default:"—" }}</td>
+                                    <td>{{ r.net_amount }} ج.م</td>
+                                    <td class="text-success">{{ r.paid }} ج.م</td>
+                                    <td class="text-danger fw-bold fs-6">{{ r.balance }} ج.م</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="7" class="text-center text-success py-4">
+                                    <i class="bi bi-check-circle-fill fs-3 d-block mb-2"></i>
+                                    ممتاز! لا توجد ذمم مدينة غير محصلة في هذه الفترة.
+                                </td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ═══ تقرير 11: أداء الفنيين التفصيلي ═══ -->
+                <div class="tab-pane fade" id="tech-report" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-award"></i> تقرير أداء الفنيين التفصيلي</h5>
+                        <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة</button>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        {% for tech in tech_report.technicians %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="report-kpi-card" style="border:1px solid rgba(59,130,246,0.3);">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#7c3aed);display:flex;align-items:center;justify-content:center;" class="me-3 flex-shrink-0">
+                                        <i class="bi bi-person-fill text-white fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-bold text-info">{{ tech.technician.username }}</h6>
+                                        <small class="text-muted">فني صيانة</small>
+                                    </div>
+                                </div>
+                                <div class="row g-2 text-center mb-2">
+                                    <div class="col-4"><div class="text-muted small">إجمالي</div><div class="fw-bold text-white">{{ tech.total_tickets }}</div></div>
+                                    <div class="col-4"><div class="text-muted small">منجزة</div><div class="fw-bold text-success">{{ tech.done_tickets }}</div></div>
+                                    <div class="col-4"><div class="text-muted small">معلقة</div><div class="fw-bold text-warning">{{ tech.pending_tickets }}</div></div>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted small">نسبة الإنجاز</span>
+                                    <span class="fw-bold {% if tech.completion_rate >= 80 %}text-success{% elif tech.completion_rate >= 50 %}text-warning{% else %}text-danger{% endif %}">{{ tech.completion_rate }}%</span>
+                                </div>
+                                <div class="progress mb-2" style="height:6px;">
+                                    <div class="progress-bar {% if tech.completion_rate >= 80 %}bg-success{% elif tech.completion_rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="width:{{ tech.completion_rate }}%"></div>
+                                </div>
+                                <div class="d-flex justify-content-between"><span class="text-muted small">المصنعية الإجمالية</span><span class="fw-bold text-success">{{ tech.total_labor }} ج.م</span></div>
+                                <div class="d-flex justify-content-between"><span class="text-muted small">متوسط/تذكرة</span><span class="fw-bold text-info">{{ tech.avg_labor }} ج.م</span></div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center text-muted py-5">
+                            <i class="bi bi-people fs-1 d-block mb-3 opacity-25"></i>
+                            لا توجد بيانات فنيين في هذه الفترة.
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- ═══ تقرير 12: التدفق النقدي اليومي ═══ -->
+                <div class="tab-pane fade" id="cashflow" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-graph-up"></i> التدفق النقدي اليومي</h5>
+                        <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة</button>
+                    </div>
+                    <div class="glass-card p-4 mb-4">
+                        <canvas id="cashflowChart" height="110"></canvas>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-striped align-middle border border-secondary small">
+                            <thead><tr>
+                                <th>التاريخ</th><th>الفواتير</th><th>الإيرادات</th>
+                                <th>المصاريف</th><th>الصافي</th><th>الحالة</th>
+                            </tr></thead>
+                            <tbody>
+                                {% for d in cashflow_report.daily %}
+                                <tr>
+                                    <td class="fw-bold">{{ d.day|date:"Y-m-d" }}</td>
+                                    <td>{{ d.count }}</td>
+                                    <td class="text-success fw-bold">{{ d.revenue }} ج.م</td>
+                                    <td class="text-danger">{{ d.expenses }} ج.م</td>
+                                    <td class="fw-bold {% if d.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {% if d.net >= 0 %}+{% endif %}{{ d.net }} ج.م
+                                    </td>
+                                    <td>
+                                        {% if d.net > 0 %}<span class="badge bg-success">ربح</span>
+                                        {% elif d.net < 0 %}<span class="badge bg-danger">خسارة</span>
+                                        {% else %}<span class="badge bg-secondary">تعادل</span>{% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="6" class="text-center text-muted py-4">لا توجد بيانات في هذه الفترة.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div><!-- /.tab-content -->
+        </div><!-- /.glass-card -->
+    </div><!-- /.col-lg-12 -->
+</div><!-- /.row -->
 
 <!-- ========================================== -->
 <!-- FINANCIAL DETAIL MODALS -->
@@ -1242,6 +1666,69 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Cash Flow Chart
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('cashflowChart');
+        if (!ctx) return;
+        const labels = {{ cashflow_report.labels|safe }};
+        const revenues = {{ cashflow_report.revenues|safe }};
+        const expensesData = {{ cashflow_report.expenses|safe }};
+        const nets = {{ cashflow_report.nets|safe }};
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'الإيرادات',
+                        data: revenues,
+                        backgroundColor: 'rgba(34,197,94,0.5)',
+                        borderColor: 'rgba(34,197,94,1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'المصاريف',
+                        data: expensesData,
+                        backgroundColor: 'rgba(239,68,68,0.5)',
+                        borderColor: 'rgba(239,68,68,1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'صافي اليوم',
+                        data: nets,
+                        type: 'line',
+                        borderColor: 'rgba(96,165,250,1)',
+                        backgroundColor: 'rgba(96,165,250,0.1)',
+                        pointBackgroundColor: 'rgba(96,165,250,1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { labels: { color: '#94a3b8', font: { family: 'Cairo' } } },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.dataset.label + ': ' + ctx.raw.toLocaleString('ar-EG') + ' ج.م'
+                        }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: '#64748b', font: { family: 'Cairo', size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    y: { ticks: { color: '#64748b', font: { family: 'Cairo', size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                }
+            }
+        });
+    });
+</script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         // Restore active tab from localStorage if exists

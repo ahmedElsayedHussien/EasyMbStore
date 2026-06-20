@@ -24,6 +24,7 @@
                     <th>المدفوع</th>
                     <th>الآجل (المتبقي)</th>
                     <th>التاريخ</th>
+                    <th>الإجراءات</th>
                 </tr>
             </thead>
             <tbody>
@@ -54,14 +55,119 @@
                             {{ purchase.remaining_amount }} ج.م
                         </td>
                         <td>{{ purchase.invoice_date|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            {% if purchase.remaining_amount > 0 and purchase.payment_method != 'cash' %}
+                                <button type="button" class="btn btn-sm btn-outline-success btn-pay" 
+                                        data-invoice-id="{{ purchase.id }}" 
+                                        data-invoice-num="{{ purchase.supplier_invoice_number|default:purchase.id }}"
+                                        data-supplier-name="{{ purchase.supplier.name }}"
+                                        data-remaining="{{ purchase.remaining_amount }}">
+                                    <i class="bi bi-cash-coin"></i> سداد دفعة
+                                </button>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-check-all"></i> مسددة بالكامل</span>
+                            {% endif %}
+                        </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="11" class="text-center text-secondary py-4">لا توجد فواتير مشتريات مسجلة حتى الآن.</td>
+                        <td colspan="12" class="text-center text-secondary py-4">لا توجد فواتير مشتريات مسجلة حتى الآن.</td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<!-- Modal Settle Payment -->
+<div class="modal fade" id="payInvoiceModal" tabindex="-1" aria-labelledby="payInvoiceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-glass">
+            <div class="modal-header modal-header-glass">
+                <h5 class="modal-title fw-bold text-success" id="payInvoiceModalLabel">
+                    <i class="bi bi-cash-coin me-2"></i> تسجيل سداد دفعة للمورد
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="payInvoiceForm" method="POST" action="">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">المورد</label>
+                        <input type="text" id="modal-supplier-name" class="form-control bg-dark border-secondary text-light" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">رقم الفاتورة</label>
+                        <input type="text" id="modal-invoice-num" class="form-control bg-dark border-secondary text-light" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">المبلغ المتبقي الحالي</label>
+                        <div class="input-group">
+                            <input type="text" id="modal-remaining-amount" class="form-control bg-dark border-secondary text-light fw-bold" readonly>
+                            <span class="input-group-text bg-secondary border-secondary text-light">ج.م</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal-pay-amount" class="form-label text-light fw-bold">المبلغ المراد سداده</label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" min="0.01" name="amount" id="modal-pay-amount" class="form-control bg-dark border-primary text-light fw-bold text-success" required>
+                            <span class="input-group-text bg-primary border-primary text-light">ج.م</span>
+                        </div>
+                        <div class="form-text text-secondary">أقصى مبلغ يمكن سداده هو المبلغ المتبقي للفاتورة.</div>
+                    </div>
+                    
+                    <div class="form-check form-switch p-3 bg-white-5 rounded border border-secondary mb-2">
+                        <input class="form-check-input ms-0 me-2 float-end" type="checkbox" role="switch" name="deduct_from_shift" id="modal-deduct-shift" {% if has_open_shift %}checked{% else %}disabled{% endif %}>
+                        <label class="form-check-label text-light me-4 float-start" for="modal-deduct-shift">
+                            خصم المبلغ من درج الكاشير الحالي (الوردية النشطة)
+                        </label>
+                        <div style="clear: both;"></div>
+                        {% if not has_open_shift %}
+                            <div class="form-text text-warning mt-1"><i class="bi bi-exclamation-triangle-fill"></i> لا توجد وردية مفتوحة لحسابك حالياً. لن تتمكن من الخصم من الخزينة.</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer modal-footer-glass">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> تأكيد السداد</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const payButtons = document.querySelectorAll('.btn-pay');
+        const modal = new bootstrap.Modal(document.getElementById('payInvoiceModal'));
+        const form = document.getElementById('payInvoiceForm');
+        const supplierInput = document.getElementById('modal-supplier-name');
+        const invoiceInput = document.getElementById('modal-invoice-num');
+        const remainingInput = document.getElementById('modal-remaining-amount');
+        const payAmountInput = document.getElementById('modal-pay-amount');
+        
+        payButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const invoiceId = this.dataset.invoiceId;
+                const invoiceNum = this.dataset.invoiceNum;
+                const supplierName = this.dataset.supplierName;
+                const remaining = parseFloat(this.dataset.remaining);
+                
+                // Set values
+                supplierInput.value = supplierName;
+                invoiceInput.value = invoiceNum;
+                remainingInput.value = remaining.toFixed(2);
+                payAmountInput.value = remaining.toFixed(2);
+                payAmountInput.max = remaining;
+                
+                // Set action URL
+                form.action = `/purchases/${invoiceId}/pay/`;
+                
+                modal.show();
+            });
+        });
+    });
+</script>
 {% endblock %}

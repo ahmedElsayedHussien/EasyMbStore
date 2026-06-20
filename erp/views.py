@@ -573,8 +573,13 @@ def product_name_search(request):
 @login_required
 @permission_required('erp.view_purchaseinvoice', raise_exception=True)
 def purchase_invoice_list(request):
+    from erp.models import CashShift
     purchases = PurchaseInvoice.objects.all().order_by('-invoice_date').select_related('supplier', 'created_by')
-    return render(request, 'erp/purchase_list.html', {'purchases': purchases})
+    has_open_shift = CashShift.objects.filter(cashier=request.user, status='open').exists()
+    return render(request, 'erp/purchase_list.html', {
+        'purchases': purchases,
+        'has_open_shift': has_open_shift
+    })
 @login_required
 @permission_required('erp.add_purchaseinvoice', raise_exception=True)
 def purchase_invoice_create(request):
@@ -624,9 +629,11 @@ def purchase_invoice_detail(request, pk):
     """
     عرض تفاصيل فاتورة الشراء من الموردين.
     """
+    from erp.models import CashShift
     invoice = get_object_or_404(PurchaseInvoice, pk=pk)
     items = invoice.items.all().select_related('product', 'warehouse')
     store_setting = StoreSetting.objects.first()
+    has_open_shift = CashShift.objects.filter(cashier=request.user, status='open').exists()
     # تفكيك السيريالات وعرضها بشكل مرتب إذا وجد
     for item in items:
         if item.product.requires_imei and item.imei_list:
@@ -635,8 +642,85 @@ def purchase_invoice_detail(request, pk):
         'invoice': invoice,
         'items': items,
         'store_setting': store_setting,
+        'has_open_shift': has_open_shift,
     }
     return render(request, 'erp/purchase_invoice_detail.html', context)
+
+@login_required
+@permission_required('erp.change_purchaseinvoice', raise_exception=True)
+def purchase_invoice_pay(request, pk):
+    """
+    تسجيل سداد دفعة لفاتورة مشتريات مورد (نقداً أو آجل).
+    """
+    from decimal import Decimal
+    from django.contrib import messages
+    from erp.models import Expense, ExpenseCategory, CashShift, PurchaseInvoice
+    
+    invoice = get_object_or_404(PurchaseInvoice, pk=pk)
+    
+    if request.method == 'POST':
+        amount_str = request.POST.get('amount')
+        deduct_from_shift = request.POST.get('deduct_from_shift') == 'on'
+        
+        try:
+            amount = Decimal(amount_str)
+        except (ValueError, TypeError):
+            messages.error(request, "خطأ: قيمة غير صالحة للمبلغ.")
+            return redirect('erp:purchase_list')
+            
+        if amount <= 0:
+            messages.error(request, "خطأ: يجب أن يكون مبلغ السداد أكبر من صفر.")
+            return redirect('erp:purchase_list')
+            
+        remaining = invoice.remaining_amount
+        if amount > remaining:
+            messages.error(request, f"خطأ: لا يمكن سداد مبلغ أكبر من المبلغ المتبقي ({remaining} ج.م).")
+            return redirect('erp:purchase_list')
+            
+        # إذا تم طلب الخصم من الوردية الحالية
+        if deduct_from_shift:
+            # التحقق من وجود وردية مفتوحة للمستخدم الحالي
+            shift = CashShift.objects.filter(cashier=request.user, status='open').first()
+            if not shift:
+                messages.error(request, "خطأ: لا توجد وردية مفتوحة لحسابك حالياً للخصم منها. تم إلغاء عملية السداد.")
+                next_url = request.META.get('HTTP_REFERER')
+                if next_url:
+                    return redirect(next_url)
+                return redirect('erp:purchase_list')
+                
+            # التحقق من كفاية الرصيد المتوفر في الوردية
+            if amount > shift.expected_closing_balance:
+                messages.error(request, f"خطأ: لا يمكن سداد المبلغ من الوردية الحالية لأن النقدية المتوفرة في درج الوردية ({shift.expected_closing_balance} ج.م) أقل من المبلغ المراد سداده ({amount} ج.م).")
+                next_url = request.META.get('HTTP_REFERER')
+                if next_url:
+                    return redirect(next_url)
+                return redirect('erp:purchase_list')
+                
+            # إيجاد أو إنشاء تصنيف سداد الموردين
+            category, created = ExpenseCategory.objects.get_or_create(name="سداد موردين")
+            
+            # تسجيل المصروف
+            Expense.objects.create(
+                shift=shift,
+                category=category,
+                amount=amount,
+                description=f"سداد دفعة لفاتورة المشتريات رقم {invoice.supplier_invoice_number or invoice.id} للمورد {invoice.supplier.name}"
+            )
+            
+        # تحديث قيمة المبلغ المدفوع في الفاتورة
+        invoice.paid_amount += amount
+        invoice.save()
+        
+        messages.success(request, f"تم تسجيل سداد مبلغ {amount} ج.م للمورد {invoice.supplier.name} بنجاح.")
+        
+        # التوجيه لنفس الصفحة التي تم استدعاء الطلب منها
+        next_url = request.META.get('HTTP_REFERER')
+        if next_url:
+            return redirect(next_url)
+        return redirect('erp:purchase_list')
+        
+    return redirect('erp:purchase_list')
+
 # ==========================================
 # 5. حركة تحويل المخازن (Stock Transfers)
 # ==========================================
@@ -960,6 +1044,13 @@ def shift_add_expense(request):
     if form.is_valid():
         expense = form.save(commit=False)
         expense.shift = active_shift
+        
+        # منع تسجيل مصروف أكبر من الرصيد المتوفر في درج الوردية
+        if expense.amount > active_shift.expected_closing_balance:
+            return JsonResponse({
+                'error': f'عذراً، لا يمكن تسجيل مصروف بقيمة {expense.amount} ج.م لأن النقدية المتوفرة في درج الوردية حالياً هي {active_shift.expected_closing_balance} ج.م فقط.'
+            }, status=400)
+            
         expense.save() # سيقوم الـ Signal بإعادة حساب الوردية تلقائياً
         return JsonResponse({
             'status': 'success',
@@ -1325,7 +1416,8 @@ def reports_dashboard(request):
     from datetime import datetime, timedelta
     from erp.models import (
         Warehouse, Product, Stock, Device, PurchaseInvoice, PurchaseItem,
-        SaleInvoice, SaleItem, Payment, RepairTicket, RepairPartUsed, Expense, Contact
+        SaleInvoice, SaleItem, Payment, RepairTicket, RepairPartUsed, Expense, Contact,
+        CashShift, Warranty
     )
     # 1. Parse Date Range Filters
     start_date_str = request.GET.get('start_date')
@@ -1532,6 +1624,243 @@ def reports_dashboard(request):
     maint_paginator = Paginator(tickets_qs, 10)
     maint_page_number = request.GET.get('maint_page', 1)
     tickets_page = maint_paginator.get_page(maint_page_number)
+    # ==========================================
+    # 6. CASHIER / SHIFTS REPORT (تقرير الكاشير والورديات)
+    # ==========================================
+    shifts_in_period = CashShift.objects.filter(
+        start_time__range=(start_dt, end_dt)
+    ).select_related('cashier').prefetch_related('expenses', 'saleinvoice_set')
+
+    cashier_stats = []
+    for shift in shifts_in_period:
+        shift_sales = SaleInvoice.objects.filter(shift=shift)
+        shift_revenue = shift_sales.aggregate(total=models.Sum('net_amount'))['total'] or Decimal('0.00')
+        shift_sales_count = shift_sales.count()
+        shift_expenses = shift.expenses.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+        shift_net = shift_revenue - shift_expenses
+        duration = None
+        if shift.end_time:
+            duration = (shift.end_time - shift.start_time).seconds // 60
+        cash_diff = Decimal('0.00')
+        if shift.actual_cash is not None and shift.expected_closing_balance is not None:
+            cash_diff = shift.actual_cash - shift.expected_closing_balance
+        cashier_stats.append({
+            'shift': shift,
+            'cashier': shift.cashier,
+            'revenue': shift_revenue,
+            'sales_count': shift_sales_count,
+            'expenses': shift_expenses,
+            'net': shift_net,
+            'duration_min': duration,
+            'cash_diff': cash_diff,
+            'status': shift.status,
+        })
+
+    # Aggregate per cashier
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    cashier_summary = {}
+    for s in cashier_stats:
+        uid = s['cashier'].id if s['cashier'] else 0
+        uname = s['cashier'].username if s['cashier'] else 'غير محدد'
+        if uid not in cashier_summary:
+            cashier_summary[uid] = {
+                'username': uname,
+                'total_revenue': Decimal('0.00'),
+                'total_sales': 0,
+                'total_expenses': Decimal('0.00'),
+                'shifts_count': 0,
+            }
+        cashier_summary[uid]['total_revenue'] += s['revenue']
+        cashier_summary[uid]['total_sales'] += s['sales_count']
+        cashier_summary[uid]['total_expenses'] += s['expenses']
+        cashier_summary[uid]['shifts_count'] += 1
+    cashier_summary_list = sorted(cashier_summary.values(), key=lambda x: x['total_revenue'], reverse=True)
+
+    # ==========================================
+    # 7. TOP CUSTOMERS REPORT (تقرير العملاء المميزين)
+    # ==========================================
+    top_customers_qs = SaleInvoice.objects.filter(
+        date_created__range=(start_dt, end_dt),
+        customer__isnull=False
+    ).values(
+        'customer__id', 'customer__name', 'customer__phone'
+    ).annotate(
+        total_spent=models.Sum('net_amount'),
+        orders_count=models.Count('id'),
+        avg_order=models.Avg('net_amount'),
+    ).order_by('-total_spent')[:20]
+
+    # Customers with repair tickets (للصيانة أيضاً)
+    top_repair_customers = RepairTicket.objects.filter(
+        created_at__range=(start_dt, end_dt),
+        customer__isnull=False
+    ).values(
+        'customer__id', 'customer__name', 'customer__phone'
+    ).annotate(
+        tickets_count=models.Count('id'),
+        total_labor=models.Sum('labor_cost'),
+    ).order_by('-tickets_count')[:10]
+
+    # ==========================================
+    # 8. USED DEVICES P&L (تقرير أرباح الأجهزة المستعملة)
+    # ==========================================
+    # Devices purchased (used) in period
+    used_purchased = Device.objects.filter(
+        used_status='purchased',
+        created_at__range=(start_dt, end_dt)
+    ).select_related('product', 'purchased_from')
+
+    # Devices sold (was used) in period
+    used_sold = SaleItem.objects.filter(
+        invoice__date_created__range=(start_dt, end_dt),
+        device__isnull=False,
+        device__condition='used'
+    ).select_related('device__product', 'device__purchased_from', 'invoice')
+
+    used_purchased_cost = used_purchased.aggregate(total=models.Sum('cost'))['total'] or Decimal('0.00')
+    used_sold_revenue = used_sold.aggregate(
+        total=models.Sum(models.F('quantity') * models.F('unit_price'))
+    )['total'] or Decimal('0.00')
+    used_sold_cost = Decimal('0.00')
+    for item in used_sold:
+        used_sold_cost += item.device.cost if item.device else Decimal('0.00')
+    used_profit = used_sold_revenue - used_sold_cost
+    used_margin = (used_profit / used_sold_revenue * 100) if used_sold_revenue > 0 else Decimal('0.00')
+
+    # All used devices currently in stock (not sold)
+    used_in_stock = Device.objects.filter(
+        is_sold=False, condition='used'
+    ).select_related('product', 'purchased_from')
+    used_in_stock_cost = used_in_stock.aggregate(total=models.Sum('cost'))['total'] or Decimal('0.00')
+
+    # ==========================================
+    # 9. WARRANTIES REPORT (تقرير الضمانات)
+    # ==========================================
+    from datetime import date as date_type
+    warranties_all = Warranty.objects.select_related(
+        'device__product', 'customer', 'invoice'
+    ).order_by('-start_date')
+
+    today_date = timezone.localtime(timezone.now()).date()
+    warranties_active = []
+    warranties_expiring_soon = []  # expiring within 30 days
+    warranties_expired = []
+
+    for w in warranties_all:
+        end_date_w = w.start_date + timedelta(days=w.duration_days)
+        w.end_date = end_date_w
+        days_remaining = (end_date_w - today_date).days
+        w.days_remaining = days_remaining
+        if days_remaining < 0:
+            warranties_expired.append(w)
+        elif days_remaining <= 30:
+            warranties_expiring_soon.append(w)
+        else:
+            warranties_active.append(w)
+
+    # ==========================================
+    # 10. RECEIVABLES REPORT (تقرير الذمم المدينة)
+    # ==========================================
+    # Sale invoices with outstanding balance (if payment < net_amount)
+    all_sales = SaleInvoice.objects.filter(
+        date_created__range=(start_dt, end_dt)
+    ).select_related('customer', 'cashier').prefetch_related('payments')
+
+    receivables_list = []
+    total_receivables = Decimal('0.00')
+    for inv in all_sales:
+        total_paid_inv = inv.payments.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+        balance = inv.net_amount - total_paid_inv
+        if balance > Decimal('0.01'):
+            receivables_list.append({
+                'invoice': inv,
+                'customer': inv.customer,
+                'net_amount': inv.net_amount,
+                'paid': total_paid_inv,
+                'balance': balance,
+                'date': inv.date_created,
+            })
+            total_receivables += balance
+    receivables_list.sort(key=lambda x: x['balance'], reverse=True)
+
+    # ==========================================
+    # 11. TECH PERFORMANCE (تقرير أداء الفنيين التفصيلي)
+    # ==========================================
+    tech_detailed = []
+    technicians = User.objects.filter(
+        repairticket__created_at__range=(start_dt, end_dt)
+    ).distinct()
+
+    for tech in technicians:
+        tech_tickets = RepairTicket.objects.filter(
+            technician=tech, created_at__range=(start_dt, end_dt)
+        )
+        total_tickets = tech_tickets.count()
+        done_tickets = tech_tickets.filter(status__in=['done', 'delivered']).count()
+        pending_tickets = tech_tickets.filter(status__in=['pending', 'in_progress', 'waiting_parts']).count()
+        total_labor_tech = tech_tickets.aggregate(total=models.Sum('labor_cost'))['total'] or Decimal('0.00')
+        completion_rate = round((done_tickets / total_tickets * 100), 1) if total_tickets > 0 else 0
+        avg_labor = (total_labor_tech / done_tickets) if done_tickets > 0 else Decimal('0.00')
+        tech_detailed.append({
+            'technician': tech,
+            'total_tickets': total_tickets,
+            'done_tickets': done_tickets,
+            'pending_tickets': pending_tickets,
+            'total_labor': total_labor_tech,
+            'completion_rate': completion_rate,
+            'avg_labor': round(avg_labor, 2),
+        })
+    tech_detailed.sort(key=lambda x: x['total_labor'], reverse=True)
+
+    # ==========================================
+    # 12. DAILY CASH FLOW (تقرير التدفق النقدي اليومي)
+    # ==========================================
+    from django.db.models.functions import TruncDate
+    daily_sales = SaleInvoice.objects.filter(
+        date_created__range=(start_dt, end_dt)
+    ).annotate(
+        day=TruncDate('date_created')
+    ).values('day').annotate(
+        revenue=models.Sum('net_amount'),
+        count=models.Count('id')
+    ).order_by('day')
+
+    daily_expenses = Expense.objects.filter(
+        shift__start_time__range=(start_dt, end_dt)
+    ).annotate(
+        day=TruncDate('shift__start_time')
+    ).values('day').annotate(
+        expenses=models.Sum('amount')
+    ).order_by('day')
+
+    # Merge into single list
+    daily_map = {}
+    for d in daily_sales:
+        key = str(d['day'])
+        daily_map[key] = {
+            'day': d['day'],
+            'revenue': d['revenue'] or Decimal('0.00'),
+            'count': d['count'],
+            'expenses': Decimal('0.00'),
+            'net': Decimal('0.00'),
+        }
+    for d in daily_expenses:
+        key = str(d['day'])
+        if key in daily_map:
+            daily_map[key]['expenses'] = d['expenses'] or Decimal('0.00')
+        else:
+            daily_map[key] = {
+                'day': d['day'],
+                'revenue': Decimal('0.00'),
+                'count': 0,
+                'expenses': d['expenses'] or Decimal('0.00'),
+                'net': Decimal('0.00'),
+            }
+    for k in daily_map:
+        daily_map[k]['net'] = daily_map[k]['revenue'] - daily_map[k]['expenses']
+    daily_cashflow = sorted(daily_map.values(), key=lambda x: x['day'])
+
     context = {
         'start_date': start_date,
         'end_date': end_date,
@@ -1587,7 +1916,50 @@ def reports_dashboard(request):
             'parts_profit': parts_profit,
             'total_profit': total_profit,
             'tickets_list': tickets_in_period.select_related('customer', 'technician').prefetch_related('parts_used__product').order_by('-created_at'),
-        }
+        },
+        # ── التقارير الجديدة ──
+        'cashier_report': {
+            'shifts': cashier_stats,
+            'summary': cashier_summary_list,
+            'total_shifts': len(cashier_stats),
+        },
+        'customers_report': {
+            'top_buyers': top_customers_qs,
+            'top_repair': top_repair_customers,
+        },
+        'used_devices_report': {
+            'purchased_count': used_purchased.count(),
+            'purchased_cost': used_purchased_cost,
+            'sold_count': used_sold.count(),
+            'sold_revenue': used_sold_revenue,
+            'sold_cost': used_sold_cost,
+            'profit': used_profit,
+            'margin': round(used_margin, 1),
+            'in_stock': used_in_stock,
+            'in_stock_cost': used_in_stock_cost,
+            'sold_list': used_sold,
+        },
+        'warranty_report': {
+            'active': warranties_active,
+            'expiring_soon': warranties_expiring_soon,
+            'expired': warranties_expired,
+            'total': len(warranties_active) + len(warranties_expiring_soon) + len(warranties_expired),
+        },
+        'receivables_report': {
+            'list': receivables_list[:50],
+            'total': total_receivables,
+            'count': len(receivables_list),
+        },
+        'tech_report': {
+            'technicians': tech_detailed,
+        },
+        'cashflow_report': {
+            'daily': daily_cashflow,
+            'labels': [str(d['day']) for d in daily_cashflow],
+            'revenues': [float(d['revenue']) for d in daily_cashflow],
+            'expenses': [float(d['expenses']) for d in daily_cashflow],
+            'nets': [float(d['net']) for d in daily_cashflow],
+        },
     }
     if request.headers.get('HX-Request'):
         target = request.headers.get('HX-Target')

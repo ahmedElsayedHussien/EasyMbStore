@@ -29,6 +29,7 @@ urlpatterns = [
     path('purchases/', views.purchase_invoice_list, name='purchase_list'),
     path('purchases/create/', views.purchase_invoice_create, name='purchase_create'),
     path('purchases/<int:pk>/', views.purchase_invoice_detail, name='purchase_detail'),
+    path('purchases/<int:pk>/pay/', views.purchase_invoice_pay, name='purchase_pay'),
     
     # حركات تحويل المخازن
     path('transfers/', views.transfer_list, name='transfer_list'),

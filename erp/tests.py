@@ -1290,6 +1290,125 @@ class ERPDetailsViewsTests(TestCase):
         response = self.client.get(f'/purchases/{self.purchase_invoice.id}/')
         self.assertEqual(response.status_code, 200)
 
+    def test_purchase_invoice_pay_view(self):
+        """
+        التحقق من عمل عرض سداد فاتورة المشتريات (purchase_pay).
+        """
+        from decimal import Decimal
+        from django.utils import timezone
+        from erp.models import PurchaseInvoice, CashShift, Expense
+        
+        # 1. إنشاء فاتورة مشتريات آجلة بالكامل
+        credit_invoice = PurchaseInvoice.objects.create(
+            supplier=self.supplier,
+            created_by=self.admin,
+            total_amount=Decimal('500.00'),
+            net_amount=Decimal('500.00'),
+            payment_method='credit',
+            paid_amount=Decimal('0.00')
+        )
+        self.assertEqual(credit_invoice.remaining_amount, Decimal('500.00'))
+        
+        # 2. مستخدم بدون صلاحية تعديل فواتير الشراء
+        self.client.login(username='user_no_perms', password='password123')
+        response = self.client.post(f'/purchases/{credit_invoice.id}/pay/', {'amount': '100.00'})
+        self.assertEqual(response.status_code, 403) # Forbidden
+        
+        # 3. مستخدم بصلاحية (أدمن) يسدد دفعة بدون خصم من الوردية
+        self.client.login(username='admin_details', password='password123')
+        response = self.client.post(f'/purchases/{credit_invoice.id}/pay/', {
+            'amount': '150.00',
+            'deduct_from_shift': 'off'
+        })
+        self.assertEqual(response.status_code, 302) # Redirect
+        
+        # تحقق من تعديل الفاتورة
+        credit_invoice.refresh_from_db()
+        self.assertEqual(credit_invoice.paid_amount, Decimal('150.00'))
+        self.assertEqual(credit_invoice.remaining_amount, Decimal('350.00'))
+        
+        # تحقق من عدم إضافة أي مصروفات
+        self.assertEqual(Expense.objects.filter(description__icontains=str(credit_invoice.id)).count(), 0)
+        
+        # 4. سداد مع الخصم من الوردية
+        # تعيين صلاحية تعديل فواتير الشراء للمستخدم الكاشير
+        from django.contrib.auth.models import Permission
+        change_invoice_perm = Permission.objects.get(codename='change_purchaseinvoice')
+        view_shift_perm = Permission.objects.get(codename='view_cashshift')
+        self.staff_cashier.user_permissions.add(change_invoice_perm, view_shift_perm)
+        
+        # تسجيل الدخول بالكاشير
+        self.client.login(username='cashier_details', password='password123')
+        
+        # فتح وردية للكاشير
+        shift = CashShift.objects.create(
+            cashier=self.staff_cashier,
+            start_time=timezone.now(),
+            opening_balance=Decimal('500.00'),
+            status='open'
+        )
+        
+        response = self.client.post(f'/purchases/{credit_invoice.id}/pay/', {
+            'amount': '100.00',
+            'deduct_from_shift': 'on'
+        })
+        self.assertEqual(response.status_code, 302)
+        
+        # تحقق من تحديث الفاتورة
+        credit_invoice.refresh_from_db()
+        self.assertEqual(credit_invoice.paid_amount, Decimal('250.00')) # 150 + 100
+        
+        # تحقق من إنشاء المصروف للوردية
+        expense = Expense.objects.filter(shift=shift).first()
+        self.assertIsNotNone(expense)
+        self.assertEqual(expense.amount, Decimal('100.00'))
+        self.assertEqual(expense.category.name, "سداد موردين")
+
+        # 5. محاولة السداد بمبلغ أكبر من المتوفر بالوردية (الوردية المتبقي بها هو 400 ج.م)
+        response = self.client.post(f'/purchases/{credit_invoice.id}/pay/', {
+            'amount': '450.00',
+            'deduct_from_shift': 'on'
+        })
+        self.assertEqual(response.status_code, 302)
+        # تحقق من عدم تغيير قيمة الفاتورة
+        credit_invoice.refresh_from_db()
+        self.assertEqual(credit_invoice.paid_amount, Decimal('250.00'))
+
+    def test_shift_add_expense_insufficient_cash(self):
+        """
+        التحقق من رفض إضافة مصروفات تشغيلية بقيمة أكبر من النقدية المتاحة بالوردية.
+        """
+        from decimal import Decimal
+        from erp.models import CashShift, ExpenseCategory
+        
+        # 1. إنشاء مستخدم مسؤول ووردية برصيد 100
+        admin_user = User.objects.create_user(username='admin_exp_test', password='password123', is_staff=True, is_superuser=True)
+        self.client.login(username='admin_exp_test', password='password123')
+        
+        shift = CashShift.objects.create(cashier=admin_user, opening_balance=Decimal('100.00'), status='open')
+        category = ExpenseCategory.objects.create(name='مصاريف صيانة')
+        
+        # 2. محاولة إضافة مصروف أكبر من رصيد الوردية (150 ج.م)
+        response = self.client.post('/shifts/add-expense/', {
+            'category': category.id,
+            'amount': '150.00',
+            'description': 'أدوات'
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('عذراً، لا يمكن تسجيل مصروف', response.json()['error'])
+        
+        # 3. محاولة إضافة مصروف مساوٍ للرصيد المتاح (100 ج.م)
+        response_ok = self.client.post('/shifts/add-expense/', {
+            'category': category.id,
+            'amount': '100.00',
+            'description': 'أدوات مقبولة'
+        })
+        self.assertEqual(response_ok.status_code, 200)
+        
+        # تحقق من تحديث الوردية
+        shift.refresh_from_db()
+        self.assertEqual(shift.expected_closing_balance, Decimal('0.00'))
+
 
 class ERPInventoryDashboardTests(TestCase):
     def setUp(self):
