@@ -1856,3 +1856,40 @@ class ERPReportsViewTests(TestCase):
         maint_filtered = response_filtered.context['maintenance']
         self.assertEqual(maint_filtered['count'], 0)
         self.assertEqual(maint_filtered['total_profit'], Decimal('0.00'))
+
+    def test_repair_ticket_notification_scheduling(self):
+        self.client.login(username='admin_rep', password='password123')
+        
+        # Enable notifications for 'done' status in NotificationSettings
+        from erp.models import NotificationSettings
+        settings_obj = NotificationSettings.get_settings()
+        settings_obj.whatsapp_enabled = True
+        settings_obj.sender_phone = "01000000000"
+        settings_obj.msg_done_enabled = True
+        settings_obj.msg_done = "تم تعديل حالة تذكرتك #{ticket_id} إلى {status_display}"
+        settings_obj.save()
+        
+        from erp.models import NotificationLog
+        NotificationLog.objects.all().delete()
+        
+        # Verify that changing status enqueues a task
+        response = self.client.post(f'/repairs/{self.ticket.id}/change-status/', {
+            'status': 'done'
+        })
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify a NotificationLog was created
+        self.assertEqual(NotificationLog.objects.count(), 1)
+        log = NotificationLog.objects.first()
+        self.assertEqual(log.status, 'queued')
+        self.assertIn(str(self.ticket.id), log.message_body)
+        
+        # Test executing the task manually with selenium mocked to verify task logic
+        from erp.tasks import send_whatsapp_notification
+        from unittest.mock import patch
+        with patch('erp.tasks._send_via_whatsapp_web') as mock_send:
+            send_whatsapp_notification(log.id)
+            mock_send.assert_called_once()
+            
+        log.refresh_from_db()
+        self.assertEqual(log.status, 'sent')

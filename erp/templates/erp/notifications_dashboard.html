@@ -1,0 +1,163 @@
+{% extends "erp/base.html" %}
+
+{% block title %}سجل الإشعارات — EasyMbStore{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold mb-1"><i class="bi bi-bell-fill text-warning me-2"></i>سجل إشعارات الواتساب</h4>
+      <p class="text-muted small mb-0">تتبع كل رسالة أُرسلت أو فشلت أو في الانتظار</p>
+    </div>
+    <div class="d-flex gap-2">
+      {% if settings.whatsapp_enabled %}
+        <span class="badge bg-success fs-6 px-3 py-2"><i class="bi bi-wifi me-1"></i>الواتساب مفعّل</span>
+      {% else %}
+        <span class="badge bg-secondary fs-6 px-3 py-2"><i class="bi bi-wifi-off me-1"></i>الواتساب موقف</span>
+      {% endif %}
+      <a href="{% url 'erp:notification_settings' %}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-gear-fill me-1"></i>الإعدادات
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="glass-card text-center p-3">
+        <div class="fs-1 fw-bold text-white">{{ stats.total }}</div>
+        <div class="text-muted small">إجمالي الإشعارات</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="glass-card text-center p-3" style="border-color: rgba(25,135,84,0.4);">
+        <div class="fs-1 fw-bold text-success">{{ stats.sent }}</div>
+        <div class="text-muted small">تم الإرسال</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="glass-card text-center p-3" style="border-color: rgba(220,53,69,0.4);">
+        <div class="fs-1 fw-bold text-danger">{{ stats.failed }}</div>
+        <div class="text-muted small">فشل الإرسال</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="glass-card text-center p-3" style="border-color: rgba(255,193,7,0.4);">
+        <div class="fs-1 fw-bold text-warning">{{ stats.queued }}</div>
+        <div class="text-muted small">في الانتظار</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="glass-card p-3 mb-4">
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <span class="text-muted small me-2">تصفية حسب الحالة:</span>
+      <a href="{% url 'erp:notifications_dashboard' %}" class="btn btn-sm {% if not status_filter %}btn-primary{% else %}btn-outline-secondary{% endif %}">الكل</a>
+      <a href="?status=sent"    class="btn btn-sm {% if status_filter == 'sent'    %}btn-success{% else %}btn-outline-secondary{% endif %}">تم الإرسال</a>
+      <a href="?status=failed"  class="btn btn-sm {% if status_filter == 'failed'  %}btn-danger{% else %}btn-outline-secondary{% endif %}">فاشلة</a>
+      <a href="?status=queued"  class="btn btn-sm {% if status_filter == 'queued'  %}btn-warning text-dark{% else %}btn-outline-secondary{% endif %}">في الانتظار</a>
+      <a href="?status=skipped" class="btn btn-sm {% if status_filter == 'skipped' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">تم التخطي</a>
+    </div>
+  </div>
+
+  <!-- Logs Table -->
+  <div class="glass-card p-0 overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0">
+        <thead class="border-bottom border-secondary">
+          <tr>
+            <th class="px-3 py-3">#</th>
+            <th>العميل</th>
+            <th>الرقم</th>
+            <th>التذكرة</th>
+            <th>نص الرسالة</th>
+            <th>الوقت</th>
+            <th>الحالة</th>
+            <th>المحاولات</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td class="px-3 text-muted small">{{ log.id }}</td>
+            <td class="fw-semibold">{{ log.customer.name }}</td>
+            <td class="font-monospace small text-info">{{ log.customer.phone }}</td>
+            <td>
+              {% if log.ticket %}
+                <a href="{% url 'erp:repair_detail' log.ticket.pk %}" class="text-decoration-none text-primary small">
+                  #{{ log.ticket.id }}
+                </a>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td style="max-width: 280px;">
+              <div class="text-truncate small text-light" title="{{ log.message_body }}">
+                {{ log.message_body }}
+              </div>
+              {% if log.error_message %}
+                <div class="text-danger small mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ log.error_message|truncatechars:80 }}</div>
+              {% endif %}
+            </td>
+            <td class="small text-muted text-nowrap">{{ log.sent_at|date:"d/m/Y H:i" }}</td>
+            <td>
+              {% if log.status == 'sent' %}
+                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>تم الإرسال</span>
+              {% elif log.status == 'failed' %}
+                <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>فشل</span>
+              {% elif log.status == 'queued' %}
+                <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>في الانتظار</span>
+              {% elif log.status == 'skipped' %}
+                <span class="badge bg-secondary"><i class="bi bi-skip-forward me-1"></i>تم التخطي</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <span class="badge bg-dark border border-secondary">{{ log.retry_count }}</span>
+            </td>
+            <td>
+              {% if log.status == 'failed' or log.status == 'skipped' %}
+                <form method="post" action="{% url 'erp:retry_notification' log.id %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-warning" title="إعادة إرسال">
+                    <i class="bi bi-arrow-clockwise"></i>
+                  </button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center py-5 text-muted">
+              <i class="bi bi-bell-slash display-4 d-block mb-3"></i>
+              لا توجد سجلات إشعارات بعد
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if logs.has_other_pages %}
+    <div class="d-flex justify-content-center p-3 border-top border-secondary">
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if logs.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ logs.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">السابق</a></li>
+          {% endif %}
+          <li class="page-item active"><a class="page-link" href="#">{{ logs.number }} / {{ logs.paginator.num_pages }}</a></li>
+          {% if logs.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ logs.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">التالي</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

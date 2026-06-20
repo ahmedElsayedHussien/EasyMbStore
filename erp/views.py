@@ -1,4 +1,4 @@
-# -*- coding: windows-1256 -*-
+# -*- coding: utf-8 -*-
 import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.exceptions import PermissionDenied
@@ -809,22 +809,44 @@ def repair_add_part(request, pk):
 @require_POST
 def repair_change_status(request, pk):
     """
-    تعديل حالة الصيانة وإرسال إشعار فوري وتلقائي للعميل.
+    تعديل حالة الصيانة وإرسال إشعار للعميل عبر Django Q2 في الخلفية.
     """
+    from django_q.tasks import async_task
+    from erp.models import NotificationLog, NotificationSettings
+
     ticket = get_object_or_404(RepairTicket, pk=pk)
     new_status = request.POST.get('status')
     if new_status in dict(RepairTicket.STATUS_CHOICES):
         ticket.status = new_status
         ticket.save()
-        # إرسال إشعار تلقائي للعميل بناءً على تغيير الحالة
         status_display = ticket.get_status_display()
-        msg = f"عزيزي العميل، تم تعديل حالة إصلاح جهازك {ticket.device_model} إلى ({status_display})."
-        NotificationLog.objects.create(
-            customer=ticket.customer,
-            ticket=ticket,
-            notification_type='whatsapp',
-            message_body=msg
-        )
+
+        notif_settings = NotificationSettings.get_settings()
+        template_map = {
+            'pending':       ('msg_pending_enabled',       'msg_pending'),
+            'in_progress':   ('msg_in_progress_enabled',   'msg_in_progress'),
+            'waiting_parts': ('msg_waiting_parts_enabled', 'msg_waiting_parts'),
+            'done':          ('msg_done_enabled',           'msg_done'),
+            'delivered':     ('msg_delivered_enabled',     'msg_delivered'),
+        }
+        enabled_key, template_key = template_map.get(new_status, (None, None))
+        should_send = enabled_key and getattr(notif_settings, enabled_key, False)
+
+        if should_send and ticket.customer.phone:
+            msg = notif_settings.render_template(template_key, ticket)
+            log = NotificationLog.objects.create(
+                customer=ticket.customer,
+                ticket=ticket,
+                notification_type='whatsapp',
+                message_body=msg,
+                status='queued',
+            )
+            async_task(
+                'erp.tasks.send_whatsapp_notification',
+                log_id=log.id,
+                task_name=f"whatsapp_ticket_{ticket.id}_{new_status}",
+            )
+
         return JsonResponse({'status': 'success', 'new_status_display': status_display})
     return JsonResponse({'error': 'حالة غير صالحة'}, status=400)
 @login_required
@@ -1465,7 +1487,7 @@ def reports_dashboard(request):
     page_number = request.GET.get('page', 1)
     products_page = paginator.get_page(page_number)
     # ==========================================
-    # 5. MAINTENANCE REPORTS (������ �������)
+    # 5. MAINTENANCE REPORTS (تقارير الصيانة)
     # ==========================================
     tickets_in_period = RepairTicket.objects.filter(created_at__range=(start_dt, end_dt))
     tickets_count = tickets_in_period.count()
@@ -1574,3 +1596,75 @@ def reports_dashboard(request):
         elif target == 'maintenance-tickets-table-container':
             return render(request, 'erp/includes/reports_maintenance_table.html', context)
     return render(request, 'erp/reports.html', context)
+
+@login_required
+def notification_settings(request):
+    """
+    صفحة إعدادات الإشعارات — رقم الواتساب + قوالب الرسائل.
+    """
+    from erp.models import NotificationSettings
+    settings_obj = NotificationSettings.get_settings()
+
+    if request.method == 'POST':
+        settings_obj.whatsapp_enabled = 'whatsapp_enabled' in request.POST
+        settings_obj.sender_phone = request.POST.get('sender_phone', '').strip()
+        settings_obj.branch_name = request.POST.get('branch_name', '').strip()
+        settings_obj.delay_min_seconds = int(request.POST.get('delay_min_seconds', 15))
+        settings_obj.delay_max_seconds = int(request.POST.get('delay_max_seconds', 45))
+        for status_key in ['pending', 'in_progress', 'waiting_parts', 'done', 'delivered']:
+            enabled_field = f'msg_{status_key}_enabled'
+            template_field = f'msg_{status_key}'
+            setattr(settings_obj, enabled_field, enabled_field in request.POST)
+            setattr(settings_obj, template_field, request.POST.get(template_field, '').strip())
+        settings_obj.save()
+        messages.success(request, 'تم حفظ إعدادات الإشعارات بنجاح.')
+        return redirect('erp:notification_settings')
+
+    return render(request, 'erp/notification_settings.html', {'settings': settings_obj})
+
+
+@login_required
+def notifications_dashboard(request):
+    """
+    لوحة سجل الإشعارات المرسلة / الفاشلة.
+    """
+    from erp.models import NotificationLog, NotificationSettings
+    from django.core.paginator import Paginator
+    status_filter = request.GET.get('status', '')
+    logs_qs = NotificationLog.objects.select_related('customer', 'ticket').order_by('-sent_at')
+    if status_filter:
+        logs_qs = logs_qs.filter(status=status_filter)
+    paginator = Paginator(logs_qs, 20)
+    page = paginator.get_page(request.GET.get('page', 1))
+    stats = {
+        'total':   NotificationLog.objects.count(),
+        'sent':    NotificationLog.objects.filter(status='sent').count(),
+        'failed':  NotificationLog.objects.filter(status='failed').count(),
+        'queued':  NotificationLog.objects.filter(status='queued').count(),
+        'skipped': NotificationLog.objects.filter(status='skipped').count(),
+    }
+    settings_obj = NotificationSettings.get_settings()
+    return render(request, 'erp/notifications_dashboard.html', {
+        'logs': page, 'stats': stats,
+        'status_filter': status_filter, 'settings': settings_obj,
+    })
+
+
+@login_required
+@require_POST
+def retry_notification(request, log_id):
+    """
+    إعادة إرسال إشعار فاشل.
+    """
+    from django_q.tasks import async_task
+    from erp.models import NotificationLog
+    log = get_object_or_404(NotificationLog, id=log_id)
+    log.status = 'queued'
+    log.error_message = None
+    log.save(update_fields=['status', 'error_message'])
+    async_task(
+        'erp.tasks.send_whatsapp_notification',
+        log_id=log.id,
+        task_name=f"retry_whatsapp_log_{log.id}",
+    )
+    return redirect('erp:notifications_dashboard')

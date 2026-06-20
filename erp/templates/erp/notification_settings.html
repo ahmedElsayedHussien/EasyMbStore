@@ -1,0 +1,209 @@
+{% extends "erp/base.html" %}
+
+{% block title %}إعدادات الإشعارات — EasyMbStore{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold mb-1"><i class="bi bi-gear-fill text-primary me-2"></i>إعدادات إشعارات الواتساب</h4>
+      <p class="text-muted small mb-0">اضبط رقم الإرسال وقوالب الرسائل لكل حالة صيانة</p>
+    </div>
+    <a href="{% url 'erp:notifications_dashboard' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-list-ul me-1"></i>سجل الإشعارات
+    </a>
+  </div>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="row g-4">
+
+      <!-- ════ القسم الأول: إعدادات الاتصال ════ -->
+      <div class="col-12 col-lg-5">
+
+        <!-- كارت الإعدادات الرئيسية -->
+        <div class="glass-card p-4 mb-4">
+          <h6 class="fw-bold text-primary mb-3"><i class="bi bi-phone-fill me-2"></i>إعدادات الاتصال</h6>
+
+          <!-- مفتاح التفعيل الرئيسي -->
+          <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded" style="background: rgba(255,255,255,0.05);">
+            <div>
+              <div class="fw-semibold">تفعيل إشعارات الواتساب</div>
+              <div class="text-muted small">فعّل فقط بعد ربط الهاتف بمسح QR Code</div>
+            </div>
+            <div class="form-check form-switch ms-3">
+              <input class="form-check-input" type="checkbox" id="whatsapp_enabled" name="whatsapp_enabled"
+                     {% if settings.whatsapp_enabled %}checked{% endif %}
+                     style="width: 3rem; height: 1.5rem; cursor: pointer;">
+            </div>
+          </div>
+
+          <!-- رقم الواتساب -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">
+              <i class="bi bi-whatsapp text-success me-1"></i>رقم الواتساب المُرسِل
+            </label>
+            <div class="input-group">
+              <span class="input-group-text bg-success text-white border-0"><i class="bi bi-whatsapp"></i></span>
+              <input type="text" class="form-control" name="sender_phone"
+                     value="{{ settings.sender_phone|default:'' }}"
+                     placeholder="+201012345678"
+                     dir="ltr">
+            </div>
+            <div class="form-text text-muted">الصيغة الدولية: +2 ثم الرقم المصري (مثال: +201012345678)</div>
+          </div>
+
+          <!-- اسم الفرع -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small"><i class="bi bi-shop me-1"></i>اسم المحل / الفرع</label>
+            <input type="text" class="form-control" name="branch_name"
+                   value="{{ settings.branch_name|default:'المحل' }}"
+                   placeholder="مثال: محل أبو علي موبايل">
+            <div class="form-text text-muted">سيظهر في نصوص الرسائل تلقائياً</div>
+          </div>
+
+          <!-- التأخير العشوائي -->
+          <div class="mb-0">
+            <label class="form-label fw-semibold small"><i class="bi bi-clock-history me-1"></i>التأخير العشوائي (Anti-Ban)</label>
+            <div class="row g-2">
+              <div class="col-6">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text">من</span>
+                  <input type="number" class="form-control" name="delay_min_seconds"
+                         value="{{ settings.delay_min_seconds }}" min="5" max="120">
+                  <span class="input-group-text">ث</span>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text">إلى</span>
+                  <input type="number" class="form-control" name="delay_max_seconds"
+                         value="{{ settings.delay_max_seconds }}" min="10" max="300">
+                  <span class="input-group-text">ث</span>
+                </div>
+              </div>
+            </div>
+            <div class="form-text text-muted">النظام ينتظر وقتاً عشوائياً بين هاتين القيمتين قبل كل إرسال</div>
+          </div>
+        </div>
+
+        <!-- ════ كارت طريقة الربط ════ -->
+        <div class="glass-card p-4" style="border-color: rgba(13,202,240,0.3);">
+          <h6 class="fw-bold text-info mb-3"><i class="bi bi-qr-code-scan me-2"></i>كيفية ربط الواتساب (خطوة بخطوة)</h6>
+
+          <div class="d-flex flex-column gap-3">
+
+            <div class="d-flex gap-3">
+              <div class="badge bg-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                   style="width: 32px; height: 32px; font-size: 14px;">1</div>
+              <div>
+                <div class="fw-semibold small">أدخل رقم الواتساب أعلاه ثم احفظ الإعدادات</div>
+                <div class="text-muted" style="font-size: 0.78rem;">استخدم الخط القديم للمحل (مش خط جديد)</div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-3">
+              <div class="badge bg-info text-dark rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                   style="width: 32px; height: 32px; font-size: 14px;">2</div>
+              <div>
+                <div class="fw-semibold small">شغّل أمر ربط الهاتف في Terminal</div>
+                <div class="bg-dark rounded p-2 mt-1 font-monospace" style="font-size: 0.78rem; color: #0dcaf0;">
+                  python manage.py init_whatsapp
+                </div>
+                <div class="text-muted" style="font-size: 0.78rem; margin-top: 4px;">سيفتح نافذة Chrome مع WhatsApp Web</div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-3">
+              <div class="badge bg-success rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                   style="width: 32px; height: 32px; font-size: 14px;">3</div>
+              <div>
+                <div class="fw-semibold small">امسح QR Code من هاتف المحل</div>
+                <div class="text-muted" style="font-size: 0.78rem;">
+                  افتح واتساب ← الإعدادات ← الأجهزة المرتبطة ← ربط جهاز
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-3">
+              <div class="badge bg-warning text-dark rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                   style="width: 32px; height: 32px; font-size: 14px;">4</div>
+              <div>
+                <div class="fw-semibold small">شغّل Worker في Terminal منفصل (دائماً)</div>
+                <div class="bg-dark rounded p-2 mt-1 font-monospace" style="font-size: 0.78rem; color: #ffc107;">
+                  python manage.py qcluster
+                </div>
+                <div class="text-muted" style="font-size: 0.78rem; margin-top: 4px;">يجب أن يظل مشغولاً لمعالجة الطابور</div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-3">
+              <div class="badge bg-danger rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                   style="width: 32px; height: 32px; font-size: 14px;">5</div>
+              <div>
+                <div class="fw-semibold small">فعّل الإشعارات من المفتاح أعلاه</div>
+                <div class="text-muted" style="font-size: 0.78rem;">سيبدأ الإرسال التلقائي عند تغيير حالة أي تذكرة</div>
+              </div>
+            </div>
+
+          </div>
+
+
+        </div>
+
+      </div>
+
+      <!-- ════ القسم الثاني: قوالب الرسائل ════ -->
+      <div class="col-12 col-lg-7">
+        <div class="glass-card p-4">
+          <h6 class="fw-bold text-primary mb-1"><i class="bi bi-chat-text-fill me-2"></i>قوالب رسائل كل حالة</h6>
+          <p class="text-muted small mb-3">
+            المتغيرات المتاحة:
+            <code class="bg-dark px-1 rounded">{customer_name}</code>
+            <code class="bg-dark px-1 rounded">{device_model}</code>
+            <code class="bg-dark px-1 rounded">{ticket_id}</code>
+            <code class="bg-dark px-1 rounded">{branch_name}</code>
+            <code class="bg-dark px-1 rounded">{status_display}</code>
+            <code class="bg-dark px-1 rounded">{time}</code>
+          </p>
+
+          <!-- Template: pending -->
+          {% include "erp/includes/notif_template_card.html" with status_key="pending" label="قيد الانتظار" icon="hourglass" color="secondary" enabled=settings.msg_pending_enabled template=settings.msg_pending %}
+
+          <!-- Template: in_progress -->
+          {% include "erp/includes/notif_template_card.html" with status_key="in_progress" label="جاري العمل" icon="wrench" color="warning" enabled=settings.msg_in_progress_enabled template=settings.msg_in_progress %}
+
+          <!-- Template: waiting_parts -->
+          {% include "erp/includes/notif_template_card.html" with status_key="waiting_parts" label="انتظار قطع الغيار" icon="box-seam" color="danger" enabled=settings.msg_waiting_parts_enabled template=settings.msg_waiting_parts %}
+
+          <!-- Template: done -->
+          {% include "erp/includes/notif_template_card.html" with status_key="done" label="جاهز للتسليم" icon="check-circle" color="success" enabled=settings.msg_done_enabled template=settings.msg_done %}
+
+          <!-- Template: delivered -->
+          {% include "erp/includes/notif_template_card.html" with status_key="delivered" label="تم التسليم" icon="bag-check" color="info" enabled=settings.msg_delivered_enabled template=settings.msg_delivered %}
+
+        </div>
+      </div>
+
+    </div><!-- end row -->
+
+    <!-- Save Button -->
+    <div class="d-flex justify-content-end mt-4">
+      <button type="submit" class="btn btn-primary px-5 py-2 fw-bold">
+        <i class="bi bi-floppy-fill me-2"></i>حفظ جميع الإعدادات
+      </button>
+    </div>
+
+  </form>
+</div>
+{% endblock %}

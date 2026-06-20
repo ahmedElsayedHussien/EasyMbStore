@@ -3,7 +3,7 @@ from erp.models import (
     StoreSetting, Contact, Warehouse, Product, Stock, Device, DeviceAttachment,
     PurchaseInvoice, PurchaseItem, StockTransfer, StockTransferItem,
     CashShift, ExpenseCategory, Expense, SaleInvoice, SaleItem, Payment,
-    RepairTicket, RepairPartUsed, Warranty, NotificationLog
+    RepairTicket, RepairPartUsed, Warranty, NotificationLog, NotificationSettings
 )
 
 # 1. إعدادات المحل (Singleton Settings)
@@ -130,3 +130,12 @@ class NotificationLogAdmin(admin.ModelAdmin):
     list_display = ('customer', 'notification_type', 'sent_at', 'status')
     list_filter = ('notification_type', 'status')
     search_fields = ('customer__name', 'message_body')
+
+@admin.register(NotificationSettings)
+class NotificationSettingsAdmin(admin.ModelAdmin):
+    list_display = ('sender_phone', 'whatsapp_enabled', 'delay_min_seconds', 'delay_max_seconds')
+    
+    def has_add_permission(self, request):
+        if NotificationSettings.objects.exists():
+            return False
+        return True

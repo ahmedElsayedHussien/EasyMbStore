@@ -36,7 +36,7 @@ class Command(BaseCommand):
         # الفني
         tech_codenames = [
             'view_repairticket', 'change_repairticket', 'add_repairticket', 'add_repairpartused', 'view_repairpartused',
-            'view_product', 'view_stock', 'view_device', 'view_warehouse', 'view_contact'
+            'view_product', 'view_warehouse', 'view_contact'
         ]
         tech_perms = Permission.objects.filter(content_type__app_label='erp', codename__in=tech_codenames)
         tech_group.permissions.set(tech_perms)

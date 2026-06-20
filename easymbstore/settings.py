@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_htmx',
+    'django_q',
     'erp.apps.ErpConfig',
 ]
 
@@ -128,4 +130,141 @@ MEDIA_ROOT = BASE_DIR / 'media'
 LOGIN_REDIRECT_URL = 'erp:dashboard'
 LOGOUT_REDIRECT_URL = 'erp:login'
 
+# Django Q2 Configuration
+Q_CLUSTER = {
+    'name': 'easymb_cluster',
+    'workers': 2,
+    'timeout': 90,
+    'retry': 120,
+    'queue_limit': 50,
+    'bulk': 10,
+    'orm': 'default'  # Natively use Django database tables
+}
+
+# Django Jazzmin Admin Configuration
+JAZZMIN_SETTINGS = {
+    # ── العنوان والهوية ──
+    "site_title": "إيزي إم بي — الإدارة",
+    "site_brand": "EasyMB",
+    "site_header": "إيزي إم بي ستور",
+    "site_logo": None,
+    "login_logo": None,
+    "welcome_sign": "مرحباً بك في لوحة التحكم الرئيسية",
+    "copyright": "EasyMB Store © 2026",
+
+    # ── البحث السريع ──
+    "search_model": ["auth.User", "erp.Contact", "erp.RepairTicket"],
+
+    # ── الشريط العلوي (Top Menu) ──
+    "topmenu_links": [
+        {"name": "🏠 الرئيسة", "url": "/", "new_window": True},
+        {"name": "📊 التقارير", "url": "/reports/", "new_window": True},
+        {"name": "🔔 الإشعارات", "url": "/notifications/", "new_window": True},
+        {"app": "erp"},
+    ],
+
+    # ── قائمة المستخدم (User Menu) ──
+    "usermenu_links": [
+        {"name": "عرض الموقع", "url": "/", "new_window": True, "icon": "fas fa-globe"},
+    ],
+
+    # ── الشريط الجانبي ──
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "hide_apps": [],
+    "hide_models": [],
+
+    # ── ترتيب النماذج ──
+    "order_with_respect_to": [
+        "erp.StoreSetting",
+        "erp.Warehouse",
+        "erp.Product",
+        "erp.Stock",
+        "erp.Device",
+        "erp.Contact",
+        "erp.SaleInvoice",
+        "erp.PurchaseInvoice",
+        "erp.StockTransfer",
+        "erp.RepairTicket",
+        "erp.CashShift",
+        "erp.ExpenseCategory",
+        "erp.Expense",
+        "erp.Warranty",
+        "erp.NotificationLog",
+        "erp.NotificationSettings",
+    ],
+
+    # ── الأيقونات ──
+    "icons": {
+        "auth":                       "fas fa-shield-alt",
+        "auth.user":                  "fas fa-user-circle",
+        "auth.group":                 "fas fa-users",
+        "erp.StoreSetting":           "fas fa-store",
+        "erp.Contact":                "fas fa-address-book",
+        "erp.Warehouse":              "fas fa-warehouse",
+        "erp.Product":                "fas fa-box-open",
+        "erp.Stock":                  "fas fa-boxes",
+        "erp.Device":                 "fas fa-mobile-alt",
+        "erp.DeviceAttachment":       "fas fa-paperclip",
+        "erp.PurchaseInvoice":        "fas fa-file-invoice-dollar",
+        "erp.PurchaseItem":           "fas fa-shopping-basket",
+        "erp.StockTransfer":          "fas fa-exchange-alt",
+        "erp.CashShift":              "fas fa-cash-register",
+        "erp.ExpenseCategory":        "fas fa-tags",
+        "erp.Expense":                "fas fa-wallet",
+        "erp.SaleInvoice":            "fas fa-receipt",
+        "erp.RepairTicket":           "fas fa-tools",
+        "erp.Warranty":               "fas fa-shield-alt",
+        "erp.NotificationLog":        "fas fa-paper-plane",
+        "erp.NotificationSettings":   "fas fa-sliders-h",
+    },
+    "default_icon_parents": "fas fa-folder",
+    "default_icon_children": "fas fa-circle-dot",
+
+    # ── ميزات إضافية ──
+    "related_modal_active": True,
+    "custom_css":           "css/admin-custom.css",
+    "custom_js":            None,
+    "use_google_fonts_cdn": True,
+    "show_ui_builder":      False,
+    "changeform_format":    "horizontal_tabs",
+    "changeform_format_overrides": {
+        "auth.user":  "collapsible",
+        "auth.group": "vertical_tabs",
+    },
+    "language_chooser": False,
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text":      False,
+    "footer_small_text":      False,
+    "body_small_text":        False,
+    "brand_small_text":       False,
+    "brand_colour":           "navbar-dark",
+    "accent":                 "accent-primary",
+    "navbar":                 "navbar-dark",
+    "no_navbar_border":       True,
+    "navbar_fixed":           True,
+    "layout_boxed":           False,
+    "footer_fixed":           False,
+    "sidebar_fixed":          True,
+    "sidebar":                "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "theme":                  "darkly",
+    "dark_mode_theme":        "darkly",
+    "button_classes": {
+        "primary":   "btn-outline-primary",
+        "secondary": "btn-outline-secondary",
+        "info":      "btn-outline-info",
+        "warning":   "btn-warning",
+        "danger":    "btn-danger",
+        "success":   "btn-success",
+    },
+    "actions_sticky_top": True,
+}
 

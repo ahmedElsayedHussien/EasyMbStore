@@ -437,6 +437,14 @@ body.light-theme .navbar-custom {
     border-bottom: 1px solid var(--border-color) !important;
 }
 
+body.light-theme .navbar-toggler-icon {
+    filter: invert(1) !important;
+}
+
+body.light-theme .navbar-toggler {
+    border-color: var(--border-color) !important;
+}
+
 body.light-theme .navbar-dark .navbar-brand,
 body.light-theme .navbar-dark .nav-link {
     color: var(--text-primary) !important;

@@ -427,17 +427,106 @@ class Warranty(models.Model):
     def __str__(self):
         return f"ÖãÇä {self.device.imei} - {self.customer.name}"
 
+
+
 class NotificationLog(models.Model):
+    STATUS_CHOICES = (
+        ('queued',  'İí ÇáÇäÊÙÇÑ'),
+        ('sent',    'Êã ÇáÅÑÓÇá'),
+        ('failed',  'İÔá ÇáÅÑÓÇá'),
+        ('skipped', 'Êã ÇáÊÎØí (ãÛáŞ)'),
+    )
     customer = models.ForeignKey(Contact, on_delete=models.CASCADE, verbose_name="ÇáÚãíá")
     ticket = models.ForeignKey(RepairTicket, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="ÊĞßÑÉ ÇáÕíÇäÉ")
-    notification_type = models.CharField(max_length=20, choices=(('whatsapp', 'æÇÊÓÇÈ'), ('sms', 'SMS')), verbose_name="äæÚ ÇáÅÔÚÇÑ")
+    notification_type = models.CharField(max_length=20, choices=(('whatsapp', 'æÇÊÓÇÈ'), ('sms', 'SMS')), default='whatsapp', verbose_name="äæÚ ÇáÅÔÚÇÑ")
     message_body = models.TextField(verbose_name="ãÍÊæì ÇáÑÓÇáÉ")
     sent_at = models.DateTimeField(auto_now_add=True, verbose_name="æŞÊ ÇáÅÑÓÇá")
-    status = models.CharField(max_length=20, default='sent', verbose_name="ÇáÍÇáÉ")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='queued', verbose_name="ÇáÍÇáÉ")
+    error_message = models.TextField(blank=True, null=True, verbose_name="ÑÓÇáÉ ÇáÎØÃ")
+    retry_count = models.PositiveSmallIntegerField(default=0, verbose_name="ÚÏÏ ÇáãÍÇæáÇÊ")
 
     class Meta:
         verbose_name = "ÓÌá ÅÔÚÇÑ"
         verbose_name_plural = "ÓÌáÇÊ ÇáÅÔÚÇÑÇÊ"
+        ordering = ['-sent_at']
 
     def __str__(self):
-        return f"{self.notification_type} to {self.customer.name} at {self.sent_at}"
+        return f"{self.get_notification_type_display()} to {self.customer.name} [{self.get_status_display()}]"
+
+
+class NotificationSettings(models.Model):
+    """
+    Singleton model áÅÚÏÇÏÇÊ ÇáÅÔÚÇÑÇÊ.
+    ÑŞã ÇáæÇÊÓÇÈ ÇáãÑÓá + ŞæÇáÈ ÇáÑÓÇÆá áßá ÍÇáÉ ÊĞßÑÉ.
+    """
+    # ÇÚÏÇÏÇÊ ÇáÇÊÕÇá
+    whatsapp_enabled = models.BooleanField(
+        default=False,
+        verbose_name="ÊİÚíá ÅÔÚÇÑÇÊ ÇáæÇÊÓÇÈ",
+        help_text="İÚøá İŞØ ÈÚÏ ãÓÍ QR Code æÑÈØ ÇáåÇÊİ ÈÇáÓíÑİÑ."
+    )
+    sender_phone = models.CharField(
+        max_length=20, blank=True, null=True,
+        verbose_name="ÑŞã ÇáæÇÊÓÇÈ ÇáãÑÓá",
+        help_text="ÇáÕíÛÉ ÇáÏæáíÉ ãËÇá: +201012345678"
+    )
+    branch_name = models.CharField(
+        max_length=100, default="ÇáãÍá",
+        verbose_name="ÇÓã ÇáİÑÚ / ÇáãÍá",
+        help_text="ÓíÙåÑ İí äÕæÕ ÇáÑÓÇÆá ÊáŞÇÆíÇğ."
+    )
+    delay_min_seconds = models.PositiveSmallIntegerField(default=15, verbose_name="ÇáÍÏ ÇáÇÏäì ááÊÇÎíÑ (ËÇäíÉ)")
+    delay_max_seconds = models.PositiveSmallIntegerField(default=45, verbose_name="ÇáÍÏ ÇáÇŞÕì ááÊÇÎíÑ (ËÇäíÉ)")
+
+    # ŞæÇáÈ ÇáÑÓÇÆá - ÇáãÊÛíÑÇÊ: {customer_name} {device_model} {ticket_id} {branch_name} {status_display} {time}
+    msg_pending_enabled = models.BooleanField(default=False, verbose_name="ÇÑÓÇá ÚäÏ: ŞíÏ ÇáÇäÊÙÇÑ")
+    msg_pending = models.TextField(
+        default="ÇåáÇğ {customer_name}¡ Êã ÇÓÊáÇã ÌåÇÒß {device_model} İí {branch_name}. ÑŞã ÊĞßÑÊß: #{ticket_id}",
+        verbose_name="ŞÇáÈ: ŞíÏ ÇáÇäÊÙÇÑ"
+    )
+    msg_in_progress_enabled = models.BooleanField(default=True, verbose_name="ÇÑÓÇá ÚäÏ: ÌÇÑí ÇáÚãá")
+    msg_in_progress = models.TextField(
+        default="ÇåáÇğ {customer_name}¡ ÈÏÃ İÑíŞäÇ ÇáÚãá Úáì ÌåÇÒß {device_model}. ÑŞã ÇáÊĞßÑÉ: #{ticket_id} — {branch_name}",
+        verbose_name="ŞÇáÈ: ÌÇÑí ÇáÚãá"
+    )
+    msg_waiting_parts_enabled = models.BooleanField(default=True, verbose_name="ÇÑÓÇá ÚäÏ: ÇäÊÙÇÑ ŞØÚ ÇáÛíÇÑ")
+    msg_waiting_parts = models.TextField(
+        default="ÇåáÇğ {customer_name}¡ ÌåÇÒß {device_model} íÍÊÇÌ ŞØÚÉ ÛíÇÑ ŞíÏ ÇáÊæİíÑ. ÓäÈáÛß İæÑ ÇáÇäÊåÇÁ. ÑŞã ÇáÊĞßÑÉ: #{ticket_id}",
+        verbose_name="ŞÇáÈ: ÇäÊÙÇÑ ŞØÚ ÇáÛíÇÑ"
+    )
+    msg_done_enabled = models.BooleanField(default=True, verbose_name="ÇÑÓÇá ÚäÏ: ÌÇåÒ ááÊÓáíã")
+    msg_done = models.TextField(
+        default="ÌåÇÒß {device_model} ÌÇåÒ ááÇÓÊáÇã ãä {branch_name}! ÑŞã ÇáÊĞßÑÉ: #{ticket_id}. İí ÇäÊÙÇÑß {customer_name}",
+        verbose_name="ŞÇáÈ: ÌÇåÒ ááÊÓáíã"
+    )
+    msg_delivered_enabled = models.BooleanField(default=False, verbose_name="ÇÑÓÇá ÚäÏ: Êã ÇáÊÓáíã")
+    msg_delivered = models.TextField(
+        default="ÔßÑÇğ {customer_name} Úáì ËŞÊß İí {branch_name}. ÑŞã ÇáÊĞßÑÉ: #{ticket_id}",
+        verbose_name="ŞÇáÈ: Êã ÇáÊÓáíã"
+    )
+
+    class Meta:
+        verbose_name = "ÇÚÏÇÏÇÊ ÇáÇÔÚÇÑÇÊ"
+        verbose_name_plural = "ÇÚÏÇÏÇÊ ÇáÇÔÚÇÑÇÊ"
+
+    def __str__(self):
+        status = "ãİÚá" if self.whatsapp_enabled else "ãæŞİ"
+        return f"ÇÚÏÇÏÇÊ ÇáÇÔÚÇÑÇÊ — ÇáæÇÊÓÇÈ {status}"
+
+    @classmethod
+    def get_settings(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def render_template(self, template_key, ticket):
+        """íÈäí äÕ ÇáÑÓÇáÉ ÈÅÏÎÇá ãÊÛíÑÇÊ ÇáÊĞßÑÉ."""
+        from django.utils import timezone as tz
+        template = getattr(self, template_key, "")
+        return template.format(
+            customer_name=ticket.customer.name,
+            device_model=ticket.device_model,
+            ticket_id=ticket.id,
+            branch_name=self.branch_name,
+            status_display=ticket.get_status_display(),
+            time=tz.localtime(tz.now()).strftime("%Y/%m/%d %H:%M"),
+        )

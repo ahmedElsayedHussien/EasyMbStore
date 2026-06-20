@@ -11,6 +11,23 @@
     <!-- Custom CSS -->
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/styles.css' %}?v={% now 'U' %}">
+
+    <!-- ═══ PWA Meta Tags ═══ -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1d4ed8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="EasyMB">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="EasyMB Store">
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="152x152" href="{% static 'img/icons/icon-152.png' %}">
+    <link rel="apple-touch-icon" sizes="192x192" href="{% static 'img/icons/icon-192.png' %}">
+    <link rel="apple-touch-icon" sizes="512x512" href="{% static 'img/icons/icon-512.png' %}">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'img/icons/icon-192.png' %}">
+    <link rel="shortcut icon" href="{% static 'img/icons/icon-96.png' %}">
+
     {% block styles %}{% endblock %}
 </head>
 <body>
@@ -96,10 +113,22 @@
                             <i class="bi bi-graph-up-arrow"></i> التقارير
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'notification' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:notifications_dashboard' %}">
+                            <i class="bi bi-bell-fill"></i> الإشعارات
+                        </a>
+                    </li>
                     {% endif %}
                 </ul>
                 
                 <div class="d-flex align-items-center">
+                    <!-- ═══ زرار تثبيت PWA ═══ -->
+                    <button id="pwaInstallBtn"
+                        class="btn btn-sm me-2 d-none"
+                        title="ثبّت التطبيق على جهازك"
+                        style="background: linear-gradient(135deg,#1d4ed8,#7c3aed); color:#fff; border:none; border-radius:8px; padding:5px 12px; font-size:0.82rem; font-weight:700; box-shadow:0 2px 8px rgba(124,58,237,0.4);">
+                        <i class="bi bi-download"></i> ثبّت التطبيق
+                    </button>
                     <!-- زر تغيير نظام الإضاءة (فاتح/داكن) -->
                     <button id="themeToggleBtn" class="btn btn-outline-secondary btn-sm me-3 text-secondary" title="تغيير نظام الإضاءة" style="border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 0;">
                         <i id="themeToggleIcon" class="bi bi-sun-fill"></i>
@@ -212,5 +241,78 @@
         })();
     </script>
     {% block scripts %}{% endblock %}
+
+    <!-- ═══ PWA Service Worker Registration ═══ -->
+    <script>
+    (function() {
+        // ── تسجيل Service Worker ──
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                    .then(function(reg) {
+                        console.log('[EasyMB PWA] Service Worker registered. Scope:', reg.scope);
+                    })
+                    .catch(function(err) {
+                        console.warn('[EasyMB PWA] SW registration failed:', err);
+                    });
+            });
+        }
+
+        // ── زرار تثبيت PWA ──
+        let deferredPrompt = null;
+        const installBtn = document.getElementById('pwaInstallBtn');
+
+        window.addEventListener('beforeinstallprompt', function(e) {
+            // منع المتصفح من إظهار الـ banner الافتراضي
+            e.preventDefault();
+            deferredPrompt = e;
+            // إظهار زرار التثبيت
+            if (installBtn) {
+                installBtn.classList.remove('d-none');
+                // تأثير pulse خفيف
+                installBtn.style.animation = 'pwa-pulse 2s infinite';
+            }
+        });
+
+        if (installBtn) {
+            installBtn.addEventListener('click', async function() {
+                if (!deferredPrompt) return;
+                installBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> جارٍ التثبيت...';
+                installBtn.disabled = true;
+                try {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        installBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> تم التثبيت!';
+                        installBtn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+                        setTimeout(() => installBtn.classList.add('d-none'), 3000);
+                    } else {
+                        installBtn.innerHTML = '<i class="bi bi-download"></i> ثبّت التطبيق';
+                        installBtn.disabled = false;
+                    }
+                } catch(err) {
+                    console.warn('[EasyMB PWA] Install error:', err);
+                    installBtn.innerHTML = '<i class="bi bi-download"></i> ثبّت التطبيق';
+                    installBtn.disabled = false;
+                }
+                deferredPrompt = null;
+            });
+        }
+
+        // إخفاء الزرار بعد التثبيت
+        window.addEventListener('appinstalled', function() {
+            if (installBtn) installBtn.classList.add('d-none');
+            deferredPrompt = null;
+            console.log('[EasyMB PWA] App installed successfully!');
+        });
+    })();
+    </script>
+
+    <style>
+    @keyframes pwa-pulse {
+        0%, 100% { box-shadow: 0 2px 8px rgba(124,58,237,0.4); }
+        50% { box-shadow: 0 4px 20px rgba(124,58,237,0.8), 0 0 0 4px rgba(124,58,237,0.15); }
+    }
+    </style>
 </body>
 </html>

@@ -1,0 +1,30 @@
+<!-- partial: notif_template_card.html -->
+<div class="border border-secondary rounded p-3 mb-3" style="background: rgba(255,255,255,0.03);">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <label class="fw-semibold small">
+      <i class="bi bi-{{ icon }} text-{{ color }} me-1"></i>{{ label }}
+    </label>
+    <div class="form-check form-switch mb-0">
+      <input class="form-check-input" type="checkbox"
+             id="msg_{{ status_key }}_enabled"
+             name="msg_{{ status_key }}_enabled"
+             {% if enabled %}checked{% endif %}
+             onchange="toggleTemplate('{{ status_key }}', this.checked)">
+      <label class="form-check-label small text-muted" for="msg_{{ status_key }}_enabled">إرسال</label>
+    </div>
+  </div>
+  <textarea class="form-control form-control-sm font-monospace"
+            id="tpl_{{ status_key }}"
+            name="msg_{{ status_key }}"
+            rows="3"
+            style="font-size: 0.82rem; {% if not enabled %}opacity:0.4;{% endif %}"
+            {% if not enabled %}disabled{% endif %}>{{ template }}</textarea>
+</div>
+
+<script>
+function toggleTemplate(key, isEnabled) {
+  const ta = document.getElementById('tpl_' + key);
+  ta.disabled = !isEnabled;
+  ta.style.opacity = isEnabled ? '1' : '0.4';
+}
+</script>

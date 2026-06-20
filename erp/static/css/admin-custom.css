@@ -1,0 +1,514 @@
+/* ====================================================
+   EasyMB Store — Custom Jazzmin Admin Stylesheet
+   HIGH CONTRAST Dark Premium Theme — Full RTL Support
+   ==================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
+
+/* ── Base Font ── */
+body, h1, h2, h3, h4, h5, h6, p, a, span, td, th, label, input, select, button {
+    font-family: 'Cairo', 'Segoe UI', sans-serif !important;
+}
+
+/* ====================================================
+   TOP NAVBAR — جعله واضح جداً وملوّن
+   ==================================================== */
+
+.main-header.navbar {
+    background: #0f172a !important;
+    border-bottom: 2px solid #3b82f6 !important;
+    box-shadow: 0 3px 20px rgba(59, 130, 246, 0.25) !important;
+    min-height: 58px !important;
+    padding: 0 12px !important;
+}
+
+/* ── كل النصوص في الهيدر ── */
+.main-header .nav-link,
+.main-header .navbar-nav .nav-link,
+.main-header .navbar-text,
+.main-header span,
+.main-header a {
+    color: #f1f5f9 !important;
+    font-weight: 700 !important;
+    font-size: 0.9rem !important;
+}
+
+/* ── روابط التنقل العلوية ── */
+.main-header .navbar-nav .nav-link {
+    color: #e2e8f0 !important;
+    font-weight: 700 !important;
+    padding: 6px 14px !important;
+    border-radius: 8px !important;
+    margin: 0 3px !important;
+    transition: all 0.2s ease !important;
+    border: 1px solid transparent !important;
+    white-space: nowrap !important;
+}
+
+.main-header .navbar-nav .nav-link:hover {
+    background: rgba(59, 130, 246, 0.25) !important;
+    color: #93c5fd !important;
+    border-color: rgba(59, 130, 246, 0.5) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* ── زرار تسجيل الخروج ── */
+.main-header .navbar-nav .nav-link[href*="logout"],
+.main-header a[href*="logout"] {
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    padding: 5px 16px !important;
+    margin: 0 6px !important;
+    font-weight: 800 !important;
+    border: 1px solid #ef4444 !important;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4) !important;
+}
+.main-header .navbar-nav .nav-link[href*="logout"]:hover,
+.main-header a[href*="logout"]:hover {
+    background: #b91c1c !important;
+    box-shadow: 0 4px 16px rgba(220, 38, 38, 0.6) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* ── اسم الموقع ── */
+.main-header .brand-link,
+.main-header .brand-link .brand-text,
+.navbar-brand {
+    color: #60a5fa !important;
+    font-weight: 900 !important;
+    font-size: 1.1rem !important;
+    text-shadow: 0 0 20px rgba(96, 165, 250, 0.5) !important;
+}
+
+/* ── زرار القائمة الجانبية (Hamburger) ── */
+.main-header [data-widget="pushmenu"],
+.main-header .nav-link[data-widget="pushmenu"] {
+    color: #94a3b8 !important;
+    background: rgba(148, 163, 184, 0.1) !important;
+    border: 1px solid rgba(148, 163, 184, 0.2) !important;
+    border-radius: 6px !important;
+    padding: 5px 10px !important;
+    font-size: 1.1rem !important;
+}
+.main-header [data-widget="pushmenu"]:hover {
+    color: #f1f5f9 !important;
+    background: rgba(148, 163, 184, 0.2) !important;
+}
+
+/* ── يوزر مينيو ── */
+.main-header .user-menu > .nav-link,
+.main-header .user-menu .dropdown-toggle {
+    background: rgba(59, 130, 246, 0.15) !important;
+    border: 1px solid rgba(59, 130, 246, 0.4) !important;
+    border-radius: 8px !important;
+    color: #93c5fd !important;
+    padding: 5px 14px !important;
+    font-weight: 700 !important;
+}
+.main-header .user-menu > .nav-link:hover {
+    background: rgba(59, 130, 246, 0.3) !important;
+    color: #bfdbfe !important;
+}
+
+/* ── Dropdown ── */
+.main-header .dropdown-menu {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+    border-radius: 10px !important;
+}
+.main-header .dropdown-menu .dropdown-item {
+    color: #cbd5e1 !important;
+    font-weight: 600 !important;
+    padding: 8px 16px !important;
+    transition: all 0.15s ease !important;
+}
+.main-header .dropdown-menu .dropdown-item:hover {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: #93c5fd !important;
+}
+
+/* ====================================================
+   SIDEBAR — شريط جانبي واضح
+   ==================================================== */
+
+.main-sidebar {
+    background: #0f172a !important;
+    border-left: 2px solid #1e293b !important;
+    box-shadow: 2px 0 15px rgba(0,0,0,0.4) !important;
+}
+
+.brand-link {
+    background: #0f172a !important;
+    border-bottom: 2px solid #1e40af !important;
+    padding: 14px 16px !important;
+}
+.brand-link .brand-text {
+    color: #60a5fa !important;
+    font-weight: 900 !important;
+    font-size: 1.1rem !important;
+}
+
+.nav-sidebar .nav-link {
+    color: #94a3b8 !important;
+    border-radius: 8px !important;
+    margin: 3px 8px !important;
+    padding: 9px 14px !important;
+    font-size: 0.88rem !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+    border-right: 3px solid transparent !important;
+}
+.nav-sidebar .nav-link p {
+    color: inherit !important;
+    font-weight: inherit !important;
+}
+.nav-sidebar .nav-link i,
+.nav-sidebar .nav-link .nav-icon,
+.nav-sidebar .nav-link svg {
+    color: inherit !important;
+    width: 18px !important;
+    margin-left: 8px !important;
+    font-size: 0.95rem !important;
+}
+.nav-sidebar .nav-link:hover {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: #60a5fa !important;
+    border-right-color: #3b82f6 !important;
+}
+.nav-sidebar .nav-link.active,
+.nav-sidebar .nav-link.active:hover {
+    background: linear-gradient(135deg, rgba(59,130,246,0.25), rgba(99,102,241,0.15)) !important;
+    color: #93c5fd !important;
+    border-right-color: #60a5fa !important;
+    font-weight: 800 !important;
+    box-shadow: 0 2px 8px rgba(59,130,246,0.2) !important;
+}
+
+.nav-header {
+    color: #3b82f6 !important;
+    font-size: 0.7rem !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1.5px !important;
+    padding: 14px 16px 4px !important;
+}
+
+/* ====================================================
+   CONTENT AREA
+   ==================================================== */
+
+.content-wrapper {
+    background: #0a0f1e !important;
+    color: #cbd5e1 !important;
+    min-height: 100vh !important;
+}
+
+.content-header {
+    background: linear-gradient(135deg, #0f172a, #1e293b) !important;
+    border-bottom: 2px solid #1e293b !important;
+    padding: 16px 24px !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+}
+.content-header h1 {
+    color: #f1f5f9 !important;
+    font-weight: 800 !important;
+    font-size: 1.4rem !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5) !important;
+}
+
+/* ── Breadcrumb ── */
+.breadcrumb {
+    background: rgba(30, 41, 59, 0.8) !important;
+    border-radius: 8px !important;
+    padding: 6px 14px !important;
+    border: 1px solid #1e293b !important;
+}
+.breadcrumb-item a { color: #60a5fa !important; font-weight: 600 !important; }
+.breadcrumb-item.active { color: #64748b !important; }
+.breadcrumb-item + .breadcrumb-item::before { color: #334155 !important; }
+
+/* ====================================================
+   CARDS & MODULES
+   ==================================================== */
+
+.card, .box, .module {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
+    overflow: hidden !important;
+}
+.card-header, .box-header, .module h2, .module caption {
+    background: linear-gradient(135deg, #1e3a5f, #1e293b) !important;
+    border-bottom: 2px solid #1e40af !important;
+    color: #93c5fd !important;
+    font-weight: 800 !important;
+    padding: 12px 18px !important;
+    font-size: 0.95rem !important;
+    letter-spacing: 0.3px !important;
+}
+.card-body { color: #cbd5e1 !important; padding: 16px !important; }
+
+/* ====================================================
+   TABLES
+   ==================================================== */
+
+.table, #result_list {
+    color: #cbd5e1 !important;
+}
+.table thead th, #result_list thead th {
+    background: #1e3a5f !important;
+    color: #93c5fd !important;
+    font-weight: 800 !important;
+    border-bottom: 2px solid #1e40af !important;
+    padding: 12px 16px !important;
+    font-size: 0.83rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    white-space: nowrap !important;
+}
+#result_list thead th a { color: #93c5fd !important; }
+#result_list thead th a:hover { color: #bfdbfe !important; }
+
+.table tbody tr, #result_list tbody tr {
+    border-bottom: 1px solid #1e293b !important;
+    transition: background 0.15s ease !important;
+}
+.table tbody tr:hover, #result_list tbody tr:hover {
+    background: rgba(59, 130, 246, 0.1) !important;
+}
+.table tbody td, #result_list tbody td {
+    color: #e2e8f0 !important;
+    padding: 10px 16px !important;
+    vertical-align: middle !important;
+}
+#result_list td a, #result_list th a {
+    color: #60a5fa !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+}
+#result_list td a:hover { color: #93c5fd !important; text-decoration: underline !important; }
+
+/* ── Paginator ── */
+.paginator { color: #94a3b8 !important; }
+.paginator a { color: #60a5fa !important; }
+.paginator .this-page {
+    background: #1d4ed8 !important;
+    color: #fff !important;
+    border-radius: 4px !important;
+    padding: 2px 8px !important;
+}
+
+/* ====================================================
+   FORM CONTROLS
+   ==================================================== */
+
+.form-control, select, textarea, input[type="text"],
+input[type="email"], input[type="password"], input[type="number"] {
+    background: #1e293b !important;
+    color: #f1f5f9 !important;
+    border: 1.5px solid #334155 !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+.form-control:focus, select:focus, textarea:focus, input:focus {
+    background: #1e293b !important;
+    color: #f1f5f9 !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+    outline: none !important;
+}
+input::placeholder, textarea::placeholder { color: #475569 !important; }
+label { color: #94a3b8 !important; font-weight: 700 !important; font-size: 0.85rem !important; }
+.help-block, .help, .text-muted { color: #475569 !important; font-style: italic !important; }
+.required label::after { color: #f87171 !important; }
+fieldset, .fieldBox { color: #cbd5e1 !important; }
+
+/* ====================================================
+   BUTTONS — أزرار واضحة وقوية
+   ==================================================== */
+
+/* حفظ */
+.submit-row input[type="submit"],
+input[name="_save"],
+.btn-primary {
+    background: linear-gradient(135deg, #16a34a, #15803d) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 800 !important;
+    padding: 8px 20px !important;
+    font-size: 0.9rem !important;
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.4) !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+}
+.submit-row input[type="submit"]:hover, input[name="_save"]:hover, .btn-primary:hover {
+    background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+    box-shadow: 0 4px 16px rgba(22, 163, 74, 0.5) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* حذف */
+.btn-danger, .deletelink, input[name="_delete"],
+.submit-row a.deletelink {
+    background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 800 !important;
+    padding: 8px 20px !important;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4) !important;
+    transition: all 0.2s ease !important;
+}
+.btn-danger:hover, .deletelink:hover {
+    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+    box-shadow: 0 4px 16px rgba(220, 38, 38, 0.5) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* إضافة / Info */
+.addlink, .btn-success, .btn-info, .btn-secondary {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 800 !important;
+    padding: 8px 20px !important;
+    box-shadow: 0 2px 8px rgba(29, 78, 216, 0.4) !important;
+    transition: all 0.2s ease !important;
+}
+.addlink:hover, .btn-success:hover, .btn-info:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    box-shadow: 0 4px 16px rgba(29, 78, 216, 0.5) !important;
+    transform: translateY(-2px) !important;
+    color: #ffffff !important;
+}
+
+/* ── حقل البحث ── */
+#searchbar {
+    background: #1e293b !important;
+    color: #f1f5f9 !important;
+    border: 1.5px solid #3b82f6 !important;
+    border-radius: 8px !important;
+    padding: 6px 12px !important;
+}
+input[type="submit"][value="بحث"],
+input[type="submit"][value="Search"] {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    padding: 6px 16px !important;
+}
+
+/* ====================================================
+   CHANGE LIST FILTERS (يمين الصفحة)
+   ==================================================== */
+
+#changelist-filter {
+    background: #1e293b !important;
+    border-left: 2px solid #334155 !important;
+    border-radius: 8px !important;
+}
+#changelist-filter h2 {
+    background: #1e3a5f !important;
+    color: #93c5fd !important;
+    font-weight: 800 !important;
+    padding: 10px 16px !important;
+}
+#changelist-filter h3 { color: #60a5fa !important; font-weight: 700 !important; }
+#changelist-filter a { color: #94a3b8 !important; }
+#changelist-filter a:hover { color: #60a5fa !important; }
+#changelist-filter li.selected a { color: #93c5fd !important; font-weight: 700 !important; }
+
+/* ====================================================
+   ALERTS
+   ==================================================== */
+
+.alert-success, .success { background: rgba(22,163,74,0.15) !important; border-left: 4px solid #16a34a !important; color: #4ade80 !important; border-radius: 8px !important; padding: 10px 16px !important; }
+.alert-warning, .warning { background: rgba(234,179,8,0.15) !important; border-left: 4px solid #ca8a04 !important; color: #facc15 !important; border-radius: 8px !important; padding: 10px 16px !important; }
+.alert-danger, .errornote  { background: rgba(220,38,38,0.15) !important; border-left: 4px solid #dc2626 !important; color: #f87171 !important; border-radius: 8px !important; padding: 10px 16px !important; }
+.alert-info              { background: rgba(59,130,246,0.15) !important; border-left: 4px solid #3b82f6 !important; color: #60a5fa !important; border-radius: 8px !important; padding: 10px 16px !important; }
+
+/* ====================================================
+   FOOTER
+   ==================================================== */
+
+.main-footer {
+    background: #0f172a !important;
+    border-top: 2px solid #1e293b !important;
+    color: #475569 !important;
+    font-size: 0.8rem !important;
+}
+
+/* ====================================================
+   RTL FIXES
+   ==================================================== */
+
+html[dir="rtl"] .content-wrapper,
+html[dir="rtl"] .main-footer,
+html[dir="rtl"] .main-header {
+    margin-left: 0 !important;
+    margin-right: 250px !important;
+}
+html[dir="rtl"] .main-sidebar {
+    right: 0 !important;
+    left: auto !important;
+}
+html[dir="rtl"].sidebar-collapse .content-wrapper,
+html[dir="rtl"].sidebar-collapse .main-footer,
+html[dir="rtl"].sidebar-collapse .main-header {
+    margin-left: 0 !important;
+    margin-right: 4.6rem !important;
+}
+html[dir="rtl"], html[dir="rtl"] body {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+html[dir="rtl"] .nav-sidebar .nav-link {
+    border-right: 3px solid transparent !important;
+    border-left: none !important;
+}
+html[dir="rtl"] .nav-sidebar .nav-link:hover,
+html[dir="rtl"] .nav-sidebar .nav-link.active {
+    border-right-color: #3b82f6 !important;
+}
+html[dir="rtl"] #changelist-filter {
+    border-left: none !important;
+    border-right: 2px solid #334155 !important;
+}
+
+/* ====================================================
+   CUSTOM SCROLLBAR
+   ==================================================== */
+
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* ====================================================
+   DASHBOARD WIDGETS
+   ==================================================== */
+
+.info-box {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+.info-box:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+}
+.info-box-content { color: #f1f5f9 !important; }
+.info-box-number { color: #ffffff !important; font-weight: 900 !important; font-size: 1.6rem !important; }
+.info-box-text { color: #94a3b8 !important; font-weight: 600 !important; }
+.info-box-icon { border-radius: 12px 0 0 12px !important; }

@@ -57,4 +57,9 @@ urlpatterns = [
     
     # التقارير الشاملة
     path('reports/', views.reports_dashboard, name='reports_dashboard'),
+
+    # الإشعارات والواتساب
+    path('notifications/', views.notifications_dashboard, name='notifications_dashboard'),
+    path('notifications/settings/', views.notification_settings, name='notification_settings'),
+    path('notifications/<int:log_id>/retry/', views.retry_notification, name='retry_notification'),
 ]
