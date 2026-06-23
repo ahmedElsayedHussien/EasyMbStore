@@ -224,6 +224,18 @@ class PurchaseItem(models.Model):
     ram = models.CharField(max_length=20, choices=Device.RAM_CHOICES, blank=True, null=True, verbose_name="«·—«„")
     is_tax_paid = models.BooleanField(default=False, verbose_name="Œ«·’ «·÷—Ì»…")
 
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        super().clean()
+        if self.product and self.product.requires_imei:
+            if not self.imei_list:
+                raise ValidationError({'imei_list': "«·„‰ Ã «·„Œ «— Ì ÿ·» ≈œŒ«· ”Ì—Ì«·«  (IMEI)."})
+            imeis = [i.strip() for i in self.imei_list.split(',') if i.strip()]
+            if len(imeis) != self.quantity:
+                raise ValidationError({
+                    'imei_list': f"⁄œœ «·”Ì—Ì«·«  «·„œŒ·… ({len(imeis)}) ·« Ì ÿ«»ﬁ „⁄ «·ﬂ„Ì… «·„Õœœ… ({self.quantity})."
+                })
+
     class Meta:
         verbose_name = "»‰œ „‘ —Ì« "
         verbose_name_plural = "»‰Êœ «·„‘ —Ì« "
@@ -530,3 +542,28 @@ class NotificationSettings(models.Model):
             status_display=ticket.get_status_display(),
             time=tz.localtime(tz.now()).strftime("%Y/%m/%d %H:%M"),
         )
+
+
+# ==========================================
+# 9. ‰Ÿ«„ «·Œ“‰ Ê«·⁄Âœ (Treasury & Safes)
+# ==========================================
+class Treasury(models.Model):
+    name = models.CharField(max_length=100, verbose_name="«”„ «·Œ“Ì‰…")
+    opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="—’Ìœ √Ê· «·„œ…")
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="«·—’Ìœ «·Õ«·Ì")
+    is_active = models.BooleanField(default=True, verbose_name="‰‘ÿ…")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='treasuries', verbose_name="«·„” Œœ„ «·„”ƒÊ·")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=" «—ÌŒ «·≈‰‘«¡")
+
+    class Meta:
+        verbose_name = "Œ“Ì‰…"
+        verbose_name_plural = "«·Œ“‰"
+
+    def __str__(self):
+        return f"{self.name} ({self.user.username}) - —’Ìœ: {self.balance} Ã.„"
+
+    def save(self, *args, **kwargs):
+        # ›Ì Õ«· «·≈‰‘«¡ ·√Ê· „—…° ‰Ã⁄· «·—’Ìœ «·Õ«·Ì Ì”«ÊÌ —’Ìœ √Ê· «·„œ…
+        if not self.pk:
+            self.balance = self.opening_balance
+        super().save(*args, **kwargs)

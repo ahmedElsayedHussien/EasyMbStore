@@ -423,6 +423,42 @@ def pos_checkout(request):
         return JsonResponse({'error': str(e)}, status=400)
     except Exception as e:
         return JsonResponse({'error': f"فشل الحفظ: {str(e)}"}, status=400)
+
+@login_required
+def pos_inventory_snapshot(request):
+    """
+    إرجاع قائمة الأجهزة المتاحة وكميات المخازن بصيغة JSON لتحديث نقطة البيع تلقائياً بدون تحديث الصفحة.
+    """
+    from erp.models import Device, Stock
+    
+    # 1. الأجهزة المتاحة (سيريالات الهواتف)
+    available_devices = Device.objects.filter(is_sold=False).select_related('product', 'warehouse')
+    devices_data = []
+    for dev in available_devices:
+        devices_data.append({
+            "id": dev.id,
+            "product_id": dev.product.id,
+            "imei": f"{dev.imei} / {dev.imei2}" if dev.imei2 else dev.imei,
+            "warehouse_id": dev.warehouse.id,
+            "condition": dev.condition,
+            "storage": dev.get_storage_display() or "",
+            "ram": dev.get_ram_display() or ""
+        })
+        
+    # 2. الأصناف السائبة (مخزون المستودعات)
+    warehouse_stocks = Stock.objects.filter(quantity__gt=0).select_related('product', 'warehouse')
+    stocks_data = []
+    for st in warehouse_stocks:
+        stocks_data.append({
+            "product_id": st.product.id,
+            "warehouse_id": st.warehouse.id,
+            "quantity": st.quantity
+        })
+        
+    return JsonResponse({
+        "devices": devices_data,
+        "stocks": stocks_data
+    })
 # ==========================================
 # 3. شراء الأجهزة المستعملة (Used Device Purchase)
 # ==========================================

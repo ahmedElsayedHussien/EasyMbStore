@@ -92,6 +92,23 @@ class PurchaseItemForm(forms.ModelForm):
             'is_tax_paid': forms.CheckboxInput(attrs={'class': 'form-check-input row-tax'}),
         }
 
+    def clean(self):
+        cleaned_data = super().clean()
+        product = cleaned_data.get('product')
+        quantity = cleaned_data.get('quantity')
+        imei_list = cleaned_data.get('imei_list')
+        
+        if product and product.requires_imei:
+            if not imei_list:
+                raise forms.ValidationError(f"المنتج المختار ({product.name}) يتطلب إدخال سيريالات (IMEI).")
+            # حساب عدد السيريالات
+            imeis = [i.strip() for i in imei_list.split(',') if i.strip()]
+            if len(imeis) != quantity:
+                raise forms.ValidationError(
+                    f"عدد السيريالات المدخلة ({len(imeis)}) لا يتطابق مع الكمية المحددة ({quantity}) للمنتج ({product.name})."
+                )
+        return cleaned_data
+
 PurchaseItemFormSet = inlineformset_factory(
     PurchaseInvoice, PurchaseItem,
     form=PurchaseItemForm,

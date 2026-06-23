@@ -24,7 +24,11 @@
             <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-secondary">
                 <span class="text-primary fw-bold">{{ prod.selling_price }} ج.م</span>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-secondary" style="font-size: 0.8rem;">المتاح: {{ prod.available_qty }}</span>
+                    <span class="badge badge-available available-qty-badge" 
+                          data-product-id="{{ prod.id }}" 
+                          data-condition="{{ prod.condition|default:'' }}" 
+                          data-requires-imei="{% if prod.requires_imei %}true{% else %}false{% endif %}"
+                          style="font-size: 0.8rem;">المتاح: {{ prod.available_qty }}</span>
                     <span class="btn btn-outline-primary btn-sm px-2 py-1"><i class="bi bi-plus-lg"></i> إضافة</span>
                 </div>
             </div>

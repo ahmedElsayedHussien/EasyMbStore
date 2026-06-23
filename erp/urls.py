@@ -17,6 +17,7 @@ urlpatterns = [
     path('pos/search/', views.pos_product_search, name='pos_product_search'),
     path('pos/grid/', views.pos_product_grid, name='pos_product_grid'),
     path('pos/checkout/', views.pos_checkout, name='pos_checkout'),
+    path('pos/inventory-snapshot/', views.pos_inventory_snapshot, name='pos_inventory_snapshot'),
     path('sales/<int:pk>/', views.sale_invoice_detail, name='sale_detail'),
     
     # شراء المستعمل

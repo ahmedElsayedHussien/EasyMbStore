@@ -278,6 +278,12 @@ label {
     transform: scale(1.02);
     border-color: var(--primary);
 }
+.badge-available {
+    background-color: var(--primary-glow) !important;
+    color: var(--primary) !important;
+    border: 1px solid var(--primary) !important;
+    font-weight: bold;
+}
 
 /* لوحة الصيانة (Maintenance Kanban Board) */
 .kanban-column {

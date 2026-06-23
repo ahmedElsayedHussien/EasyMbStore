@@ -3,7 +3,7 @@ from erp.models import (
     StoreSetting, Contact, Warehouse, Product, Stock, Device, DeviceAttachment,
     PurchaseInvoice, PurchaseItem, StockTransfer, StockTransferItem,
     CashShift, ExpenseCategory, Expense, SaleInvoice, SaleItem, Payment,
-    RepairTicket, RepairPartUsed, Warranty, NotificationLog, NotificationSettings
+    RepairTicket, RepairPartUsed, Warranty, NotificationLog, NotificationSettings, Treasury
 )
 
 # 1. إعدادات المحل (Singleton Settings)
@@ -139,3 +139,10 @@ class NotificationSettingsAdmin(admin.ModelAdmin):
         if NotificationSettings.objects.exists():
             return False
         return True
+
+@admin.register(Treasury)
+class TreasuryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'user', 'opening_balance', 'balance', 'is_active', 'created_at')
+    list_filter = ('is_active', 'user')
+    search_fields = ('name', 'user__username')
+

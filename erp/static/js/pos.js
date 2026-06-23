@@ -298,7 +298,7 @@ function renderCart() {
             // جلب الأجهزة المتاحة لهذا الموديل في كل المستودعات لتسهيل الاختيار وطبقاً للشرط
             const availableForProduct = allDevices.filter(d => d.product_id === item.product_id && (!item.condition || d.condition === item.condition));
             
-            imeiSelectHTML = `<select class="form-select form-select-sm mt-2 text-info border-info" onchange="updateCartItemDevice(${idx}, this)">`;
+            imeiSelectHTML = `<select class="form-select form-select-sm mt-2 text-info border-info" onfocus="refreshIMEIDropdown(${idx}, this)" onchange="updateCartItemDevice(${idx}, this)">`;
             imeiSelectHTML += `<option value="">-- اختر السيريال IMEI --</option>`;
             
             if (item.device_id && !availableForProduct.some(d => d.id === item.device_id)) {
@@ -523,3 +523,67 @@ function printSimulatedReceipt(invoiceId) {
     `);
     printWindow.document.close();
 }
+
+// تحديث قائمة السيريالات عند التركيز عليها لضمان الحداثة التامة
+function refreshIMEIDropdown(idx, selectEl) {
+    const item = cart[idx];
+    const currentValue = selectEl.value;
+    
+    // تصفية الأجهزة المتاحة لهذا المنتج
+    const availableForProduct = allDevices.filter(d => d.product_id === item.product_id && (!item.condition || d.condition === item.condition));
+    
+    const warehouseOptions = Array.from(document.querySelectorAll("#warehouse-options-hidden option")).map(opt => ({
+        id: parseInt(opt.value),
+        name: opt.textContent
+    }));
+
+    // الاحتفاظ بالجهاز المحدد حالياً حتى لو تم حذفه من القائمة العامة (مثل تصفية الويب)
+    let optionsHTML = `<option value="">-- اختر السيريال IMEI --</option>`;
+    
+    if (item.device_id && !availableForProduct.some(d => d.id === item.device_id)) {
+        optionsHTML += `<option value="${item.device_id}" selected>${item.imei}</option>`;
+    }
+    
+    availableForProduct.forEach(d => {
+        const whName = warehouseOptions.find(w => w.id === d.warehouse_id)?.name || "";
+        const conditionStr = d.condition === 'new' ? 'جديد' : 'مستعمل';
+        const specsStr = (d.storage || d.ram) ? ` - ${d.storage || ''}/${d.ram || ''}` : '';
+        optionsHTML += `<option value="${d.id}" ${parseInt(currentValue) === d.id ? 'selected' : ''}>${d.imei} (${conditionStr}${specsStr}) (${whName})</option>`;
+    });
+    
+    selectEl.innerHTML = optionsHTML;
+}
+
+// سحب الكميات والأجهزة المتاحة لحظياً من السيرفر وتحديث الواجهة
+function updateInventorySnapshot() {
+    fetch('/pos/inventory-snapshot/')
+        .then(response => {
+            if (!response.ok) throw new Error("Network response was not ok");
+            return response.json();
+        })
+        .then(data => {
+            // تحديث المتغيرات العامة
+            allDevices = data.devices;
+            allStocks = data.stocks;
+            
+            // تحديث قيم "المتاح" على الكروت في شاشة المبيعات
+            document.querySelectorAll('.available-qty-badge').forEach(badge => {
+                const productId = parseInt(badge.getAttribute('data-product-id'));
+                const condition = badge.getAttribute('data-condition') || null;
+                const requiresImei = badge.getAttribute('data-requires-imei') === 'true';
+                
+                let qty = 0;
+                if (requiresImei) {
+                    qty = allDevices.filter(d => d.product_id === productId && (!condition || d.condition === condition)).length;
+                } else {
+                    qty = allStocks.filter(s => s.product_id === productId).reduce((sum, s) => sum + s.quantity, 0);
+                }
+                badge.textContent = `المتاح: ${qty}`;
+            });
+        })
+        .catch(err => console.error("Error updating inventory snapshot:", err));
+}
+
+// بدء الفحص الدوري كل 5 ثوانٍ
+setInterval(updateInventorySnapshot, 5000);
+

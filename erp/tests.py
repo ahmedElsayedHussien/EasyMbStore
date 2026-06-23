@@ -2012,3 +2012,129 @@ class ERPReportsViewTests(TestCase):
             
         log.refresh_from_db()
         self.assertEqual(log.status, 'sent')
+
+
+class ERPValidationTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from erp.models import Contact, Warehouse, Product, PurchaseInvoice
+        User = get_user_model()
+        self.user = User.objects.create_user(username='admin_val', password='password123')
+        self.supplier = Contact.objects.create(name="مورد تجربة", phone="01010101010", contact_type='supplier')
+        self.warehouse = Warehouse.objects.create(name="مخزن تجربة")
+        self.product_serialized = Product.objects.create(
+            name="آيفون تجربة",
+            barcode_qr="11223344",
+            product_type='phone',
+            selling_price=Decimal('10000.00'),
+            requires_imei=True
+        )
+        self.product_normal = Product.objects.create(
+            name="جراب تجربة",
+            barcode_qr="55667788",
+            product_type='accessory',
+            selling_price=Decimal('100.00'),
+            requires_imei=False
+        )
+        self.invoice = PurchaseInvoice.objects.create(
+            supplier=self.supplier,
+            created_by=self.user,
+            total_amount=Decimal('0.00'),
+            net_amount=Decimal('0.00'),
+            payment_method='credit'
+        )
+
+    def test_purchase_item_form_validation(self):
+        """
+        التحقق من صحة مدخلات النموذج لبند شراء يحتوي على جهاز مسيرن.
+        """
+        from erp.forms import PurchaseItemForm
+        # 1. حالة منتج مسيرن وبدون سيريالات (فشل)
+        form_data = {
+            'product': self.product_serialized.id,
+            'warehouse': self.warehouse.id,
+            'quantity': 2,
+            'unit_cost': Decimal('8000.00'),
+            'imei_list': ''
+        }
+        form = PurchaseItemForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn("يتطلب إدخال سيريالات", form.errors['__all__'][0])
+
+        # 2. حالة منتج مسيرن والكمية لا تطابق عدد السيريالات (فشل)
+        form_data['imei_list'] = '111111111111111'  # سيريال واحد والكمية 2
+        form = PurchaseItemForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn("لا يتطابق مع الكمية المحددة", form.errors['__all__'][0])
+
+        # 3. حالة منتج مسيرن ببيانات صحيحة (نجاح)
+        form_data['imei_list'] = '111111111111111, 222222222222222'
+        form = PurchaseItemForm(data=form_data)
+        self.assertTrue(form.is_valid())
+
+        # 4. حالة منتج عادي بدون سيريالات (نجاح)
+        form_data_normal = {
+            'product': self.product_normal.id,
+            'warehouse': self.warehouse.id,
+            'quantity': 10,
+            'unit_cost': Decimal('50.00'),
+            'imei_list': ''
+        }
+        form = PurchaseItemForm(data=form_data_normal)
+        self.assertTrue(form.is_valid())
+
+    def test_purchase_item_model_clean_validation(self):
+        """
+        التحقق من عمل التحقق على مستوى الموديل (PurchaseItem.clean).
+        """
+        from django.core.exceptions import ValidationError
+        from erp.models import PurchaseItem
+
+        # 1. بدون سيريالات
+        item1 = PurchaseItem(
+            invoice=self.invoice,
+            product=self.product_serialized,
+            warehouse=self.warehouse,
+            quantity=2,
+            unit_cost=Decimal('8000.00'),
+            imei_list=''
+        )
+        with self.assertRaises(ValidationError):
+            item1.full_clean()
+
+        # 2. كمية غير متطابقة
+        item2 = PurchaseItem(
+            invoice=self.invoice,
+            product=self.product_serialized,
+            warehouse=self.warehouse,
+            quantity=2,
+            unit_cost=Decimal('8000.00'),
+            imei_list='111111111111111'
+        )
+        with self.assertRaises(ValidationError):
+            item2.full_clean()
+
+        # 3. بيانات صحيحة
+        item3 = PurchaseItem(
+            invoice=self.invoice,
+            product=self.product_serialized,
+            warehouse=self.warehouse,
+            quantity=2,
+            unit_cost=Decimal('8000.00'),
+            imei_list='111111111111111, 222222222222222'
+        )
+        item3.full_clean()  # لا يرفع أي استثناء
+
+    def test_pos_inventory_snapshot_view(self):
+        """
+        التحقق من أن عرض pos_inventory_snapshot يرجع البيانات بصيغة JSON وبحالة 200.
+        """
+        self.client.login(username='admin_val', password='password123')
+        response = self.client.get('/pos/inventory-snapshot/')
+        self.assertEqual(response.status_code, 200)
+        
+        data = response.json()
+        self.assertIn('devices', data)
+        self.assertIn('stocks', data)
+
+
