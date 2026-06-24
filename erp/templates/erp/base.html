@@ -140,17 +140,27 @@
                     </li>
                     {% endif %}
 
+                    <!-- النقدية والورديات -->
+                    {% if perms.erp.view_cashshift %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if 'shift' in request.resolver_match.view_name or 'cash_status' in request.resolver_match.view_name %}active{% endif %}" href="#" id="cashDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-safe-fill"></i> النقدية والورديات
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="cashDropdown">
+                            <li><a class="dropdown-item" href="{% url 'erp:shift_manage' %}"><i class="bi bi-clock-history me-2"></i> الوردية المفتوحة</a></li>
+                            <li><a class="dropdown-item" href="{% url 'erp:cash_status' %}"><i class="bi bi-safe-fill me-2"></i> حالة النقدية</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
                     <!-- الإدارة والتقارير -->
-                    {% if perms.erp.view_cashshift or request.user.is_staff or request.user.is_superuser %}
+                    {% if request.user.is_staff or request.user.is_superuser %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if 'shift' in request.resolver_match.view_name or 'reports' in request.resolver_match.view_name or 'notification' in request.resolver_match.view_name %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-gear-fill"></i> الإدارة
                         </a>
                         <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" aria-labelledby="adminDropdown">
-                            {% if perms.erp.view_cashshift %}
-                            <li><a class="dropdown-item" href="{% url 'erp:shift_manage' %}"><i class="bi bi-clock-history me-2"></i> الوردية المفتوحة</a></li>
-                            <li><a class="dropdown-item" href="{% url 'erp:cash_status' %}"><i class="bi bi-safe-fill me-2"></i> حالة النقدية</a></li>
-                            {% endif %}
+
                             {% if request.user.is_staff or request.user.is_superuser %}
                             <li><a class="dropdown-item" href="{% url 'erp:reports_dashboard' %}"><i class="bi bi-graph-up-arrow me-2"></i> التقارير المتقدمة</a></li>
                             <li><hr class="dropdown-divider"></li>
