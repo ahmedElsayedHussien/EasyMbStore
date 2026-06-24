@@ -684,8 +684,7 @@ def purchase_invoice_create(request):
                         treasury = Treasury.objects.select_for_update().get(id=invoice.treasury.id)
                         if invoice.paid_amount > treasury.balance:
                             raise Exception(f"خطأ: رصيد الخزينة المحددة ({treasury.balance} ج.م) غير كافٍ لسداد المبلغ المدفوع ({invoice.paid_amount} ج.م).")
-                        treasury.balance -= invoice.paid_amount
-                        treasury.save()
+                        treasury.record_transaction(invoice.paid_amount, 'out', f'سداد فاتورة مشتريات رقم {invoice.id}', request.user)
                     
                     invoice.save()
                     # حفظ البنود وتحديث المخزون ومتوسط التكلفة تلقائياً بواسطة السجنل
@@ -810,8 +809,7 @@ def purchase_invoice_pay(request, pk):
                         return redirect(next_url)
                     return redirect('erp:purchase_list')
                 
-                treasury.balance -= amount
-                treasury.save()
+                treasury.record_transaction(amount, 'out', f'دفعة لمورد: {invoice.supplier.name} للفاتورة {invoice.id}', request.user)
                 
             # تحديث قيمة المبلغ المدفوع في الفاتورة
             invoice.paid_amount += amount
@@ -1019,8 +1017,7 @@ def repair_change_status(request, pk):
                 treasury = Treasury.objects.select_for_update().get(id=treasury_id, is_active=True)
                 total_cost = ticket.total_cost
                 if total_cost > 0:
-                    treasury.balance += total_cost
-                    treasury.save()
+                    treasury.record_transaction(total_cost, 'in', f'تحصيل تكلفة صيانة لتذكرة رقم #{ticket.id}', request.user)
                     # إنشاء إيصال للعميل كإيراد صيانة
                     from erp.models import ContactTransaction
                     ContactTransaction.objects.create(
@@ -1093,8 +1090,7 @@ def repair_ticket_edit(request, pk):
                         treasury = Treasury.objects.select_for_update().get(id=treasury_id, is_active=True)
                         total_cost = ticket.total_cost
                         if total_cost > 0:
-                            treasury.balance += total_cost
-                            treasury.save()
+                            treasury.record_transaction(total_cost, 'in', f"تحصيل تكلفة صيانة لتذكرة رقم #{ticket.id}", request.user)
                             from erp.models import ContactTransaction
                             ContactTransaction.objects.create(
                                 contact=ticket.customer,
@@ -1244,8 +1240,7 @@ def shift_close(request):
             shift.save() # سيقوم الـ pre_save بتحديث expected_closing_balance للمرة الأخيرة
             if shift.treasury:
                 treasury = Treasury.objects.select_for_update().get(id=shift.treasury.id)
-                treasury.balance += (shift.actual_cash - shift.opening_balance)
-                treasury.save()
+                treasury.record_transaction((shift.actual_cash - shift.opening_balance), 'in', f'فائض وردية: {shift.cashier.username}', request.user)
             discrepancy = shift.actual_cash - shift.expected_closing_balance
             if discrepancy == 0:
                 messages.success(request, "تم إغلاق الوردية وتصفيتها بنجاح بدون أي فروقات.")
@@ -1530,10 +1525,9 @@ def debts_list(request):
                 if distributed_amount > 0:
                     treasury = trans.treasury
                     if trans.transaction_type == 'receipt':
-                        treasury.balance += distributed_amount
+                        treasury.record_transaction(distributed_amount, 'in', f"سداد ديون لـ {trans.contact.name}", request.user)
                     elif trans.transaction_type == 'payment':
-                        treasury.balance -= distributed_amount
-                    treasury.save()
+                        treasury.record_transaction(distributed_amount, 'out', f"سداد ديون لـ {trans.contact.name}", request.user)
 
                 messages.success(request, f"تم تسجيل السداد بنجاح وتحديث الفواتير بقيمة {original_amount} ج.م لـ {trans.contact.name}.")
                 return redirect('erp:debts_list')
@@ -1661,8 +1655,7 @@ def sale_invoice_pay(request, pk):
             treasury = get_object_or_404(Treasury.objects.select_for_update(), id=treasury_id)
             
             # زيادة رصيد الخزينة
-            treasury.balance += amount
-            treasury.save()
+            treasury.record_transaction(amount, 'in', f'فاتورة مبيعات POS رقم {invoice.id}', request.user)
             
             # إضافة الدفعة للفاتورة
             invoice.paid_amount += amount
@@ -2701,8 +2694,7 @@ def payroll_pay(request, pk):
                 messages.error(request, f"رصيد الخزينة المحددة لا يكفي ({treasury.balance} ج.م متوفر، مطلوب {payroll.net_salary} ج.م).")
                 return redirect('erp:payroll_list')
                 
-            treasury.balance -= payroll.net_salary
-            treasury.save()
+            treasury.record_transaction(payroll.net_salary, 'out', f'صرف راتب الموظف {payroll.employee.user.username}', request.user)
             
             payroll.is_paid = True
             payroll.paid_at = timezone.now()
@@ -2785,8 +2777,7 @@ def sale_return_create(request, pk):
                     
                 # خصم المبلغ من الخزينة
                 if refund_amount > 0:
-                    treasury.balance -= refund_amount
-                    treasury.save()
+                    treasury.record_transaction(refund_amount, 'out', f'مرتجع مبيعات للفاتورة الأصلية {original_invoice.id}', request.user)
                     
                 messages.success(request, "تم تسجيل مرتجع المبيعات بنجاح واسترداد المخزون.")
                 return redirect('erp:sale_detail', pk=pk)
@@ -2855,8 +2846,7 @@ def purchase_return_create(request, pk):
                     
                 # إضافة المبلغ للخزينة
                 if refund_amount > 0:
-                    treasury.balance += refund_amount
-                    treasury.save()
+                    treasury.record_transaction(refund_amount, 'in', f'مرتجع مشتريات للفاتورة الأصلية {original_invoice.id}', request.user)
                     
                 messages.success(request, "تم تسجيل مرتجع المشتريات بنجاح وتخفيض المخزون وإيداع المبلغ في الخزينة.")
                 return redirect('erp:purchase_detail', pk=pk)
@@ -2870,3 +2860,235 @@ def purchase_return_create(request, pk):
             
     treasuries = Treasury.objects.filter(is_active=True)
     return render(request, 'erp/returns/purchase_return_create.html', {'purchase_invoice': purchase_invoice, 'treasuries': treasuries})
+
+@login_required
+def treasury_transactions_report(request):
+    if not request.user.is_staff and not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("عذراً، يجب أن تكون مشرفاً أو مديراً للوصول لتقرير حركات الخزينة.")
+    
+    from erp.models import Treasury, TreasuryTransaction
+    from django.utils import timezone
+    from datetime import datetime, timedelta
+    from django.db import models
+
+    # فلاتر البحث
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    treasury_id = request.GET.get('treasury_id')
+
+    today = timezone.localtime(timezone.now()).date()
+    default_start = today - timedelta(days=30)
+    
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = default_start
+    else:
+        start_date = default_start
+        
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            end_date = today
+    else:
+        end_date = today
+
+    # الاستعلام الأساسي
+    transactions = TreasuryTransaction.objects.filter(
+        date__date__gte=start_date,
+        date__date__lte=end_date
+    )
+
+    if treasury_id:
+        transactions = transactions.filter(treasury_id=treasury_id)
+
+    # حساب المجاميع
+    total_in = transactions.filter(transaction_type='in').aggregate(total=models.Sum('amount'))['total'] or 0
+    total_out = transactions.filter(transaction_type='out').aggregate(total=models.Sum('amount'))['total'] or 0
+    net_movement = total_in - total_out
+
+    context = {
+        'transactions': transactions.select_related('treasury', 'user').order_by('-date'),
+        'treasuries': Treasury.objects.filter(is_active=True),
+        'start_date': start_date,
+        'end_date': end_date,
+        'selected_treasury': int(treasury_id) if treasury_id else None,
+        'total_in': total_in,
+        'total_out': total_out,
+        'net_movement': net_movement,
+    }
+    return render(request, 'erp/treasury_report.html', context)
+
+
+
+@login_required
+def achievements_report(request):
+    if not request.user.is_staff and not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("عذراً، يجب أن تكون مشرفاً أو مديراً للوصول لتقرير المحققات.")
+        
+    from erp.models import SaleInvoice, SaleItem, CommissionRule, SalesTarget, Product
+    from django.db.models import Sum, F
+    from django.utils import timezone
+    from datetime import datetime, timedelta
+    
+    period = request.GET.get('period', 'monthly')
+    target_date_str = request.GET.get('target_date')
+    
+    today = timezone.localtime(timezone.now()).date()
+    
+    if target_date_str:
+        try:
+            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            target_date = today
+    else:
+        target_date = today
+        
+    if period == 'daily':
+        start_date = target_date
+        end_date = target_date
+    elif period == 'monthly':
+        start_date = target_date.replace(day=1)
+        if target_date.month == 12:
+            end_date = target_date.replace(year=target_date.year+1, month=1, day=1) - timedelta(days=1)
+        else:
+            end_date = target_date.replace(month=target_date.month+1, day=1) - timedelta(days=1)
+    else: # yearly
+        start_date = target_date.replace(month=1, day=1)
+        end_date = target_date.replace(month=12, day=31)
+        
+    # جلب قواعد العمولة المتاحة في قاموس لسرعة الوصول
+    rules = {rule.product_type: rule for rule in CommissionRule.objects.all()}
+    
+    from django.contrib.auth.models import User
+    cashiers = User.objects.filter(is_active=True)
+    
+    report_data = []
+    
+    for cashier in cashiers:
+        # حساب مبيعات هذا الكاشير في الفترة المحددة
+        sales_invoices = SaleInvoice.objects.filter(
+            cashier=cashier,
+            date_created__date__gte=start_date,
+            date_created__date__lte=end_date
+        )
+        
+        # إذا لم يكن لديه مبيعات ولا تارجت، نتخطاه (أو يمكن إظهاره إذا أردنا)
+        # جلب التارجت إن وجد
+        target = SalesTarget.objects.filter(user=cashier, period=period, date__year=target_date.year, date__month=target_date.month if period in ['daily', 'monthly'] else 1).first()
+        if period == 'daily' and target:
+            # للتارجت اليومي نتأكد من تطابق اليوم أيضاً
+            target = SalesTarget.objects.filter(user=cashier, period=period, date=target_date).first()
+            
+        if not sales_invoices.exists() and not target:
+            continue
+            
+        # تجميع مبيعات الكاشير حسب نوع الصنف
+        items = SaleItem.objects.filter(invoice__in=sales_invoices).values(
+            product_type=F('product__product_type')
+        ).annotate(
+            total_sales=Sum(F('quantity') * F('unit_price'))
+        )
+        
+        categories_data = []
+        total_commission = 0
+        total_sales_amount = 0
+        
+        for item in items:
+            ptype = item['product_type']
+            sales = item['total_sales'] or 0
+            total_sales_amount += sales
+            
+            comm = 0
+            if ptype in rules:
+                rule = rules[ptype]
+                if rule.sales_milestone > 0:
+                    milestones_achieved = int(sales // rule.sales_milestone)
+                    comm = milestones_achieved * rule.commission_amount
+                    total_commission += comm
+            
+            # نحتاج اسم النوع بدلاً من الكود
+            ptype_display = dict(Product.PRODUCT_TYPES).get(ptype, ptype)
+            categories_data.append({
+                'type': ptype_display,
+                'sales': sales,
+                'commission': comm
+            })
+            
+        progress = 0
+        if target and target.target_amount > 0:
+            progress = min(100, int((total_sales_amount / target.target_amount) * 100))
+            
+        report_data.append({
+            'cashier': cashier,
+            'categories': categories_data,
+            'total_sales': total_sales_amount,
+            'total_commission': total_commission,
+            'target': target.target_amount if target else 0,
+            'progress': progress
+        })
+        
+    context = {
+        'report_data': report_data,
+        'period': period,
+        'target_date': target_date,
+        'start_date': start_date,
+        'end_date': end_date
+    }
+    return render(request, 'erp/achievements_report.html', context)
+
+
+@login_required
+def targets_manage(request):
+    if not request.user.is_staff and not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("عذراً، هذه الصفحة مخصصة للمديرين فقط.")
+        
+    from erp.forms import CommissionRuleForm, SalesTargetForm
+    from erp.models import CommissionRule, SalesTarget
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'add_commission':
+            form = CommissionRuleForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "تم إضافة قاعدة العمولة بنجاح!")
+            else:
+                messages.error(request, "تأكد من صحة البيانات المدخلة (قد تكون الفئة مسجلة مسبقاً).")
+                
+        elif action == 'delete_commission':
+            rule_id = request.POST.get('rule_id')
+            CommissionRule.objects.filter(id=rule_id).delete()
+            messages.success(request, "تم حذف قاعدة العمولة.")
+            
+        elif action == 'add_target':
+            form = SalesTargetForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "تم إضافة التارجت بنجاح!")
+            else:
+                messages.error(request, "خطأ: تأكد من عدم وجود تارجت مسجل لنفس الموظف ونفس الفترة مسبقاً.")
+                
+        elif action == 'delete_target':
+            target_id = request.POST.get('target_id')
+            SalesTarget.objects.filter(id=target_id).delete()
+            messages.success(request, "تم حذف التارجت.")
+            
+        return redirect('erp:targets_manage')
+        
+    rules = CommissionRule.objects.all()
+    targets = SalesTarget.objects.all().order_by('-date')
+    
+    context = {
+        'rules': rules,
+        'targets': targets,
+        'commission_form': CommissionRuleForm(),
+        'target_form': SalesTargetForm()
+    }
+    return render(request, 'erp/targets_manage.html', context)

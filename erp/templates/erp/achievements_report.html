@@ -1,0 +1,129 @@
+{% extends 'erp/base.html' %}
+{% block title %}تقرير المحققات والأهداف{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-6">
+        <h2 class="fw-bold mb-0 text-primary">
+            <i class="bi bi-award me-2"></i> تقرير المحققات والعمولات
+        </h2>
+        <p class="text-secondary mt-1">تتبع مبيعات وأهداف الكاشير والعمولات المستحقة.</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <a href="{% url 'erp:reports_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-right-circle me-1"></i> العودة للتقارير
+        </a>
+    </div>
+</div>
+
+<!-- فلاتر البحث -->
+<div class="card glass-card border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label text-secondary">الفترة</label>
+                <select name="period" class="form-select bg-dark text-white border-secondary">
+                    <option value="daily" {% if period == 'daily' %}selected{% endif %}>يومي (تاريخ محدد)</option>
+                    <option value="monthly" {% if period == 'monthly' %}selected{% endif %}>شهري (شهر التاريخ المحدد)</option>
+                    <option value="yearly" {% if period == 'yearly' %}selected{% endif %}>سنوي (سنة التاريخ المحدد)</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label text-secondary">التاريخ المعني</label>
+                <input type="date" name="target_date" class="form-control bg-dark text-white border-secondary" value="{{ target_date|date:'Y-m-d' }}">
+                <small class="text-muted mt-1 d-block">من: {{ start_date|date:'Y-m-d' }} إلى: {{ end_date|date:'Y-m-d' }}</small>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search me-1"></i> عرض التقرير
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4">
+    {% for data in report_data %}
+    <div class="col-lg-6">
+        <div class="card glass-card border-0 h-100">
+            <div class="card-header bg-dark border-bottom border-secondary py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-white"><i class="bi bi-person-badge text-primary me-2"></i>{{ data.cashier.username }}</h5>
+                <span class="badge bg-primary fs-6">{{ data.total_commission }} ج.م عمولات</span>
+            </div>
+            <div class="card-body">
+                
+                {% if data.target > 0 %}
+                <div class="mb-4 p-3 rounded" style="background: rgba(255,255,255,0.05);">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary fw-bold">الهدف (التارجت)</span>
+                        <span class="fw-bold">{{ data.target }} ج.م</span>
+                    </div>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar {% if data.progress >= 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ data.progress }}%;" aria-valuenow="{{ data.progress }}" aria-valuemin="0" aria-valuemax="100">
+                            {{ data.progress }}%
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-2 small text-muted">
+                        <span>المحقق: {{ data.total_sales }} ج.م</span>
+                        <span>
+                            {% if data.total_sales >= data.target %}
+                                <i class="bi bi-check-circle-fill text-success"></i> اكتمل الهدف!
+                            {% else %}
+                                متبقي: {{ data.target|add:"-"|add:data.total_sales }} ج.م
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-dark text-center py-2 mb-4 border-secondary text-secondary">
+                    <i class="bi bi-info-circle me-1"></i> لم يتم تحديد تارجت لهذا الموظف خلال هذه الفترة
+                </div>
+                {% endif %}
+                
+                <h6 class="text-primary mb-3">تفصيل مبيعات الأقسام</h6>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>القسم</th>
+                                <th>المبيعات</th>
+                                <th>العمولة المستحقة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cat in data.categories %}
+                            <tr>
+                                <td>{{ cat.type }}</td>
+                                <td class="text-success">{{ cat.sales }} ج.م</td>
+                                <td class="fw-bold {% if cat.commission > 0 %}text-warning{% endif %}">
+                                    {{ cat.commission }} ج.م
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">لا توجد مبيعات في هذه الفترة</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="border-top border-secondary">
+                            <tr>
+                                <th>الإجمالي</th>
+                                <th class="text-success">{{ data.total_sales }} ج.م</th>
+                                <th class="text-warning fs-5">{{ data.total_commission }} ج.م</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-secondary text-center py-5">
+            <i class="bi bi-emoji-frown fs-1 d-block mb-3"></i>
+            لا يوجد أي مبيعات أو أهداف مسجلة لأي كاشير في هذه الفترة.
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

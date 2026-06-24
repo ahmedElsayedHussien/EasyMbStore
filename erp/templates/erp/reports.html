@@ -240,6 +240,11 @@
                         <i class="bi bi-graph-up me-1"></i> التدفق النقدي
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="achievements-tab" data-bs-toggle="tab" data-bs-target="#achievements" type="button" role="tab">
+                        <i class="bi bi-award-fill me-1"></i> المحققات والعمولات
+                    </button>
+                </li>
             </ul>
 
             <div class="tab-content" id="reportsTabContent">
@@ -278,6 +283,18 @@
                                     {{ financials.net_profit }} ج.م
                                 </h3>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- تقرير حركات الخزينة -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <a href="{% url 'erp:treasury_report' %}" class="text-decoration-none">
+                                <div class="report-kpi-card text-center border-primary" style="background: rgba(13, 110, 253, 0.1);">
+                                    <h5 class="text-primary fw-bold mb-1"><i class="bi bi-wallet2 me-2"></i> تقرير حركات الخزينة التفصيلي</h5>
+                                    <span class="text-secondary small">اضغط هنا لعرض سجل كامل بجميع الإيداعات والسحوبات لكل خزنة</span>
+                                </div>
+                            </a>
                         </div>
                     </div>
 
@@ -1137,6 +1154,24 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- ═══ تقرير 13: المحققات والعمولات ═══ -->
+                <div class="tab-pane fade" id="achievements" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-award-fill"></i> تقارير المحققات وعمولات الكاشير</h5>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <a href="{% url 'erp:achievements_report' %}" class="text-decoration-none">
+                                <div class="report-kpi-card text-center border-warning" style="background: rgba(255, 193, 7, 0.1);">
+                                    <h5 class="text-warning fw-bold mb-1"><i class="bi bi-star-fill me-2"></i> لوحة المحققات والعمولات</h5>
+                                    <span class="text-secondary small">اضغط هنا لعرض ومتابعة التارجت وعمولات الموظفين بناءً على المبيعات</span>
+                                </div>
+                            </a>
+                        </div>
                     </div>
                 </div>
 

@@ -70,6 +70,10 @@
                             <li><a class="dropdown-item" href="{% url 'erp:sale_list' %}"><i class="bi bi-receipt-cutoff me-2"></i> فواتير المبيعات</a></li>
                             <li><hr class="dropdown-divider border-secondary"></li>
                             <li><a class="dropdown-item" href="{% url 'erp:debts_list' %}"><i class="bi bi-wallet2 me-2"></i> حسابات العملاء والموردين</a></li>
+                            {% if request.user.is_staff or request.user.is_superuser %}
+                            <li><hr class="dropdown-divider border-secondary"></li>
+                            <li><a class="dropdown-item" href="{% url 'erp:targets_manage' %}"><i class="bi bi-star-fill text-warning me-2"></i> إعدادات التارجت والعمولات</a></li>
+                            {% endif %}
                         </ul>
                     </li>
                     {% endif %}

@@ -1,0 +1,125 @@
+{% extends 'erp/base.html' %}
+{% block title %}تقرير حركات الخزينة{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-6">
+        <h2 class="fw-bold mb-0 text-primary">
+            <i class="bi bi-wallet2 me-2"></i> تقرير حركات الخزينة التفصيلي
+        </h2>
+        <p class="text-secondary mt-1">عرض جميع حركات الإيداع والسحب الخاصة بالخزن.</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <a href="{% url 'erp:reports_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-right-circle me-1"></i> العودة للتقارير
+        </a>
+    </div>
+</div>
+
+<!-- فلاتر البحث -->
+<div class="card glass-card border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label text-secondary">من تاريخ</label>
+                <input type="date" name="start_date" class="form-control bg-dark text-white border-secondary" value="{{ start_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-secondary">إلى تاريخ</label>
+                <input type="date" name="end_date" class="form-control bg-dark text-white border-secondary" value="{{ end_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-secondary">الخزينة</label>
+                <select name="treasury_id" class="form-select bg-dark text-white border-secondary">
+                    <option value="">-- كل الخزن --</option>
+                    {% for treasury in treasuries %}
+                        <option value="{{ treasury.id }}" {% if selected_treasury == treasury.id %}selected{% endif %}>{{ treasury.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search me-1"></i> عرض التقرير
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- الملخص المالي -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card bg-success bg-opacity-10 border-success border-opacity-25 h-100">
+            <div class="card-body text-center">
+                <h5 class="text-success mb-2"><i class="bi bi-arrow-down-circle-fill me-1"></i> إجمالي الوارد (الإيداعات)</h5>
+                <h3 class="fw-bold text-success mb-0">{{ total_in }} ج.م</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-danger bg-opacity-10 border-danger border-opacity-25 h-100">
+            <div class="card-body text-center">
+                <h5 class="text-danger mb-2"><i class="bi bi-arrow-up-circle-fill me-1"></i> إجمالي الصادر (المصروفات)</h5>
+                <h3 class="fw-bold text-danger mb-0">{{ total_out }} ج.م</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card {% if net_movement >= 0 %}bg-primary{% else %}bg-warning{% endif %} bg-opacity-10 border-{% if net_movement >= 0 %}primary{% else %}warning{% endif %} border-opacity-25 h-100">
+            <div class="card-body text-center">
+                <h5 class="text-{% if net_movement >= 0 %}primary{% else %}warning{% endif %} mb-2">
+                    <i class="bi bi-calculator-fill me-1"></i> صافي الحركة
+                </h5>
+                <h3 class="fw-bold text-{% if net_movement >= 0 %}primary{% else %}warning{% endif %} mb-0">{{ net_movement }} ج.م</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- جدول الحركات -->
+<div class="card glass-card border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover table-striped mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>التاريخ والوقت</th>
+                        <th>الخزينة</th>
+                        <th>نوع الحركة</th>
+                        <th>البيان / الوصف</th>
+                        <th>المبلغ</th>
+                        <th>المستخدم</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trans in transactions %}
+                        <tr>
+                            <td>{{ trans.date|date:"Y-m-d h:i A" }}</td>
+                            <td><span class="badge bg-secondary">{{ trans.treasury.name }}</span></td>
+                            <td>
+                                {% if trans.transaction_type == 'in' %}
+                                    <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50"><i class="bi bi-arrow-down-circle me-1"></i> إيداع</span>
+                                {% else %}
+                                    <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50"><i class="bi bi-arrow-up-circle me-1"></i> سحب</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ trans.description }}</td>
+                            <td class="fw-bold {% if trans.transaction_type == 'in' %}text-success{% else %}text-danger{% endif %}">
+                                {% if trans.transaction_type == 'in' %}+{% else %}-{% endif %} {{ trans.amount }} ج.م
+                            </td>
+                            <td>{{ trans.user.username|default:"نظام" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-secondary">
+                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                لا توجد حركات مسجلة في هذه الفترة المحددة.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

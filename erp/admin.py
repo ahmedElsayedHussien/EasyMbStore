@@ -3,7 +3,8 @@ from erp.models import (
     StoreSetting, Contact, Warehouse, Product, Stock, Device, DeviceAttachment,
     PurchaseInvoice, PurchaseItem, StockTransfer, StockTransferItem,
     CashShift, ExpenseCategory, Expense, SaleInvoice, SaleItem, Payment,
-    RepairTicket, RepairPartUsed, Warranty, NotificationLog, NotificationSettings, Treasury
+    RepairTicket, RepairPartUsed, Warranty, NotificationLog, NotificationSettings,
+    Treasury, TreasuryTransaction, CommissionRule, SalesTarget
 )
 
 # 1. إعدادات المحل (Singleton Settings)
@@ -146,3 +147,21 @@ class TreasuryAdmin(admin.ModelAdmin):
     list_filter = ('is_active', 'user')
     search_fields = ('name', 'user__username')
 
+
+
+@admin.register(TreasuryTransaction)
+class TreasuryTransactionAdmin(admin.ModelAdmin):
+    list_display = ('treasury', 'transaction_type', 'amount', 'date', 'user')
+    list_filter = ('transaction_type', 'treasury', 'date')
+    search_fields = ('description',)
+    readonly_fields = ('date',)
+
+@admin.register(CommissionRule)
+class CommissionRuleAdmin(admin.ModelAdmin):
+    list_display = ('product_type', 'sales_milestone', 'commission_amount')
+    search_fields = ('product_type',)
+
+@admin.register(SalesTarget)
+class SalesTargetAdmin(admin.ModelAdmin):
+    list_display = ('user', 'period', 'target_amount', 'date')
+    list_filter = ('period', 'user', 'date')

@@ -88,4 +88,13 @@ urlpatterns = [
     path('hr/payroll/', views.payroll_list, name='payroll_list'),
     path('hr/payroll/generate/', views.payroll_generate, name='payroll_generate'),
     path('hr/payroll/<int:pk>/pay/', views.payroll_pay, name='payroll_pay'),
+
+    # تقرير الخزينة
+    path('reports/treasury/', views.treasury_transactions_report, name='treasury_report'),
+
+    # تقرير المحققات والأهداف
+    path('reports/achievements/', views.achievements_report, name='achievements_report'),
+    
+    # إدارة المحققات والعمولات
+    path('targets-manage/', views.targets_manage, name='targets_manage'),
 ]

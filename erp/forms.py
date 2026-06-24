@@ -406,3 +406,29 @@ class EmployeeProfileForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+from .models import CommissionRule, SalesTarget
+
+from .models import CommissionRule, SalesTarget
+
+class CommissionRuleForm(forms.ModelForm):
+    class Meta:
+        model = CommissionRule
+        fields = ['product_type', 'sales_milestone', 'commission_amount']
+        widgets = {
+            'product_type': forms.Select(attrs={'class': 'form-select'}),
+            'sales_milestone': forms.NumberInput(attrs={'class': 'form-control'}),
+            'commission_amount': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+class SalesTargetForm(forms.ModelForm):
+    class Meta:
+        model = SalesTarget
+        fields = ['user', 'period', 'target_amount', 'date']
+        widgets = {
+            'user': forms.Select(attrs={'class': 'form-select'}),
+            'period': forms.Select(attrs={'class': 'form-select'}),
+            'target_amount': forms.NumberInput(attrs={'class': 'form-control'}),
+            'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        }

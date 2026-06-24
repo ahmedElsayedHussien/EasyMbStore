@@ -41,6 +41,7 @@ class StoreSetting(models.Model):
     def __str__(self):
         return self.store_name
 
+
 # ==========================================
 # 2. جهات الاتصال (Contacts)
 # ==========================================
@@ -105,12 +106,11 @@ class ContactTransaction(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         super().save(*args, **kwargs)
-        if is_new:
+        if is_new and self.treasury:
             if self.transaction_type == 'receipt':
-                self.treasury.balance += self.amount
+                self.treasury.record_transaction(self.amount, 'in', f"حركة حساب - {self.get_transaction_type_display()} لـ {self.contact.name}: {self.description or ''}", self.user)
             elif self.transaction_type == 'payment':
-                self.treasury.balance -= self.amount
-            self.treasury.save()
+                self.treasury.record_transaction(self.amount, 'out', f"حركة حساب - {self.get_transaction_type_display()} لـ {self.contact.name}: {self.description or ''}", self.user)
 
     def __str__(self):
         return f"{self.get_transaction_type_display()} - {self.contact.name} - {self.amount}"
@@ -365,9 +365,8 @@ class Expense(models.Model):
         is_new = self.pk is None
         super().save(*args, **kwargs)
         if is_new and self.treasury:
-            # خصم قيمة المصروف من رصيد الخزينة
-            self.treasury.balance -= self.amount
-            self.treasury.save()
+            # خصم قيمة المصروف من رصيد الخزينة وتسجيل الحركة
+            self.treasury.record_transaction(self.amount, 'out', f"مصروف: {self.category.name} - {self.description or ''}", self.shift.cashier if self.shift else None)
 
     def __str__(self):
         return f"{self.category.name}: {self.amount}"
@@ -652,6 +651,76 @@ class Treasury(models.Model):
         if not self.pk:
             self.balance = self.opening_balance
         super().save(*args, **kwargs)
+
+    def record_transaction(self, amount, transaction_type, description, user=None):
+        TreasuryTransaction.objects.create(
+            treasury=self,
+            transaction_type=transaction_type,
+            amount=amount,
+            description=description,
+            user=user
+        )
+        if transaction_type == 'in':
+            self.balance += amount
+        else:
+            self.balance -= amount
+        self.save()
+
+
+class TreasuryTransaction(models.Model):
+    TRANSACTION_TYPES = (
+        ('in', 'إيداع / إيراد'),
+        ('out', 'سحب / مصروف'),
+    )
+    treasury = models.ForeignKey(Treasury, on_delete=models.CASCADE, related_name='transactions', verbose_name="الخزينة")
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES, verbose_name="نوع الحركة")
+    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="المبلغ")
+    description = models.CharField(max_length=255, verbose_name="البيان / الوصف")
+    date = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ ووقت الحركة")
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="المستخدم")
+
+    class Meta:
+        verbose_name = "حركة خزينة"
+        verbose_name_plural = "حركات الخزينة"
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.treasury.name} - {self.get_transaction_type_display()} - {self.amount}"
+
+# ==========================================
+# 11. المحققات والعمولات (Targets & Commissions)
+# ==========================================
+class CommissionRule(models.Model):
+    product_type = models.CharField(max_length=20, choices=Product.PRODUCT_TYPES, unique=True, verbose_name="نوع الصنف")
+    sales_milestone = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="شريحة المبيعات (ج.م)", help_text="مثال: 1000")
+    commission_amount = models.DecimalField(max_digits=8, decimal_places=2, verbose_name="مبلغ العمولة المستحق (ج.م)", help_text="مثال: 5")
+    
+    class Meta:
+        verbose_name = "قاعدة عمولة"
+        verbose_name_plural = "لائحة العمولات والمحققات"
+        
+    def __str__(self):
+        return f"عمولة {self.get_product_type_display()}: {self.commission_amount} ج لكل {self.sales_milestone} ج"
+
+class SalesTarget(models.Model):
+    PERIOD_CHOICES = (
+        ('daily', 'يومي'),
+        ('monthly', 'شهري'),
+        ('yearly', 'سنوي'),
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sales_targets', verbose_name="الكاشير (الموظف)")
+    period = models.CharField(max_length=10, choices=PERIOD_CHOICES, verbose_name="الفترة")
+    target_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="قيمة التارجت المطلوب (ج.م)")
+    date = models.DateField(verbose_name="التاريخ المعني بالتارجت", help_text="إذا كان يومي، اختر اليوم. إذا شهري، اختر أي يوم في الشهر المعني.")
+
+    class Meta:
+        verbose_name = "تارجت مبيعات"
+        verbose_name_plural = "تارجت المبيعات (الأهداف)"
+        unique_together = ('user', 'period', 'date')
+        
+    def __str__(self):
+        return f"تارجت {self.get_period_display()} لـ {self.user.username} - {self.date} ({self.target_amount} ج)"
+
 
 # ==========================================
 # 10. شؤون الموظفين والرواتب (HR & Payroll)
