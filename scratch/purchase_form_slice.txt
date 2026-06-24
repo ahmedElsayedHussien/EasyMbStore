@@ -1,0 +1,36 @@
+class PurchaseInvoiceForm(forms.ModelForm):
+    class Meta:
+        model = PurchaseInvoice
+        fields = ['supplier', 'supplier_invoice_number', 'total_amount', 'discount', 'deduction_addition_tax', 'net_amount', 'payment_method', 'paid_amount']
+        widgets = {
+            'supplier': forms.Select(attrs={'class': 'form-select'}),
+            'supplier_invoice_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'رقم فاتورة المورد'}),
+            'total_amount': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_total_amount', 'readonly': 'readonly'}),
+            'discount': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_discount', 'value': '0.00'}),
+            'deduction_addition_tax': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_deduction_addition_tax', 'value': '0.00'}),
+            'net_amount': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_net_amount', 'readonly': 'readonly'}),
+            'payment_method': forms.Select(attrs={'class': 'form-select', 'id': 'id_payment_method'}),
+            'paid_amount': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_paid_amount', 'value': '0.00'}),
+        }
+
+class PurchaseItemForm(forms.ModelForm):
+    class Meta:
+        model = PurchaseItem
+        fields = ['product', 'warehouse', 'quantity', 'unit_cost', 'imei_list', 'storage', 'ram', 'is_tax_paid']
+        widgets = {
+            'product': forms.Select(attrs={'class': 'form-select row-product'}),
+            'warehouse': forms.Select(attrs={'class': 'form-select'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control row-qty', 'min': 1}),
+            'unit_cost': forms.NumberInput(attrs={'class': 'form-control row-cost', 'step': '0.01'}),
+            'imei_list': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'سيريالات مفصولة بفاصلة'}),
+            'storage': forms.Select(attrs={'class': 'form-select row-storage'}),
+            'ram': forms.Select(attrs={'class': 'form-select row-ram'}),
+            'is_tax_paid': forms.CheckboxInput(attrs={'class': 'form-check-input row-tax'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        product = cleaned_data.get('product')
+        quantity = cleaned_data.get('quantity')
+        imei_list = cleaned_data.get('imei_list')
+        

@@ -141,6 +141,10 @@
                                     <label>طريقة الدفع:</label>
                                     {{ invoice_form.payment_method }}
                                 </div>
+                                <div class="mb-2" id="treasury-select-wrapper" style="display: none;">
+                                    <label>الخزينة المسدد منها:</label>
+                                    {{ invoice_form.treasury }}
+                                </div>
                                 <div class="mb-2" id="paid-amount-wrapper">
                                     <label>المبلغ المدفوع:</label>
                                     {{ invoice_form.paid_amount }}
@@ -248,6 +252,8 @@
         // مراقبة حقول طريقة الدفع والتسديد
         const paymentMethodSelect = document.getElementById("id_payment_method");
         const paidAmountInput = document.getElementById("id_paid_amount");
+        const treasurySelectWrapper = document.getElementById("treasury-select-wrapper");
+        const treasurySelect = document.getElementById("id_treasury");
 
         if (paymentMethodSelect && paidAmountInput) {
             paymentMethodSelect.addEventListener("change", updatePaidAmountStatus);
@@ -257,6 +263,17 @@
         function updatePaidAmountStatus() {
             const method = paymentMethodSelect.value;
             const netVal = parseFloat(document.getElementById("id_net_amount").value) || 0;
+
+            if (method === "cash" || method === "partial") {
+                if (treasurySelectWrapper) treasurySelectWrapper.style.display = "block";
+                if (treasurySelect) treasurySelect.setAttribute("required", "required");
+            } else {
+                if (treasurySelectWrapper) treasurySelectWrapper.style.display = "none";
+                if (treasurySelect) {
+                    treasurySelect.removeAttribute("required");
+                    treasurySelect.value = "";
+                }
+            }
 
             if (method === "cash") {
                 paidAmountInput.value = netVal.toFixed(2);

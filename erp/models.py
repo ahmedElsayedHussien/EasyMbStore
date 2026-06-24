@@ -1,4 +1,4 @@
-# -*- coding: windows-1256 -*-
+# -*- coding: utf-8 -*-
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -10,150 +10,207 @@ from django.core.validators import RegexValidator
 # ==========================================
 phone_validator = RegexValidator(
     regex=r'^\d{11}$',
-    message="ÑŞã ÇáåÇÊİ íÌÈ Ãä íÊßæä ãä 11 ÑŞãÇğ İŞØ."
+    message="Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ ÙŠØ¬Ø¨ Ø£Ù† ÙŠØªÙƒÙˆÙ† Ù…Ù† 11 Ø±Ù‚Ù…Ø§Ù‹ ÙÙ‚Ø·."
 )
 
 national_id_validator = RegexValidator(
     regex=r'^\d{14}$',
-    message="ÇáÑŞã ÇáŞæãí íÌÈ Ãä íÊßæä ãä 14 ÑŞãÇğ İŞØ."
+    message="Ø§Ù„Ø±Ù‚Ù… Ø§Ù„Ù‚ÙˆÙ…ÙŠ ÙŠØ¬Ø¨ Ø£Ù† ÙŠØªÙƒÙˆÙ† Ù…Ù† 14 Ø±Ù‚Ù…Ø§Ù‹ ÙÙ‚Ø·."
 )
 
 # ==========================================
-# 1. ÅÚÏÇÏÇÊ ÇáãÍá æÇáåæíÉ ÇáÈÕÑíÉ (Settings)
+# 1. Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ù…Ø­Ù„ ÙˆØ§Ù„Ù‡ÙˆÙŠØ© Ø§Ù„Ø¨ØµØ±ÙŠØ© (Settings)
 # ==========================================
 class StoreSetting(models.Model):
-    store_name = models.CharField(max_length=255, verbose_name="ÇÓã ÇáãÍá")
-    logo = models.ImageField(upload_to='store_assets/', null=True, blank=True, verbose_name="ÔÚÇÑ ÇáãÍá")
-    receipt_header = models.TextField(blank=True, verbose_name="ÊÑæíÓÉ ÇáİÇÊæÑÉ")
-    receipt_footer = models.TextField(blank=True, verbose_name="ÊĞííá ÇáİÇÊæÑÉ")
-    whatsapp_api_key = models.CharField(max_length=255, blank=True, null=True, verbose_name="ãİÊÇÍ API ÇáæÇÊÓÇÈ")
-    sms_api_key = models.CharField(max_length=255, blank=True, null=True, verbose_name="ãİÊÇÍ API ÇáÑÓÇÆá ÇáäÕíÉ")
+    store_name = models.CharField(max_length=255, verbose_name="Ø§Ø³Ù… Ø§Ù„Ù…Ø­Ù„")
+    logo = models.ImageField(upload_to='store_assets/', null=True, blank=True, verbose_name="Ø´Ø¹Ø§Ø± Ø§Ù„Ù…Ø­Ù„")
+    receipt_header = models.TextField(blank=True, verbose_name="ØªØ±ÙˆÙŠØ³Ø© Ø§Ù„ÙØ§ØªÙˆØ±Ø©")
+    receipt_footer = models.TextField(blank=True, verbose_name="ØªØ°ÙŠÙŠÙ„ Ø§Ù„ÙØ§ØªÙˆØ±Ø©")
+    whatsapp_api_key = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ù…ÙØªØ§Ø­ API Ø§Ù„ÙˆØ§ØªØ³Ø§Ø¨")
+    sms_api_key = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ù…ÙØªØ§Ø­ API Ø§Ù„Ø±Ø³Ø§Ø¦Ù„ Ø§Ù„Ù†ØµÙŠØ©")
+    
+    # Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø¨ØµÙ…Ø© Ø§Ù„Ø¬ØºØ±Ø§ÙÙŠØ© (Geolocation)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Ø®Ø· Ø§Ù„Ø¹Ø±Ø¶ (Latitude) Ù„Ù„Ù…Ø­Ù„")
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Ø®Ø· Ø§Ù„Ø·ÙˆÙ„ (Longitude) Ù„Ù„Ù…Ø­Ù„")
+    allowed_radius = models.IntegerField(default=50, verbose_name="Ø§Ù„Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ø³Ù…ÙˆØ­ Ù„Ù„Ø¨ØµÙ…Ø© (Ø¨Ø§Ù„Ù…ØªØ±)")
 
     class Meta:
-        verbose_name = "ÅÚÏÇÏÇÊ ÇáãÊÌÑ"
-        verbose_name_plural = "ÅÚÏÇÏÇÊ ÇáãÊÌÑ"
+        verbose_name = "Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ù…ØªØ¬Ø±"
+        verbose_name_plural = "Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ù…ØªØ¬Ø±"
 
     def __str__(self):
         return self.store_name
 
 # ==========================================
-# 2. ÌåÇÊ ÇáÇÊÕÇá (Contacts)
+# 2. Ø¬Ù‡Ø§Øª Ø§Ù„Ø§ØªØµØ§Ù„ (Contacts)
 # ==========================================
 class Contact(models.Model):
     CONTACT_TYPES = (
-        ('customer', 'Úãíá'),
-        ('supplier', 'ãæÑÏ ÔÑßÇÊ'),
-        ('used_seller', 'ÈÇÆÚ ÃÌåÒÉ ãÓÊÚãáÉ (İÑÏ)'),
+        ('customer', 'Ø¹Ù…ÙŠÙ„'),
+        ('supplier', 'Ù…ÙˆØ±Ø¯ Ø´Ø±ÙƒØ§Øª'),
+        ('used_seller', 'Ø¨Ø§Ø¦Ø¹ Ø£Ø¬Ù‡Ø²Ø© Ù…Ø³ØªØ¹Ù…Ù„Ø© (ÙØ±Ø¯)'),
     )
-    name = models.CharField(max_length=255, verbose_name="ÇáÇÓã")
-    phone = models.CharField(max_length=20, unique=True, validators=[phone_validator], verbose_name="ÑŞã ÇáåÇÊİ")
-    contact_type = models.CharField(max_length=20, choices=CONTACT_TYPES, verbose_name="äæÚ ÌåÉ ÇáÇÊÕÇá")
+    name = models.CharField(max_length=255, verbose_name="Ø§Ù„Ø§Ø³Ù…")
+    phone = models.CharField(max_length=20, unique=True, validators=[phone_validator], verbose_name="Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ")
+    contact_type = models.CharField(max_length=20, choices=CONTACT_TYPES, verbose_name="Ù†ÙˆØ¹ Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„")
     
-    # ÈíÇäÇÊ ŞÇäæäíÉ áÈÇÆÚí ÇáÃÌåÒÉ ÇáãÓÊÚãáÉ
-    national_id = models.CharField(max_length=14, blank=True, null=True, validators=[national_id_validator], verbose_name="ÇáÑŞã ÇáŞæãí")
-    address = models.TextField(blank=True, null=True, verbose_name="ÇáÚäæÇä")
+    # Ø¨ÙŠØ§Ù†Ø§Øª Ù‚Ø§Ù†ÙˆÙ†ÙŠØ© Ù„Ø¨Ø§Ø¦Ø¹ÙŠ Ø§Ù„Ø£Ø¬Ù‡Ø²Ø© Ø§Ù„Ù…Ø³ØªØ¹Ù…Ù„Ø©
+    national_id = models.CharField(max_length=14, blank=True, null=True, validators=[national_id_validator], verbose_name="Ø§Ù„Ø±Ù‚Ù… Ø§Ù„Ù‚ÙˆÙ…ÙŠ")
+    address = models.TextField(blank=True, null=True, verbose_name="Ø§Ù„Ø¹Ù†ÙˆØ§Ù†")
+    opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="Ø±ØµÙŠØ¯ Ø£ÙˆÙ„ Ø§Ù„Ù…Ø¯Ø©")
+
+    @property
+    def current_balance(self):
+        balance = self.opening_balance
+        if self.contact_type in ['customer', 'used_seller']:
+            # Ø§Ù„Ø¯ÙŠÙˆÙ† Ø§Ù„Ù…Ø³ØªØ­Ù‚Ø© Ø¹Ù„Ù‰ Ø§Ù„Ø¹Ù…ÙŠÙ„
+            unpaid_sales = self.saleinvoice_set.filter(payment_method__in=['credit', 'partial'])
+            balance += sum(inv.remaining_amount for inv in unpaid_sales)
+            # Ø®ØµÙ… Ø§Ù„Ù…Ø¨Ø§Ù„Øº Ø§Ù„Ù…Ø³Ø¯Ø¯Ø© (Ø³Ù†Ø¯Ø§Øª Ø§Ù„Ù‚Ø¨Ø¶)
+            receipts = self.contacttransaction_set.filter(transaction_type='receipt')
+            balance -= sum(t.amount for t in receipts)
+        elif self.contact_type == 'supplier':
+            # Ø§Ù„Ù…Ø³ØªØ­Ù‚Ø§Øª Ù„Ù„Ù…ÙˆØ±Ø¯
+            unpaid_purchases = self.purchaseinvoice_set.filter(payment_method__in=['credit', 'partial'])
+            balance += sum(inv.remaining_amount for inv in unpaid_purchases)
+            # Ø®ØµÙ… Ø§Ù„Ù…Ø¨Ø§Ù„Øº Ø§Ù„Ù…Ø¯ÙÙˆØ¹Ø© (Ø³Ù†Ø¯Ø§Øª Ø§Ù„ØµØ±Ù)
+            payments = self.contacttransaction_set.filter(transaction_type='payment')
+            balance -= sum(t.amount for t in payments)
+        return balance
 
     class Meta:
-        verbose_name = "ÌåÉ ÇÊÕÇá"
-        verbose_name_plural = "ÌåÇÊ ÇáÇÊÕÇá"
+        verbose_name = "Ø¬Ù‡Ø© Ø§ØªØµØ§Ù„"
+        verbose_name_plural = "Ø¬Ù‡Ø§Øª Ø§Ù„Ø§ØªØµØ§Ù„"
 
     def __str__(self):
         return f"{self.name} - {self.get_contact_type_display()}"
 
-# ==========================================
-# 3. ÇáãÎÇÒä æÇáÃÕäÇİ (Inventory & Products)
-# ==========================================
-class Warehouse(models.Model):
-    name = models.CharField(max_length=100, verbose_name="ÇÓã ÇáãÎÒä / ÇáİÑÚ")
-    is_active = models.BooleanField(default=True, verbose_name="äÔØ")
+class ContactTransaction(models.Model):
+    TRANSACTION_TYPES = (
+        ('receipt', 'Ø³Ù†Ø¯ Ù‚Ø¨Ø¶ (Ø§Ø³ØªÙ„Ø§Ù… Ù†Ù‚Ø¯ÙŠØ©)'),
+        ('payment', 'Ø³Ù†Ø¯ ØµØ±Ù (Ø¯ÙØ¹ Ù†Ù‚Ø¯ÙŠØ©)')
+    )
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, verbose_name="Ø¬Ù‡Ø© Ø§Ù„Ø§ØªØµØ§Ù„")
+    treasury = models.ForeignKey('Treasury', on_delete=models.PROTECT, verbose_name="Ø§Ù„Ø®Ø²ÙŠÙ†Ø©")
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES, verbose_name="Ù†ÙˆØ¹ Ø§Ù„Ø­Ø±ÙƒØ©")
+    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Ø§Ù„Ù…Ø¨Ù„Øº")
+    description = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ø§Ù„Ø¨ÙŠØ§Ù†")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ø§Ù„ØªØ§Ø±ÙŠØ®")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…")
 
     class Meta:
-        verbose_name = "ãÎÒä / İÑÚ"
-        verbose_name_plural = "ÇáãÎÇÒä æÇáİÑæÚ"
+        verbose_name = "Ø­Ø±ÙƒØ© Ø­Ø³Ø§Ø¨"
+        verbose_name_plural = "Ø­Ø±ÙƒØ§Øª Ø§Ù„Ø­Ø³Ø§Ø¨Ø§Øª"
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if is_new:
+            if self.transaction_type == 'receipt':
+                self.treasury.balance += self.amount
+            elif self.transaction_type == 'payment':
+                self.treasury.balance -= self.amount
+            self.treasury.save()
+
+    def __str__(self):
+        return f"{self.get_transaction_type_display()} - {self.contact.name} - {self.amount}"
+
+# ==========================================
+# 3. Ø§Ù„Ù…Ø®Ø§Ø²Ù† ÙˆØ§Ù„Ø£ØµÙ†Ø§Ù (Inventory & Products)
+# ==========================================
+class Warehouse(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Ø§Ø³Ù… Ø§Ù„Ù…Ø®Ø²Ù† / Ø§Ù„ÙØ±Ø¹")
+    is_active = models.BooleanField(default=True, verbose_name="Ù†Ø´Ø·")
+
+    class Meta:
+        verbose_name = "Ù…Ø®Ø²Ù† / ÙØ±Ø¹"
+        verbose_name_plural = "Ø§Ù„Ù…Ø®Ø§Ø²Ù† ÙˆØ§Ù„ÙØ±ÙˆØ¹"
 
     def __str__(self):
         return self.name
 
 class Product(models.Model):
     PRODUCT_TYPES = (
-        ('phone', 'ãæÈÇíá'),
-        ('accessory', 'ÅßÓÓæÇÑ'),
-        ('spare_part', 'ŞØÚÉ ÛíÇÑ'),
+        ('phone', 'Ù…ÙˆØ¨Ø§ÙŠÙ„'),
+        ('accessory', 'Ø¥ÙƒØ³Ø³ÙˆØ§Ø± Ø¹Ø§Ù…'),
+        ('cover_screen', 'Ø¬Ø±Ø§Ø¨ + Ø§Ø³ÙƒØ±ÙŠÙ†Ø©'),
+        ('electrical', 'ÙƒÙ‡Ø±Ø¨Ø§Ø¡'),
+        ('spare_part', 'Ù‚Ø·Ø¹Ø© ØºÙŠØ§Ø±'),
     )
-    name = models.CharField(max_length=255, verbose_name="ÇÓã ÇáÕäİ")
-    barcode_qr = models.CharField(max_length=100, unique=True, verbose_name="ÇáÈÇÑßæÏ / QR")
-    product_type = models.CharField(max_length=20, choices=PRODUCT_TYPES, verbose_name="äæÚ ÇáÕäİ")
+    name = models.CharField(max_length=255, verbose_name="Ø§Ø³Ù… Ø§Ù„ØµÙ†Ù")
+    barcode_qr = models.CharField(max_length=100, unique=True, verbose_name="Ø§Ù„Ø¨Ø§Ø±ÙƒÙˆØ¯ / QR")
+    product_type = models.CharField(max_length=20, choices=PRODUCT_TYPES, verbose_name="Ù†ÙˆØ¹ Ø§Ù„ØµÙ†Ù")
     
-    average_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="ãÊæÓØ ÇáÊßáİÉ")
-    selling_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="ÓÚÑ ÇáÈíÚ")
-    requires_imei = models.BooleanField(default=False, verbose_name="íÊØáÈ ÓíÑíÇá/IMEI")
+    average_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ù…ØªÙˆØ³Ø· Ø§Ù„ØªÙƒÙ„ÙØ©")
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Ø³Ø¹Ø± Ø§Ù„Ø¨ÙŠØ¹")
+    requires_imei = models.BooleanField(default=False, verbose_name="ÙŠØªØ·Ù„Ø¨ Ø³ÙŠØ±ÙŠØ§Ù„/IMEI")
 
     class Meta:
-        verbose_name = "Õäİ / ãäÊÌ"
-        verbose_name_plural = "Ïáíá ÇáÃÕäÇİ æÇáãäÊÌÇÊ"
+        verbose_name = "ØµÙ†Ù / Ù…Ù†ØªØ¬"
+        verbose_name_plural = "Ø¯Ù„ÙŠÙ„ Ø§Ù„Ø£ØµÙ†Ø§Ù ÙˆØ§Ù„Ù…Ù†ØªØ¬Ø§Øª"
 
     def __str__(self):
         return self.name
 
 class Stock(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="ÇáÕäİ")
-    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, verbose_name="ÇáãÎÒä")
-    quantity = models.IntegerField(default=0, verbose_name="ÇáßãíÉ")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Ø§Ù„ØµÙ†Ù")
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, verbose_name="Ø§Ù„Ù…Ø®Ø²Ù†")
+    quantity = models.IntegerField(default=0, verbose_name="Ø§Ù„ÙƒÙ…ÙŠØ©")
 
     class Meta:
-        verbose_name = "ßãíÉ ãÎÒæä"
-        verbose_name_plural = "ßãíÇÊ ÇáãÎÒæä"
+        verbose_name = "ÙƒÙ…ÙŠØ© Ù…Ø®Ø²ÙˆÙ†"
+        verbose_name_plural = "ÙƒÙ…ÙŠØ§Øª Ø§Ù„Ù…Ø®Ø²ÙˆÙ†"
 
     def __str__(self):
         return f"{self.product.name} - {self.warehouse.name}: {self.quantity}"
 
 class Device(models.Model):
-    CONDITIONS = (('new', 'ÌÏíÏ'), ('used', 'ãÓÊÚãá'))
+    CONDITIONS = (('new', 'Ø¬Ø¯ÙŠØ¯'), ('used', 'Ù…Ø³ØªØ¹Ù…Ù„'))
     STORAGE_CHOICES = (
-        ('128', '128 ÌíÌÇ'),
-        ('256', '256 ÌíÌÇ'),
-        ('512', '512 ÌíÌÇ'),
-        ('1gb', '1 ÌíÌÇ'),
-        ('1tb', '1 ÊíÑÇ'),
-        ('other', 'ÃÎÑì'),
+        ('128', '128 Ø¬ÙŠØ¬Ø§'),
+        ('256', '256 Ø¬ÙŠØ¬Ø§'),
+        ('512', '512 Ø¬ÙŠØ¬Ø§'),
+        ('1gb', '1 Ø¬ÙŠØ¬Ø§'),
+        ('1tb', '1 ØªÙŠØ±Ø§'),
+        ('other', 'Ø£Ø®Ø±Ù‰'),
     )
     RAM_CHOICES = (
-        ('3', '3 ÑÇã'),
-        ('4', '4 ÑÇã'),
-        ('6', '6 ÑÇã'),
-        ('8', '8 ÑÇã'),
-        ('12', '12 ÑÇã'),
-        ('other', 'ÃÎÑì'),
+        ('3', '3 Ø±Ø§Ù…'),
+        ('4', '4 Ø±Ø§Ù…'),
+        ('6', '6 Ø±Ø§Ù…'),
+        ('8', '8 Ø±Ø§Ù…'),
+        ('12', '12 Ø±Ø§Ù…'),
+        ('other', 'Ø£Ø®Ø±Ù‰'),
     )
     USED_STATUS_CHOICES = (
-        ('like_new', 'ßÓÑ ÒíÑæ'),
-        ('good_condition', 'ãÓÊÚãá ÈÍÇáÉ ÌíÏÉ'),
-        ('other', 'ÃÎÑì'),
+        ('like_new', 'ÙƒØ³Ø± Ø²ÙŠØ±Ùˆ'),
+        ('good_condition', 'Ù…Ø³ØªØ¹Ù…Ù„ Ø¨Ø­Ø§Ù„Ø© Ø¬ÙŠØ¯Ø©'),
+        ('other', 'Ø£Ø®Ø±Ù‰'),
     )
     
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="ÇáãæÏíá/ÇáÕäİ")
-    imei = models.CharField(max_length=50, unique=True, verbose_name="ÇáÓíÑíÇá/IMEI 1")
-    imei2 = models.CharField(max_length=50, unique=True, blank=True, null=True, verbose_name="ÇáÓíÑíÇá 2/IMEI 2")
-    condition = models.CharField(max_length=20, choices=CONDITIONS, verbose_name="ÇáÍÇáÉ")
-    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, verbose_name="ÇáãÎÒä ÇáÍÇáí")
-    is_sold = models.BooleanField(default=False, verbose_name="ãÈÇÚ¿")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Ø§Ù„Ù…ÙˆØ¯ÙŠÙ„/Ø§Ù„ØµÙ†Ù")
+    imei = models.CharField(max_length=50, unique=True, verbose_name="Ø§Ù„Ø³ÙŠØ±ÙŠØ§Ù„/IMEI 1")
+    imei2 = models.CharField(max_length=50, unique=True, blank=True, null=True, verbose_name="Ø§Ù„Ø³ÙŠØ±ÙŠØ§Ù„ 2/IMEI 2")
+    condition = models.CharField(max_length=20, choices=CONDITIONS, verbose_name="Ø§Ù„Ø­Ø§Ù„Ø©")
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, verbose_name="Ø§Ù„Ù…Ø®Ø²Ù† Ø§Ù„Ø­Ø§Ù„ÙŠ")
+    is_sold = models.BooleanField(default=False, verbose_name="Ù…Ø¨Ø§Ø¹ØŸ")
     
-    purchased_from = models.ForeignKey(Contact, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Êã ÇáÔÑÇÁ ãä (ááãÓÊÚãá)")
-    cost = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="ÊßáİÉ ÇáÔÑÇÁ")
+    purchased_from = models.ForeignKey(Contact, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="ØªÙ… Ø§Ù„Ø´Ø±Ø§Ø¡ Ù…Ù† (Ù„Ù„Ù…Ø³ØªØ¹Ù…Ù„)")
+    cost = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="ØªÙƒÙ„ÙØ© Ø§Ù„Ø´Ø±Ø§Ø¡")
     
-    # ÊİÇÕíá ÍÇáÉ æãæÇÕİÇÊ ÇáÃÌåÒÉ ÇáãÓÊÚãáÉ
-    storage = models.CharField(max_length=20, choices=STORAGE_CHOICES, blank=True, null=True, verbose_name="ÇáãÓÇÍÉ")
-    ram = models.CharField(max_length=20, choices=RAM_CHOICES, blank=True, null=True, verbose_name="ÇáÑÇã")
-    used_status = models.CharField(max_length=20, choices=USED_STATUS_CHOICES, blank=True, null=True, verbose_name="ÍÇáÉ ÇáÌåÇÒ ÇáãÓÊÚãá")
-    has_box = models.BooleanField(default=False, verbose_name="íæÌÏ ßÑÊæäÉ")
-    has_charger = models.BooleanField(default=False, verbose_name="íæÌÏ ÔÇÍä")
-    is_tax_paid = models.BooleanField(default=False, verbose_name="ÎÇáÕ ÇáÖÑíÈÉ")
-    notes = models.TextField(blank=True, null=True, verbose_name="ãáÇÍÙÇÊ ÇáÌåÇÒ")
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True, verbose_name="ÊÇÑíÎ ÇáÅÏÎÇá")
+    # ØªÙØ§ØµÙŠÙ„ Ø­Ø§Ù„Ø© ÙˆÙ…ÙˆØ§ØµÙØ§Øª Ø§Ù„Ø£Ø¬Ù‡Ø²Ø© Ø§Ù„Ù…Ø³ØªØ¹Ù…Ù„Ø©
+    storage = models.CharField(max_length=20, choices=STORAGE_CHOICES, blank=True, null=True, verbose_name="Ø§Ù„Ù…Ø³Ø§Ø­Ø©")
+    ram = models.CharField(max_length=20, choices=RAM_CHOICES, blank=True, null=True, verbose_name="Ø§Ù„Ø±Ø§Ù…")
+    used_status = models.CharField(max_length=20, choices=USED_STATUS_CHOICES, blank=True, null=True, verbose_name="Ø­Ø§Ù„Ø© Ø§Ù„Ø¬Ù‡Ø§Ø² Ø§Ù„Ù…Ø³ØªØ¹Ù…Ù„")
+    has_box = models.BooleanField(default=False, verbose_name="ÙŠÙˆØ¬Ø¯ ÙƒØ±ØªÙˆÙ†Ø©")
+    has_charger = models.BooleanField(default=False, verbose_name="ÙŠÙˆØ¬Ø¯ Ø´Ø§Ø­Ù†")
+    is_tax_paid = models.BooleanField(default=False, verbose_name="Ø®Ø§Ù„Øµ Ø§Ù„Ø¶Ø±ÙŠØ¨Ø©")
+    notes = models.TextField(blank=True, null=True, verbose_name="Ù…Ù„Ø§Ø­Ø¸Ø§Øª Ø§Ù„Ø¬Ù‡Ø§Ø²")
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True, verbose_name="ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¥Ø¯Ø®Ø§Ù„")
 
     class Meta:
-        verbose_name = "ÌåÇÒ ãæÈÇíá"
-        verbose_name_plural = "ÇáÃÌåÒÉ"
+        verbose_name = "Ø¬Ù‡Ø§Ø² Ù…ÙˆØ¨Ø§ÙŠÙ„"
+        verbose_name_plural = "Ø§Ù„Ø£Ø¬Ù‡Ø²Ø©"
 
     def __str__(self):
         if self.imei2:
@@ -162,226 +219,254 @@ class Device(models.Model):
 
 class DeviceAttachment(models.Model):
     ATTACHMENT_TYPES = (
-        ('id_front', 'ÕæÑÉ ÇáÈØÇŞÉ - æÌå'),
-        ('id_back', 'ÕæÑÉ ÇáÈØÇŞÉ - ÙåÑ'),
-        ('contract', 'ÚŞÏ ãÈÇíÚÉ / ÅŞÑÇÑ ÊäÇÒá'),
-        ('device_condition', 'ÕæÑÉ áÍÇáÉ ÇáÌåÇÒ'),
-        ('other', 'ÃÎÑì'),
+        ('id_front', 'ØµÙˆØ±Ø© Ø§Ù„Ø¨Ø·Ø§Ù‚Ø© - ÙˆØ¬Ù‡'),
+        ('id_back', 'ØµÙˆØ±Ø© Ø§Ù„Ø¨Ø·Ø§Ù‚Ø© - Ø¸Ù‡Ø±'),
+        ('contract', 'Ø¹Ù‚Ø¯ Ù…Ø¨Ø§ÙŠØ¹Ø© / Ø¥Ù‚Ø±Ø§Ø± ØªÙ†Ø§Ø²Ù„'),
+        ('device_condition', 'ØµÙˆØ±Ø© Ù„Ø­Ø§Ù„Ø© Ø§Ù„Ø¬Ù‡Ø§Ø²'),
+        ('other', 'Ø£Ø®Ø±Ù‰'),
     )
     device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name='attachments')
-    attachment_type = models.CharField(max_length=20, choices=ATTACHMENT_TYPES, blank=True, null=True, verbose_name="äæÚ ÇáãÑİŞ")
-    image = models.ImageField(upload_to='used_devices_docs/%Y/%m/', blank=True, null=True, verbose_name="ÇáÕæÑÉ")
-    notes = models.CharField(max_length=255, blank=True, null=True, verbose_name="ãáÇÍÙÇÊ")
+    attachment_type = models.CharField(max_length=20, choices=ATTACHMENT_TYPES, blank=True, null=True, verbose_name="Ù†ÙˆØ¹ Ø§Ù„Ù…Ø±ÙÙ‚")
+    image = models.ImageField(upload_to='used_devices_docs/%Y/%m/', blank=True, null=True, verbose_name="Ø§Ù„ØµÙˆØ±Ø©")
+    notes = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ù…Ù„Ø§Ø­Ø¸Ø§Øª")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "ãÑİŞ ÌåÇÒ"
-        verbose_name_plural = "ãÑİŞÇÊ ÇáÃÌåÒÉ"
+        verbose_name = "Ù…Ø±ÙÙ‚ Ø¬Ù‡Ø§Ø²"
+        verbose_name_plural = "Ù…Ø±ÙÙ‚Ø§Øª Ø§Ù„Ø£Ø¬Ù‡Ø²Ø©"
 
 # ==========================================
-# 4. ÇáãÔÊÑíÇÊ æÍÑßÉ ÇáãÎÒæä (Purchases & Transfers)
+# 4. Ø§Ù„Ù…Ø´ØªØ±ÙŠØ§Øª ÙˆØ­Ø±ÙƒØ© Ø§Ù„Ù…Ø®Ø²ÙˆÙ† (Purchases & Transfers)
 # ==========================================
 class PurchaseInvoice(models.Model):
-    supplier = models.ForeignKey(Contact, on_delete=models.PROTECT, limit_choices_to={'contact_type': 'supplier'}, verbose_name="ÇáãæÑÏ")
-    created_by = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="ãÓÊáã ÇáÈÖÇÚÉ")
-    invoice_date = models.DateTimeField(auto_now_add=True, verbose_name="ÊÇÑíÎ ÇáİÇÊæÑÉ")
-    supplier_invoice_number = models.CharField(max_length=50, blank=True, null=True, verbose_name="ÑŞã İÇÊæÑÉ ÇáãæÑÏ")
+    supplier = models.ForeignKey(Contact, on_delete=models.PROTECT, limit_choices_to={'contact_type': 'supplier'}, verbose_name="Ø§Ù„Ù…ÙˆØ±Ø¯")
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="Ù…Ø³ØªÙ„Ù… Ø§Ù„Ø¨Ø¶Ø§Ø¹Ø©")
+    invoice_date = models.DateTimeField(auto_now_add=True, verbose_name="ØªØ§Ø±ÙŠØ® Ø§Ù„ÙØ§ØªÙˆØ±Ø©")
+    supplier_invoice_number = models.CharField(max_length=50, blank=True, null=True, verbose_name="Ø±Ù‚Ù… ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ù…ÙˆØ±Ø¯")
+    treasury = models.ForeignKey('Treasury', on_delete=models.PROTECT, related_name='purchase_invoices', null=True, blank=True, verbose_name="Ø§Ù„Ø®Ø²ÙŠÙ†Ø© Ø§Ù„Ù…Ø³Ø¯Ø¯ Ø¹Ù„ÙŠÙ‡Ø§")
+
     
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="ÇáÅÌãÇáí")
-    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="ÇáÎÕã")
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ")
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ø§Ù„Ø®ØµÙ…")
     
-    # ÇáãÚÇáÌÉ ÇáÖÑíÈíÉ ÇáÏŞíŞÉ áÊÚÇãáÇÊ ÇáãæÑÏíä (B2B)
-    deduction_addition_tax = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="ÖÑíÈÉ ÇáÎÕã æÇáÅÖÇİÉ")
+    # Ø§Ù„Ù…Ø¹Ø§Ù„Ø¬Ø© Ø§Ù„Ø¶Ø±ÙŠØ¨ÙŠØ© Ø§Ù„Ø¯Ù‚ÙŠÙ‚Ø© Ù„ØªØ¹Ø§Ù…Ù„Ø§Øª Ø§Ù„Ù…ÙˆØ±Ø¯ÙŠÙ† (B2B)
+    deduction_addition_tax = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ø¶Ø±ÙŠØ¨Ø© Ø§Ù„Ø®ØµÙ… ÙˆØ§Ù„Ø¥Ø¶Ø§ÙØ©")
     
-    net_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="ÇáÕÇİí ááÏİÚ")
+    net_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Ø§Ù„ØµØ§ÙÙŠ Ù„Ù„Ø¯ÙØ¹")
     
     PAYMENT_METHOD_CHOICES = (
-        ('cash', 'äŞÏí (ßÇÔ)'),
-        ('credit', 'ÂÌá ÈÇáßÇãá'),
-        ('partial', 'ãÓÏÏ ÌÒÆíÇğ'),
+        ('cash', 'Ù†Ù‚Ø¯ÙŠ (ÙƒØ§Ø´)'),
+        ('credit', 'Ø¢Ø¬Ù„ Ø¨Ø§Ù„ÙƒØ§Ù…Ù„'),
+        ('partial', 'Ù…Ø³Ø¯Ø¯ Ø¬Ø²Ø¦ÙŠØ§Ù‹'),
     )
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='cash', verbose_name="ØÑíŞÉ ÇáÏİÚ")
-    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="ÇáãÈáÛ ÇáãÏİæÚ")
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='cash', verbose_name="Ø·Ø±ÙŠÙ‚Ø© Ø§Ù„Ø¯ÙØ¹")
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…Ø¯ÙÙˆØ¹")
 
     @property
     def remaining_amount(self):
         return self.net_amount - self.paid_amount
 
     class Meta:
-        verbose_name = "İÇÊæÑÉ ãÔÊÑíÇÊ"
-        verbose_name_plural = "İæÇÊíÑ ÇáãÔÊÑíÇÊ"
+        verbose_name = "ÙØ§ØªÙˆØ±Ø© Ù…Ø´ØªØ±ÙŠØ§Øª"
+        verbose_name_plural = "ÙÙˆØ§ØªÙŠØ± Ø§Ù„Ù…Ø´ØªØ±ÙŠØ§Øª"
 
 class PurchaseItem(models.Model):
-    invoice = models.ForeignKey(PurchaseInvoice, on_delete=models.CASCADE, related_name='items', verbose_name="İÇÊæÑÉ ÇáÔÑÇÁ")
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="ÇáÕäİ")
-    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, verbose_name="ÇáãÎÒä")
-    quantity = models.IntegerField(verbose_name="ÇáßãíÉ")
-    unit_cost = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="ÊßáİÉ ÇáæÍÏÉ")
-    imei_list = models.TextField(blank=True, null=True, help_text="ááÓíÑíÇáÇÊ ãİÕæáÉ ÈİÇÕáÉ", verbose_name="ŞÇÆãÉ ÇáÓíÑíÇáÇÊ/IMEI")
+    invoice = models.ForeignKey(PurchaseInvoice, on_delete=models.CASCADE, related_name='items', verbose_name="ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ø´Ø±Ø§Ø¡")
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Ø§Ù„ØµÙ†Ù")
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, verbose_name="Ø§Ù„Ù…Ø®Ø²Ù†")
+    quantity = models.IntegerField(verbose_name="Ø§Ù„ÙƒÙ…ÙŠØ©")
+    unit_cost = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="ØªÙƒÙ„ÙØ© Ø§Ù„ÙˆØ­Ø¯Ø©")
+    imei_list = models.TextField(blank=True, null=True, help_text="Ù„Ù„Ø³ÙŠØ±ÙŠØ§Ù„Ø§Øª Ù…ÙØµÙˆÙ„Ø© Ø¨ÙØ§ØµÙ„Ø©", verbose_name="Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø³ÙŠØ±ÙŠØ§Ù„Ø§Øª/IMEI")
     
-    # ÇáãæÇÕİÇÊ ÇáÅÖÇİíÉ ááÃÌåÒÉ ÇáãæÑÏÉ
-    storage = models.CharField(max_length=20, choices=Device.STORAGE_CHOICES, blank=True, null=True, verbose_name="ÇáãÓÇÍÉ")
-    ram = models.CharField(max_length=20, choices=Device.RAM_CHOICES, blank=True, null=True, verbose_name="ÇáÑÇã")
-    is_tax_paid = models.BooleanField(default=False, verbose_name="ÎÇáÕ ÇáÖÑíÈÉ")
+    # Ø§Ù„Ù…ÙˆØ§ØµÙØ§Øª Ø§Ù„Ø¥Ø¶Ø§ÙÙŠØ© Ù„Ù„Ø£Ø¬Ù‡Ø²Ø© Ø§Ù„Ù…ÙˆØ±Ø¯Ø©
+    storage = models.CharField(max_length=20, choices=Device.STORAGE_CHOICES, blank=True, null=True, verbose_name="Ø§Ù„Ù…Ø³Ø§Ø­Ø©")
+    ram = models.CharField(max_length=20, choices=Device.RAM_CHOICES, blank=True, null=True, verbose_name="Ø§Ù„Ø±Ø§Ù…")
+    is_tax_paid = models.BooleanField(default=False, verbose_name="Ø®Ø§Ù„Øµ Ø§Ù„Ø¶Ø±ÙŠØ¨Ø©")
 
     def clean(self):
         from django.core.exceptions import ValidationError
         super().clean()
         if self.product and self.product.requires_imei:
             if not self.imei_list:
-                raise ValidationError({'imei_list': "ÇáãäÊÌ ÇáãÎÊÇÑ íÊØáÈ ÅÏÎÇá ÓíÑíÇáÇÊ (IMEI)."})
+                raise ValidationError({'imei_list': "Ø§Ù„Ù…Ù†ØªØ¬ Ø§Ù„Ù…Ø®ØªØ§Ø± ÙŠØªØ·Ù„Ø¨ Ø¥Ø¯Ø®Ø§Ù„ Ø³ÙŠØ±ÙŠØ§Ù„Ø§Øª (IMEI)."})
             imeis = [i.strip() for i in self.imei_list.split(',') if i.strip()]
             if len(imeis) != self.quantity:
                 raise ValidationError({
-                    'imei_list': f"ÚÏÏ ÇáÓíÑíÇáÇÊ ÇáãÏÎáÉ ({len(imeis)}) áÇ íÊØÇÈŞ ãÚ ÇáßãíÉ ÇáãÍÏÏÉ ({self.quantity})."
+                    'imei_list': f"Ø¹Ø¯Ø¯ Ø§Ù„Ø³ÙŠØ±ÙŠØ§Ù„Ø§Øª Ø§Ù„Ù…Ø¯Ø®Ù„Ø© ({len(imeis)}) Ù„Ø§ ÙŠØªØ·Ø§Ø¨Ù‚ Ù…Ø¹ Ø§Ù„ÙƒÙ…ÙŠØ© Ø§Ù„Ù…Ø­Ø¯Ø¯Ø© ({self.quantity})."
                 })
 
     class Meta:
-        verbose_name = "ÈäÏ ãÔÊÑíÇÊ"
-        verbose_name_plural = "ÈäæÏ ÇáãÔÊÑíÇÊ"
+        verbose_name = "Ø¨Ù†Ø¯ Ù…Ø´ØªØ±ÙŠØ§Øª"
+        verbose_name_plural = "Ø¨Ù†ÙˆØ¯ Ø§Ù„Ù…Ø´ØªØ±ÙŠØ§Øª"
 
 class StockTransfer(models.Model):
-    STATUS_CHOICES = (('pending', 'ŞíÏ ÇáäŞá'), ('completed', 'Êã ÇáÇÓÊáÇã'))
-    from_warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name='transfers_out', verbose_name="ãä ãÎÒä")
-    to_warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name='transfers_in', verbose_name="Åáì ãÎÒä")
-    created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='transfers_created', verbose_name="ãäÔÆ ÇáÊÍæíá")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="ÍÇáÉ ÇáÊÍæíá")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="ÊÇÑíÎ ÇáÊÍæíá")
+    STATUS_CHOICES = (('pending', 'Ù‚ÙŠØ¯ Ø§Ù„Ù†Ù‚Ù„'), ('completed', 'ØªÙ… Ø§Ù„Ø§Ø³ØªÙ„Ø§Ù…'))
+    from_warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name='transfers_out', verbose_name="Ù…Ù† Ù…Ø®Ø²Ù†")
+    to_warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name='transfers_in', verbose_name="Ø¥Ù„Ù‰ Ù…Ø®Ø²Ù†")
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='transfers_created', verbose_name="Ù…Ù†Ø´Ø¦ Ø§Ù„ØªØ­ÙˆÙŠÙ„")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Ø­Ø§Ù„Ø© Ø§Ù„ØªØ­ÙˆÙŠÙ„")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="ØªØ§Ø±ÙŠØ® Ø§Ù„ØªØ­ÙˆÙŠÙ„")
 
     class Meta:
-        verbose_name = "ÍÑßÉ ÊÍæíá ãÎÒä"
-        verbose_name_plural = "ÍÑßÇÊ ÊÍæíá ÇáãÎÇÒä"
+        verbose_name = "Ø­Ø±ÙƒØ© ØªØ­ÙˆÙŠÙ„ Ù…Ø®Ø²Ù†"
+        verbose_name_plural = "Ø­Ø±ÙƒØ§Øª ØªØ­ÙˆÙŠÙ„ Ø§Ù„Ù…Ø®Ø§Ø²Ù†"
 
 class StockTransferItem(models.Model):
-    transfer = models.ForeignKey(StockTransfer, on_delete=models.CASCADE, related_name='items', verbose_name="ÍÑßÉ ÇáÊÍæíá")
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="ÇáÕäİ")
-    device = models.ForeignKey(Device, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="ÌåÇÒ ãæÈÇíá")
-    quantity = models.IntegerField(default=1, verbose_name="ÇáßãíÉ")
+    transfer = models.ForeignKey(StockTransfer, on_delete=models.CASCADE, related_name='items', verbose_name="Ø­Ø±ÙƒØ© Ø§Ù„ØªØ­ÙˆÙŠÙ„")
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Ø§Ù„ØµÙ†Ù")
+    device = models.ForeignKey(Device, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Ø¬Ù‡Ø§Ø² Ù…ÙˆØ¨Ø§ÙŠÙ„")
+    quantity = models.IntegerField(default=1, verbose_name="Ø§Ù„ÙƒÙ…ÙŠØ©")
 
     class Meta:
-        verbose_name = "ÈäÏ ÊÍæíá ãÎÒä"
-        verbose_name_plural = "ÈäæÏ ÊÍæíá ÇáãÎÇÒä"
+        verbose_name = "Ø¨Ù†Ø¯ ØªØ­ÙˆÙŠÙ„ Ù…Ø®Ø²Ù†"
+        verbose_name_plural = "Ø¨Ù†ÙˆØ¯ ØªØ­ÙˆÙŠÙ„ Ø§Ù„Ù…Ø®Ø§Ø²Ù†"
 
 # ==========================================
-# 5. ÅÏÇÑÉ ÇáÎÒíäÉ æÇáæÑÏíÇÊ (Cash & Shifts)
+# 5. Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ø®Ø²ÙŠÙ†Ø© ÙˆØ§Ù„ÙˆØ±Ø¯ÙŠØ§Øª (Cash & Shifts)
 # ==========================================
 class CashShift(models.Model):
-    STATUS_CHOICES = (('open', 'ãİÊæÍÉ'), ('closed', 'ãÛáŞÉ'))
-    cashier = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="ÇáßÇÔíÑ")
-    start_time = models.DateTimeField(auto_now_add=True, verbose_name="æŞÊ İÊÍ ÇáæÑÏíÉ")
-    end_time = models.DateTimeField(null=True, blank=True, verbose_name="æŞÊ ÅÛáÇŞ ÇáæÑÏíÉ")
+    STATUS_CHOICES = (('open', 'Ù…ÙØªÙˆØ­Ø©'), ('closed', 'Ù…ØºÙ„Ù‚Ø©'))
+    cashier = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="Ø§Ù„ÙƒØ§Ø´ÙŠØ±")
+    start_time = models.DateTimeField(auto_now_add=True, verbose_name="ÙˆÙ‚Øª ÙØªØ­ Ø§Ù„ÙˆØ±Ø¯ÙŠØ©")
+    end_time = models.DateTimeField(null=True, blank=True, verbose_name="ÙˆÙ‚Øª Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„ÙˆØ±Ø¯ÙŠØ©")
     
-    opening_balance = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="ÑÕíÏ ÇáÈÏÇíÉ")
-    expected_closing_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="ÇáÑÕíÏ ÇáäŞÏí ÇáãÊæŞÚ")
-    actual_cash = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="ÇáÑÕíÏ ÇáİÚáí ÇáãÓáã")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open', verbose_name="ÍÇáÉ ÇáæÑÏíÉ")
+    treasury = models.ForeignKey('Treasury', on_delete=models.PROTECT, related_name='shifts', null=True, blank=True, verbose_name="Ø§Ù„Ø®Ø²ÙŠÙ†Ø©")
+    opening_balance = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Ø±ØµÙŠØ¯ Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©")
+    expected_closing_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Ø§Ù„Ø±ØµÙŠØ¯ Ø§Ù„Ù†Ù‚Ø¯ÙŠ Ø§Ù„Ù…ØªÙˆÙ‚Ø¹")
+    actual_cash = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Ø§Ù„Ø±ØµÙŠØ¯ Ø§Ù„ÙØ¹Ù„ÙŠ Ø§Ù„Ù…Ø³Ù„Ù…")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open', verbose_name="Ø­Ø§Ù„Ø© Ø§Ù„ÙˆØ±Ø¯ÙŠØ©")
 
     class Meta:
-        verbose_name = "æÑÏíÉ ÎÒíäÉ"
-        verbose_name_plural = "æÑÏíÇÊ ÇáÎÒíäÉ"
+        verbose_name = "ÙˆØ±Ø¯ÙŠØ© Ø®Ø²ÙŠÙ†Ø©"
+        verbose_name_plural = "ÙˆØ±Ø¯ÙŠØ§Øª Ø§Ù„Ø®Ø²ÙŠÙ†Ø©"
 
 class ExpenseCategory(models.Model):
-    name = models.CharField(max_length=100, verbose_name="ÈäÏ ÇáãÕÑæİ")
+    name = models.CharField(max_length=100, verbose_name="Ø¨Ù†Ø¯ Ø§Ù„Ù…ØµØ±ÙˆÙ")
 
     class Meta:
-        verbose_name = "ÊÕäíİ ãÕÑæİ"
-        verbose_name_plural = "ÊÕäíİÇÊ ÇáãÕÑæİÇÊ"
+        verbose_name = "ØªØµÙ†ÙŠÙ Ù…ØµØ±ÙˆÙ"
+        verbose_name_plural = "ØªØµÙ†ÙŠÙØ§Øª Ø§Ù„Ù…ØµØ±ÙˆÙØ§Øª"
 
     def __str__(self):
         return self.name
 
 class Expense(models.Model):
-    shift = models.ForeignKey(CashShift, on_delete=models.CASCADE, related_name='expenses', verbose_name="ÇáæÑÏíÉ")
-    category = models.ForeignKey(ExpenseCategory, on_delete=models.PROTECT, verbose_name="ÈäÏ ÇáãÕÑæİ")
-    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="ÇáãÈáÛ")
-    description = models.CharField(max_length=255, blank=True, null=True, verbose_name="ÇáÊİÇÕíá/ÇáæÕİ")
+    shift = models.ForeignKey(CashShift, on_delete=models.CASCADE, related_name='expenses', verbose_name="Ø§Ù„ÙˆØ±Ø¯ÙŠØ©")
+    treasury = models.ForeignKey('Treasury', on_delete=models.PROTECT, null=True, blank=True, verbose_name="Ø§Ù„Ø®Ø²ÙŠÙ†Ø© Ø§Ù„Ù…Ù†ØµØ±Ù Ù…Ù†Ù‡Ø§")
+    category = models.ForeignKey(ExpenseCategory, on_delete=models.PROTECT, verbose_name="Ø¨Ù†Ø¯ Ø§Ù„Ù…ØµØ±ÙˆÙ")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Ø§Ù„Ù…Ø¨Ù„Øº")
+    description = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ø§Ù„ØªÙØ§ØµÙŠÙ„/Ø§Ù„ÙˆØµÙ")
 
     class Meta:
-        verbose_name = "ãÕÑæİ ÊÔÛíáí"
-        verbose_name_plural = "ÇáãÕÑæİÇÊ ÇáÊÔÛíáíÉ"
+        verbose_name = "Ù…ØµØ±ÙˆÙ ØªØ´ØºÙŠÙ„ÙŠ"
+        verbose_name_plural = "Ø§Ù„Ù…ØµØ±ÙˆÙØ§Øª Ø§Ù„ØªØ´ØºÙŠÙ„ÙŠØ©"
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if is_new and self.treasury:
+            # Ø®ØµÙ… Ù‚ÙŠÙ…Ø© Ø§Ù„Ù…ØµØ±ÙˆÙ Ù…Ù† Ø±ØµÙŠØ¯ Ø§Ù„Ø®Ø²ÙŠÙ†Ø©
+            self.treasury.balance -= self.amount
+            self.treasury.save()
 
     def __str__(self):
         return f"{self.category.name}: {self.amount}"
 
 # ==========================================
-# 6. ÇáãÈíÚÇÊ æäŞÇØ ÇáÈíÚ (Sales & POS)
+# 6. Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª ÙˆÙ†Ù‚Ø§Ø· Ø§Ù„Ø¨ÙŠØ¹ (Sales & POS)
 # ==========================================
 class SaleInvoice(models.Model):
-    shift = models.ForeignKey(CashShift, on_delete=models.PROTECT, verbose_name="ÇáæÑÏíÉ")
-    cashier = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="ÇáßÇÔíÑ")
-    customer = models.ForeignKey(Contact, on_delete=models.PROTECT, verbose_name="ÇáÚãíá")
-    date_created = models.DateTimeField(auto_now_add=True, verbose_name="ÊÇÑíÎ ÇáİÇÊæÑÉ")
+    shift = models.ForeignKey(CashShift, on_delete=models.PROTECT, verbose_name="Ø§Ù„ÙˆØ±Ø¯ÙŠØ©")
+    cashier = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="Ø§Ù„ÙƒØ§Ø´ÙŠØ±")
+    customer = models.ForeignKey(Contact, on_delete=models.PROTECT, verbose_name="Ø§Ù„Ø¹Ù…ÙŠÙ„")
+    date_created = models.DateTimeField(auto_now_add=True, verbose_name="ØªØ§Ø±ÙŠØ® Ø§Ù„ÙØ§ØªÙˆØ±Ø©")
     
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="ÇáÅÌãÇáí")
-    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="ÇáÎÕã")
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ")
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ø§Ù„Ø®ØµÙ…")
     
-    # Trade-in (ÇÓÊÈÏÇá ÌåÇÒ ŞÏíã)
-    traded_in_device = models.ForeignKey(Device, on_delete=models.SET_NULL, null=True, blank=True, related_name='traded_in_invoice', verbose_name="ÇáÌåÇÒ ÇáãÓÊÈÏá")
-    trade_in_value = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="ŞíãÉ ÇáÇÓÊÈÏÇá")
+    # Trade-in (Ø§Ø³ØªØ¨Ø¯Ø§Ù„ Ø¬Ù‡Ø§Ø² Ù‚Ø¯ÙŠÙ…)
+    traded_in_device = models.ForeignKey(Device, on_delete=models.SET_NULL, null=True, blank=True, related_name='traded_in_invoice', verbose_name="Ø§Ù„Ø¬Ù‡Ø§Ø² Ø§Ù„Ù…Ø³ØªØ¨Ø¯Ù„")
+    trade_in_value = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ù‚ÙŠÙ…Ø© Ø§Ù„Ø§Ø³ØªØ¨Ø¯Ø§Ù„")
     
-    net_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="ÇáÕÇİí")
+    net_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Ø§Ù„ØµØ§ÙÙŠ")
+
+    PAYMENT_METHOD_CHOICES = (
+        ('cash', 'Ù†Ù‚Ø¯ÙŠ (ÙƒØ§Ø´)'),
+        ('credit', 'Ø¢Ø¬Ù„ Ø¨Ø§Ù„ÙƒØ§Ù…Ù„'),
+        ('partial', 'Ù…Ø³Ø¯Ø¯ Ø¬Ø²Ø¦ÙŠØ§Ù‹'),
+    )
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='cash', verbose_name="Ø·Ø±ÙŠÙ‚Ø© Ø§Ù„Ø¯ÙØ¹")
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…Ø¯ÙÙˆØ¹")
+
+    @property
+    def remaining_amount(self):
+        return self.net_amount - self.paid_amount
+
+    @property
+    def is_fully_paid(self):
+        return self.remaining_amount <= 0
 
     class Meta:
-        verbose_name = "İÇÊæÑÉ ãÈíÚÇÊ"
-        verbose_name_plural = "İæÇÊíÑ ÇáãÈíÚÇÊ"
+        verbose_name = "ÙØ§ØªÙˆØ±Ø© Ù…Ø¨ÙŠØ¹Ø§Øª"
+        verbose_name_plural = "ÙÙˆØ§ØªÙŠØ± Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª"
 
     def __str__(self):
-        return f"İÇÊæÑÉ #{self.id} - {self.customer.name}"
+        return f"ÙØ§ØªÙˆØ±Ø© #{self.id} - {self.customer.name}"
 
 class SaleItem(models.Model):
-    invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='items', verbose_name="ÇáİÇÊæÑÉ")
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="ÇáÕäİ")
-    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, verbose_name="ÇáãÎÒä")
-    device = models.ForeignKey(Device, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="ÌåÇÒ ãæÈÇíá")
-    quantity = models.IntegerField(default=1, verbose_name="ÇáßãíÉ")
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="ÓÚÑ ÇáæÍÏÉ")
+    invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='items', verbose_name="Ø§Ù„ÙØ§ØªÙˆØ±Ø©")
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Ø§Ù„ØµÙ†Ù")
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, verbose_name="Ø§Ù„Ù…Ø®Ø²Ù†")
+    device = models.ForeignKey(Device, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Ø¬Ù‡Ø§Ø² Ù…ÙˆØ¨Ø§ÙŠÙ„")
+    quantity = models.IntegerField(default=1, verbose_name="Ø§Ù„ÙƒÙ…ÙŠØ©")
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Ø³Ø¹Ø± Ø§Ù„ÙˆØ­Ø¯Ø©")
 
     class Meta:
-        verbose_name = "ÈäÏ ãÈíÚÇÊ"
-        verbose_name_plural = "ÈäæÏ ÇáãÈíÚÇÊ"
+        verbose_name = "Ø¨Ù†Ø¯ Ù…Ø¨ÙŠØ¹Ø§Øª"
+        verbose_name_plural = "Ø¨Ù†ÙˆØ¯ Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª"
 
     def __str__(self):
         return f"{self.product.name} ({self.quantity})"
 
 class Payment(models.Model):
-    PAYMENT_METHODS = (('cash', 'äŞÏí'), ('visa', 'İíÒÇ'), ('wallet', 'ãÍİÙÉ ÅáßÊÑæäíÉ'))
-    invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='payments', verbose_name="ÇáİÇÊæÑÉ")
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, verbose_name="ØÑíŞÉ ÇáÏİÚ")
-    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="ÇáãÈáÛ")
-    transaction_id = models.CharField(max_length=100, blank=True, null=True, verbose_name="ÑŞã ÇáãÚÇãáÉ")
+    PAYMENT_METHODS = (('cash', 'Ù†Ù‚Ø¯ÙŠ'), ('visa', 'ÙÙŠØ²Ø§'), ('wallet', 'Ù…Ø­ÙØ¸Ø© Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠØ©'))
+    invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='payments', verbose_name="Ø§Ù„ÙØ§ØªÙˆØ±Ø©")
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, verbose_name="Ø·Ø±ÙŠÙ‚Ø© Ø§Ù„Ø¯ÙØ¹")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Ø§Ù„Ù…Ø¨Ù„Øº")
+    transaction_id = models.CharField(max_length=100, blank=True, null=True, verbose_name="Ø±Ù‚Ù… Ø§Ù„Ù…Ø¹Ø§Ù…Ù„Ø©")
 
     class Meta:
-        verbose_name = "ÏİÚÉ ãÇáíÉ"
-        verbose_name_plural = "ÇáÏİÚÇÊ ÇáãÇáíÉ"
+        verbose_name = "Ø¯ÙØ¹Ø© Ù…Ø§Ù„ÙŠØ©"
+        verbose_name_plural = "Ø§Ù„Ø¯ÙØ¹Ø§Øª Ø§Ù„Ù…Ø§Ù„ÙŠØ©"
 
     def __str__(self):
         return f"{self.get_payment_method_display()}: {self.amount}"
 
 # ==========================================
-# 7. ÏæÑÉ ÇáÕíÇäÉ (Maintenance)
+# 7. Ø¯ÙˆØ±Ø© Ø§Ù„ØµÙŠØ§Ù†Ø© (Maintenance)
 # ==========================================
 class RepairTicket(models.Model):
     STATUS_CHOICES = (
-        ('pending', 'ŞíÏ ÇáÇäÊÙÇÑ'), ('in_progress', 'ÌÇÑí ÇáÚãá'),
-        ('waiting_parts', 'İí ÇäÊÙÇÑ ŞØÚ ÇáÛíÇÑ'), ('done', 'ÌÇåÒ ááÊÓáíã'), ('delivered', 'Êã ÇáÊÓáíã')
+        ('pending', 'Ù‚ÙŠØ¯ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±'), ('in_progress', 'Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø¹Ù…Ù„'),
+        ('waiting_parts', 'ÙÙŠ Ø§Ù†ØªØ¸Ø§Ø± Ù‚Ø·Ø¹ Ø§Ù„ØºÙŠØ§Ø±'), ('done', 'Ø¬Ø§Ù‡Ø² Ù„Ù„ØªØ³Ù„ÙŠÙ…'), ('delivered', 'ØªÙ… Ø§Ù„ØªØ³Ù„ÙŠÙ…')
     )
-    customer = models.ForeignKey(Contact, on_delete=models.CASCADE, verbose_name="ÇáÚãíá")
-    technician = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="Çáİäí ÇáãÎÊÕ")
-    device_model = models.CharField(max_length=100, verbose_name="ãæÏíá ÇáÌåÇÒ")
-    device_imei = models.CharField(max_length=50, blank=True, null=True, verbose_name="ÇáÓíÑíÇá/IMEI")
-    issue_description = models.TextField(verbose_name="æÕİ ÇáÚØá")
+    customer = models.ForeignKey(Contact, on_delete=models.CASCADE, verbose_name="Ø§Ù„Ø¹Ù…ÙŠÙ„")
+    technician = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="Ø§Ù„ÙÙ†ÙŠ Ø§Ù„Ù…Ø®ØªØµ")
+    device_model = models.CharField(max_length=100, verbose_name="Ù…ÙˆØ¯ÙŠÙ„ Ø§Ù„Ø¬Ù‡Ø§Ø²")
+    device_imei = models.CharField(max_length=50, blank=True, null=True, verbose_name="Ø§Ù„Ø³ÙŠØ±ÙŠØ§Ù„/IMEI")
+    issue_description = models.TextField(verbose_name="ÙˆØµÙ Ø§Ù„Ø¹Ø·Ù„")
     
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="ÍÇáÉ ÇáÊĞßÑÉ")
-    estimated_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="ÇáÊßáİÉ ÇáÊŞÏíÑíÉ")
-    labor_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="ãÕäÚíÉ")
-    created_at = models.DateTimeField(default=timezone.now, verbose_name="ÊÇÑíÎ ÇáÏÎæá")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Ø­Ø§Ù„Ø© Ø§Ù„ØªØ°ÙƒØ±Ø©")
+    estimated_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Ø§Ù„ØªÙƒÙ„ÙØ© Ø§Ù„ØªÙ‚Ø¯ÙŠØ±ÙŠØ©")
+    labor_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ù…ØµÙ†Ø¹ÙŠØ©")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¯Ø®ÙˆÙ„")
 
     class Meta:
-        verbose_name = "ÊĞßÑÉ ÕíÇäÉ"
-        verbose_name_plural = "ÊĞÇßÑ ÇáÕíÇäÉ"
+        verbose_name = "ØªØ°ÙƒØ±Ø© ØµÙŠØ§Ù†Ø©"
+        verbose_name_plural = "ØªØ°Ø§ÙƒØ± Ø§Ù„ØµÙŠØ§Ù†Ø©"
 
     def __str__(self):
-        return f"ÊĞßÑÉ ÕíÇäÉ #{self.id} - {self.device_model}"
+        return f"ØªØ°ÙƒØ±Ø© ØµÙŠØ§Ù†Ø© #{self.id} - {self.device_model}"
 
     @property
     def total_cost(self):
@@ -405,61 +490,61 @@ class RepairTicket(models.Model):
         return self.labor_cost + self.parts_profit
 
 class RepairPartUsed(models.Model):
-    ticket = models.ForeignKey(RepairTicket, on_delete=models.CASCADE, related_name='parts_used', verbose_name="ÇáÊĞßÑÉ")
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="ŞØÚÉ ÇáÛíÇÑ")
-    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, verbose_name="ãÎÒä ÇáÓÍÈ")
-    quantity = models.IntegerField(default=1, verbose_name="ÇáßãíÉ")
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="ÓÚÑ ÇáÈíÚ")
+    ticket = models.ForeignKey(RepairTicket, on_delete=models.CASCADE, related_name='parts_used', verbose_name="Ø§Ù„ØªØ°ÙƒØ±Ø©")
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Ù‚Ø·Ø¹Ø© Ø§Ù„ØºÙŠØ§Ø±")
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, verbose_name="Ù…Ø®Ø²Ù† Ø§Ù„Ø³Ø­Ø¨")
+    quantity = models.IntegerField(default=1, verbose_name="Ø§Ù„ÙƒÙ…ÙŠØ©")
+    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Ø³Ø¹Ø± Ø§Ù„Ø¨ÙŠØ¹")
 
     class Meta:
-        verbose_name = "ŞØÚÉ ÛíÇÑ ãÓÊåáßÉ"
-        verbose_name_plural = "ŞØÚ ÇáÛíÇÑ ÇáãÓÊåáßÉ İí ÇáÕíÇäÉ"
+        verbose_name = "Ù‚Ø·Ø¹Ø© ØºÙŠØ§Ø± Ù…Ø³ØªÙ‡Ù„ÙƒØ©"
+        verbose_name_plural = "Ù‚Ø·Ø¹ Ø§Ù„ØºÙŠØ§Ø± Ø§Ù„Ù…Ø³ØªÙ‡Ù„ÙƒØ© ÙÙŠ Ø§Ù„ØµÙŠØ§Ù†Ø©"
 
     def __str__(self):
-        return f"{self.product.name} ({self.quantity}) áÜ #{self.ticket.id}"
+        return f"{self.product.name} ({self.quantity}) Ù„Ù€ #{self.ticket.id}"
 
 # ==========================================
-# 8. ÎÏãÉ ãÇ ÈÚÏ ÇáÈíÚ (After-Sales)
+# 8. Ø®Ø¯Ù…Ø© Ù…Ø§ Ø¨Ø¹Ø¯ Ø§Ù„Ø¨ÙŠØ¹ (After-Sales)
 # ==========================================
 class Warranty(models.Model):
-    device = models.ForeignKey(Device, on_delete=models.CASCADE, verbose_name="ÇáÌåÇÒ")
-    customer = models.ForeignKey(Contact, on_delete=models.CASCADE, verbose_name="ÇáÚãíá")
-    invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, verbose_name="İÇÊæÑÉ ÇáÈíÚ")
-    duration_days = models.IntegerField(default=14, verbose_name="ãÏÉ ÇáÖãÇä (ÈÇáÃíÇã)")
-    start_date = models.DateField(auto_now_add=True, verbose_name="ÊÇÑíÎ ÈÏÁ ÇáÖãÇä")
+    device = models.ForeignKey(Device, on_delete=models.CASCADE, verbose_name="Ø§Ù„Ø¬Ù‡Ø§Ø²")
+    customer = models.ForeignKey(Contact, on_delete=models.CASCADE, verbose_name="Ø§Ù„Ø¹Ù…ÙŠÙ„")
+    invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, verbose_name="ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ø¨ÙŠØ¹")
+    duration_days = models.IntegerField(default=14, verbose_name="Ù…Ø¯Ø© Ø§Ù„Ø¶Ù…Ø§Ù† (Ø¨Ø§Ù„Ø£ÙŠØ§Ù…)")
+    start_date = models.DateField(auto_now_add=True, verbose_name="ØªØ§Ø±ÙŠØ® Ø¨Ø¯Ø¡ Ø§Ù„Ø¶Ù…Ø§Ù†")
 
     class Meta:
-        verbose_name = "ÖãÇä ÌåÇÒ"
-        verbose_name_plural = "ÇáÖãÇäÇÊ"
+        verbose_name = "Ø¶Ù…Ø§Ù† Ø¬Ù‡Ø§Ø²"
+        verbose_name_plural = "Ø§Ù„Ø¶Ù…Ø§Ù†Ø§Øª"
     
     @property
     def is_valid(self):
         return timezone.now().date() <= (self.start_date + timedelta(days=self.duration_days))
 
     def __str__(self):
-        return f"ÖãÇä {self.device.imei} - {self.customer.name}"
+        return f"Ø¶Ù…Ø§Ù† {self.device.imei} - {self.customer.name}"
 
 
 
 class NotificationLog(models.Model):
     STATUS_CHOICES = (
-        ('queued',  'İí ÇáÇäÊÙÇÑ'),
-        ('sent',    'Êã ÇáÅÑÓÇá'),
-        ('failed',  'İÔá ÇáÅÑÓÇá'),
-        ('skipped', 'Êã ÇáÊÎØí (ãÛáŞ)'),
+        ('queued',  'ÙÙŠ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±'),
+        ('sent',    'ØªÙ… Ø§Ù„Ø¥Ø±Ø³Ø§Ù„'),
+        ('failed',  'ÙØ´Ù„ Ø§Ù„Ø¥Ø±Ø³Ø§Ù„'),
+        ('skipped', 'ØªÙ… Ø§Ù„ØªØ®Ø·ÙŠ (Ù…ØºÙ„Ù‚)'),
     )
-    customer = models.ForeignKey(Contact, on_delete=models.CASCADE, verbose_name="ÇáÚãíá")
-    ticket = models.ForeignKey(RepairTicket, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="ÊĞßÑÉ ÇáÕíÇäÉ")
-    notification_type = models.CharField(max_length=20, choices=(('whatsapp', 'æÇÊÓÇÈ'), ('sms', 'SMS')), default='whatsapp', verbose_name="äæÚ ÇáÅÔÚÇÑ")
-    message_body = models.TextField(verbose_name="ãÍÊæì ÇáÑÓÇáÉ")
-    sent_at = models.DateTimeField(auto_now_add=True, verbose_name="æŞÊ ÇáÅÑÓÇá")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='queued', verbose_name="ÇáÍÇáÉ")
-    error_message = models.TextField(blank=True, null=True, verbose_name="ÑÓÇáÉ ÇáÎØÃ")
-    retry_count = models.PositiveSmallIntegerField(default=0, verbose_name="ÚÏÏ ÇáãÍÇæáÇÊ")
+    customer = models.ForeignKey(Contact, on_delete=models.CASCADE, verbose_name="Ø§Ù„Ø¹Ù…ÙŠÙ„")
+    ticket = models.ForeignKey(RepairTicket, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="ØªØ°ÙƒØ±Ø© Ø§Ù„ØµÙŠØ§Ù†Ø©")
+    notification_type = models.CharField(max_length=20, choices=(('whatsapp', 'ÙˆØ§ØªØ³Ø§Ø¨'), ('sms', 'SMS')), default='whatsapp', verbose_name="Ù†ÙˆØ¹ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±")
+    message_body = models.TextField(verbose_name="Ù…Ø­ØªÙˆÙ‰ Ø§Ù„Ø±Ø³Ø§Ù„Ø©")
+    sent_at = models.DateTimeField(auto_now_add=True, verbose_name="ÙˆÙ‚Øª Ø§Ù„Ø¥Ø±Ø³Ø§Ù„")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='queued', verbose_name="Ø§Ù„Ø­Ø§Ù„Ø©")
+    error_message = models.TextField(blank=True, null=True, verbose_name="Ø±Ø³Ø§Ù„Ø© Ø§Ù„Ø®Ø·Ø£")
+    retry_count = models.PositiveSmallIntegerField(default=0, verbose_name="Ø¹Ø¯Ø¯ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø§Øª")
 
     class Meta:
-        verbose_name = "ÓÌá ÅÔÚÇÑ"
-        verbose_name_plural = "ÓÌáÇÊ ÇáÅÔÚÇÑÇÊ"
+        verbose_name = "Ø³Ø¬Ù„ Ø¥Ø´Ø¹Ø§Ø±"
+        verbose_name_plural = "Ø³Ø¬Ù„Ø§Øª Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª"
         ordering = ['-sent_at']
 
     def __str__(self):
@@ -468,62 +553,62 @@ class NotificationLog(models.Model):
 
 class NotificationSettings(models.Model):
     """
-    Singleton model áÅÚÏÇÏÇÊ ÇáÅÔÚÇÑÇÊ.
-    ÑŞã ÇáæÇÊÓÇÈ ÇáãÑÓá + ŞæÇáÈ ÇáÑÓÇÆá áßá ÍÇáÉ ÊĞßÑÉ.
+    Singleton model Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª.
+    Ø±Ù‚Ù… Ø§Ù„ÙˆØ§ØªØ³Ø§Ø¨ Ø§Ù„Ù…Ø±Ø³Ù„ + Ù‚ÙˆØ§Ù„Ø¨ Ø§Ù„Ø±Ø³Ø§Ø¦Ù„ Ù„ÙƒÙ„ Ø­Ø§Ù„Ø© ØªØ°ÙƒØ±Ø©.
     """
-    # ÇÚÏÇÏÇÊ ÇáÇÊÕÇá
+    # Ø§Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø§ØªØµØ§Ù„
     whatsapp_enabled = models.BooleanField(
         default=False,
-        verbose_name="ÊİÚíá ÅÔÚÇÑÇÊ ÇáæÇÊÓÇÈ",
-        help_text="İÚøá İŞØ ÈÚÏ ãÓÍ QR Code æÑÈØ ÇáåÇÊİ ÈÇáÓíÑİÑ."
+        verbose_name="ØªÙØ¹ÙŠÙ„ Ø¥Ø´Ø¹Ø§Ø±Ø§Øª Ø§Ù„ÙˆØ§ØªØ³Ø§Ø¨",
+        help_text="ÙØ¹Ù‘Ù„ ÙÙ‚Ø· Ø¨Ø¹Ø¯ Ù…Ø³Ø­ QR Code ÙˆØ±Ø¨Ø· Ø§Ù„Ù‡Ø§ØªÙ Ø¨Ø§Ù„Ø³ÙŠØ±ÙØ±."
     )
     sender_phone = models.CharField(
         max_length=20, blank=True, null=True,
-        verbose_name="ÑŞã ÇáæÇÊÓÇÈ ÇáãÑÓá",
-        help_text="ÇáÕíÛÉ ÇáÏæáíÉ ãËÇá: +201012345678"
+        verbose_name="Ø±Ù‚Ù… Ø§Ù„ÙˆØ§ØªØ³Ø§Ø¨ Ø§Ù„Ù…Ø±Ø³Ù„",
+        help_text="Ø§Ù„ØµÙŠØºØ© Ø§Ù„Ø¯ÙˆÙ„ÙŠØ© Ù…Ø«Ø§Ù„: +201012345678"
     )
     branch_name = models.CharField(
-        max_length=100, default="ÇáãÍá",
-        verbose_name="ÇÓã ÇáİÑÚ / ÇáãÍá",
-        help_text="ÓíÙåÑ İí äÕæÕ ÇáÑÓÇÆá ÊáŞÇÆíÇğ."
+        max_length=100, default="Ø§Ù„Ù…Ø­Ù„",
+        verbose_name="Ø§Ø³Ù… Ø§Ù„ÙØ±Ø¹ / Ø§Ù„Ù…Ø­Ù„",
+        help_text="Ø³ÙŠØ¸Ù‡Ø± ÙÙŠ Ù†ØµÙˆØµ Ø§Ù„Ø±Ø³Ø§Ø¦Ù„ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹."
     )
-    delay_min_seconds = models.PositiveSmallIntegerField(default=15, verbose_name="ÇáÍÏ ÇáÇÏäì ááÊÇÎíÑ (ËÇäíÉ)")
-    delay_max_seconds = models.PositiveSmallIntegerField(default=45, verbose_name="ÇáÍÏ ÇáÇŞÕì ááÊÇÎíÑ (ËÇäíÉ)")
+    delay_min_seconds = models.PositiveSmallIntegerField(default=15, verbose_name="Ø§Ù„Ø­Ø¯ Ø§Ù„Ø§Ø¯Ù†Ù‰ Ù„Ù„ØªØ§Ø®ÙŠØ± (Ø«Ø§Ù†ÙŠØ©)")
+    delay_max_seconds = models.PositiveSmallIntegerField(default=45, verbose_name="Ø§Ù„Ø­Ø¯ Ø§Ù„Ø§Ù‚ØµÙ‰ Ù„Ù„ØªØ§Ø®ÙŠØ± (Ø«Ø§Ù†ÙŠØ©)")
 
-    # ŞæÇáÈ ÇáÑÓÇÆá - ÇáãÊÛíÑÇÊ: {customer_name} {device_model} {ticket_id} {branch_name} {status_display} {time}
-    msg_pending_enabled = models.BooleanField(default=False, verbose_name="ÇÑÓÇá ÚäÏ: ŞíÏ ÇáÇäÊÙÇÑ")
+    # Ù‚ÙˆØ§Ù„Ø¨ Ø§Ù„Ø±Ø³Ø§Ø¦Ù„ - Ø§Ù„Ù…ØªØºÙŠØ±Ø§Øª: {customer_name} {device_model} {ticket_id} {branch_name} {status_display} {time}
+    msg_pending_enabled = models.BooleanField(default=False, verbose_name="Ø§Ø±Ø³Ø§Ù„ Ø¹Ù†Ø¯: Ù‚ÙŠØ¯ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±")
     msg_pending = models.TextField(
-        default="ÇåáÇğ {customer_name}¡ Êã ÇÓÊáÇã ÌåÇÒß {device_model} İí {branch_name}. ÑŞã ÊĞßÑÊß: #{ticket_id}",
-        verbose_name="ŞÇáÈ: ŞíÏ ÇáÇäÊÙÇÑ"
+        default="Ø§Ù‡Ù„Ø§Ù‹ {customer_name}ØŒ ØªÙ… Ø§Ø³ØªÙ„Ø§Ù… Ø¬Ù‡Ø§Ø²Ùƒ {device_model} ÙÙŠ {branch_name}. Ø±Ù‚Ù… ØªØ°ÙƒØ±ØªÙƒ: #{ticket_id}",
+        verbose_name="Ù‚Ø§Ù„Ø¨: Ù‚ÙŠØ¯ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±"
     )
-    msg_in_progress_enabled = models.BooleanField(default=True, verbose_name="ÇÑÓÇá ÚäÏ: ÌÇÑí ÇáÚãá")
+    msg_in_progress_enabled = models.BooleanField(default=True, verbose_name="Ø§Ø±Ø³Ø§Ù„ Ø¹Ù†Ø¯: Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø¹Ù…Ù„")
     msg_in_progress = models.TextField(
-        default="ÇåáÇğ {customer_name}¡ ÈÏÃ İÑíŞäÇ ÇáÚãá Úáì ÌåÇÒß {device_model}. ÑŞã ÇáÊĞßÑÉ: #{ticket_id} — {branch_name}",
-        verbose_name="ŞÇáÈ: ÌÇÑí ÇáÚãá"
+        default="Ø§Ù‡Ù„Ø§Ù‹ {customer_name}ØŒ Ø¨Ø¯Ø£ ÙØ±ÙŠÙ‚Ù†Ø§ Ø§Ù„Ø¹Ù…Ù„ Ø¹Ù„Ù‰ Ø¬Ù‡Ø§Ø²Ùƒ {device_model}. Ø±Ù‚Ù… Ø§Ù„ØªØ°ÙƒØ±Ø©: #{ticket_id} â€” {branch_name}",
+        verbose_name="Ù‚Ø§Ù„Ø¨: Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø¹Ù…Ù„"
     )
-    msg_waiting_parts_enabled = models.BooleanField(default=True, verbose_name="ÇÑÓÇá ÚäÏ: ÇäÊÙÇÑ ŞØÚ ÇáÛíÇÑ")
+    msg_waiting_parts_enabled = models.BooleanField(default=True, verbose_name="Ø§Ø±Ø³Ø§Ù„ Ø¹Ù†Ø¯: Ø§Ù†ØªØ¸Ø§Ø± Ù‚Ø·Ø¹ Ø§Ù„ØºÙŠØ§Ø±")
     msg_waiting_parts = models.TextField(
-        default="ÇåáÇğ {customer_name}¡ ÌåÇÒß {device_model} íÍÊÇÌ ŞØÚÉ ÛíÇÑ ŞíÏ ÇáÊæİíÑ. ÓäÈáÛß İæÑ ÇáÇäÊåÇÁ. ÑŞã ÇáÊĞßÑÉ: #{ticket_id}",
-        verbose_name="ŞÇáÈ: ÇäÊÙÇÑ ŞØÚ ÇáÛíÇÑ"
+        default="Ø§Ù‡Ù„Ø§Ù‹ {customer_name}ØŒ Ø¬Ù‡Ø§Ø²Ùƒ {device_model} ÙŠØ­ØªØ§Ø¬ Ù‚Ø·Ø¹Ø© ØºÙŠØ§Ø± Ù‚ÙŠØ¯ Ø§Ù„ØªÙˆÙÙŠØ±. Ø³Ù†Ø¨Ù„ØºÙƒ ÙÙˆØ± Ø§Ù„Ø§Ù†ØªÙ‡Ø§Ø¡. Ø±Ù‚Ù… Ø§Ù„ØªØ°ÙƒØ±Ø©: #{ticket_id}",
+        verbose_name="Ù‚Ø§Ù„Ø¨: Ø§Ù†ØªØ¸Ø§Ø± Ù‚Ø·Ø¹ Ø§Ù„ØºÙŠØ§Ø±"
     )
-    msg_done_enabled = models.BooleanField(default=True, verbose_name="ÇÑÓÇá ÚäÏ: ÌÇåÒ ááÊÓáíã")
+    msg_done_enabled = models.BooleanField(default=True, verbose_name="Ø§Ø±Ø³Ø§Ù„ Ø¹Ù†Ø¯: Ø¬Ø§Ù‡Ø² Ù„Ù„ØªØ³Ù„ÙŠÙ…")
     msg_done = models.TextField(
-        default="ÌåÇÒß {device_model} ÌÇåÒ ááÇÓÊáÇã ãä {branch_name}! ÑŞã ÇáÊĞßÑÉ: #{ticket_id}. İí ÇäÊÙÇÑß {customer_name}",
-        verbose_name="ŞÇáÈ: ÌÇåÒ ááÊÓáíã"
+        default="Ø¬Ù‡Ø§Ø²Ùƒ {device_model} Ø¬Ø§Ù‡Ø² Ù„Ù„Ø§Ø³ØªÙ„Ø§Ù… Ù…Ù† {branch_name}! Ø±Ù‚Ù… Ø§Ù„ØªØ°ÙƒØ±Ø©: #{ticket_id}. ÙÙŠ Ø§Ù†ØªØ¸Ø§Ø±Ùƒ {customer_name}",
+        verbose_name="Ù‚Ø§Ù„Ø¨: Ø¬Ø§Ù‡Ø² Ù„Ù„ØªØ³Ù„ÙŠÙ…"
     )
-    msg_delivered_enabled = models.BooleanField(default=False, verbose_name="ÇÑÓÇá ÚäÏ: Êã ÇáÊÓáíã")
+    msg_delivered_enabled = models.BooleanField(default=False, verbose_name="Ø§Ø±Ø³Ø§Ù„ Ø¹Ù†Ø¯: ØªÙ… Ø§Ù„ØªØ³Ù„ÙŠÙ…")
     msg_delivered = models.TextField(
-        default="ÔßÑÇğ {customer_name} Úáì ËŞÊß İí {branch_name}. ÑŞã ÇáÊĞßÑÉ: #{ticket_id}",
-        verbose_name="ŞÇáÈ: Êã ÇáÊÓáíã"
+        default="Ø´ÙƒØ±Ø§Ù‹ {customer_name} Ø¹Ù„Ù‰ Ø«Ù‚ØªÙƒ ÙÙŠ {branch_name}. Ø±Ù‚Ù… Ø§Ù„ØªØ°ÙƒØ±Ø©: #{ticket_id}",
+        verbose_name="Ù‚Ø§Ù„Ø¨: ØªÙ… Ø§Ù„ØªØ³Ù„ÙŠÙ…"
     )
 
     class Meta:
-        verbose_name = "ÇÚÏÇÏÇÊ ÇáÇÔÚÇÑÇÊ"
-        verbose_name_plural = "ÇÚÏÇÏÇÊ ÇáÇÔÚÇÑÇÊ"
+        verbose_name = "Ø§Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø§Ø´Ø¹Ø§Ø±Ø§Øª"
+        verbose_name_plural = "Ø§Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø§Ø´Ø¹Ø§Ø±Ø§Øª"
 
     def __str__(self):
-        status = "ãİÚá" if self.whatsapp_enabled else "ãæŞİ"
-        return f"ÇÚÏÇÏÇÊ ÇáÇÔÚÇÑÇÊ — ÇáæÇÊÓÇÈ {status}"
+        status = "Ù…ÙØ¹Ù„" if self.whatsapp_enabled else "Ù…ÙˆÙ‚Ù"
+        return f"Ø§Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø§Ø´Ø¹Ø§Ø±Ø§Øª â€” Ø§Ù„ÙˆØ§ØªØ³Ø§Ø¨ {status}"
 
     @classmethod
     def get_settings(cls):
@@ -531,7 +616,7 @@ class NotificationSettings(models.Model):
         return obj
 
     def render_template(self, template_key, ticket):
-        """íÈäí äÕ ÇáÑÓÇáÉ ÈÅÏÎÇá ãÊÛíÑÇÊ ÇáÊĞßÑÉ."""
+        """ÙŠØ¨Ù†ÙŠ Ù†Øµ Ø§Ù„Ø±Ø³Ø§Ù„Ø© Ø¨Ø¥Ø¯Ø®Ø§Ù„ Ù…ØªØºÙŠØ±Ø§Øª Ø§Ù„ØªØ°ÙƒØ±Ø©."""
         from django.utils import timezone as tz
         template = getattr(self, template_key, "")
         return template.format(
@@ -545,25 +630,142 @@ class NotificationSettings(models.Model):
 
 
 # ==========================================
-# 9. äÙÇã ÇáÎÒä æÇáÚåÏ (Treasury & Safes)
+# 9. Ù†Ø¸Ø§Ù… Ø§Ù„Ø®Ø²Ù† ÙˆØ§Ù„Ø¹Ù‡Ø¯ (Treasury & Safes)
 # ==========================================
 class Treasury(models.Model):
-    name = models.CharField(max_length=100, verbose_name="ÇÓã ÇáÎÒíäÉ")
-    opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="ÑÕíÏ Ãæá ÇáãÏÉ")
-    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="ÇáÑÕíÏ ÇáÍÇáí")
-    is_active = models.BooleanField(default=True, verbose_name="äÔØÉ")
-    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='treasuries', verbose_name="ÇáãÓÊÎÏã ÇáãÓÄæá")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="ÊÇÑíÎ ÇáÅäÔÇÁ")
+    name = models.CharField(max_length=100, verbose_name="Ø§Ø³Ù… Ø§Ù„Ø®Ø²ÙŠÙ†Ø©")
+    opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="Ø±ØµÙŠØ¯ Ø£ÙˆÙ„ Ø§Ù„Ù…Ø¯Ø©")
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="Ø§Ù„Ø±ØµÙŠØ¯ Ø§Ù„Ø­Ø§Ù„ÙŠ")
+    is_active = models.BooleanField(default=True, verbose_name="Ù†Ø´Ø·Ø©")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='treasuries', verbose_name="Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… Ø§Ù„Ù…Ø³Ø¤ÙˆÙ„")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¥Ù†Ø´Ø§Ø¡")
 
     class Meta:
-        verbose_name = "ÎÒíäÉ"
-        verbose_name_plural = "ÇáÎÒä"
+        verbose_name = "Ø®Ø²ÙŠÙ†Ø©"
+        verbose_name_plural = "Ø§Ù„Ø®Ø²Ù†"
 
     def __str__(self):
-        return f"{self.name} ({self.user.username}) - ÑÕíÏ: {self.balance} Ì.ã"
+        return f"{self.name} ({self.user.username}) - Ø±ØµÙŠØ¯: {self.balance} Ø¬.Ù…"
 
     def save(self, *args, **kwargs):
-        # İí ÍÇá ÇáÅäÔÇÁ áÃæá ãÑÉ¡ äÌÚá ÇáÑÕíÏ ÇáÍÇáí íÓÇæí ÑÕíÏ Ãæá ÇáãÏÉ
+        # ÙÙŠ Ø­Ø§Ù„ Ø§Ù„Ø¥Ù†Ø´Ø§Ø¡ Ù„Ø£ÙˆÙ„ Ù…Ø±Ø©ØŒ Ù†Ø¬Ø¹Ù„ Ø§Ù„Ø±ØµÙŠØ¯ Ø§Ù„Ø­Ø§Ù„ÙŠ ÙŠØ³Ø§ÙˆÙŠ Ø±ØµÙŠØ¯ Ø£ÙˆÙ„ Ø§Ù„Ù…Ø¯Ø©
         if not self.pk:
             self.balance = self.opening_balance
         super().save(*args, **kwargs)
+
+# ==========================================
+# 10. Ø´Ø¤ÙˆÙ† Ø§Ù„Ù…ÙˆØ¸ÙÙŠÙ† ÙˆØ§Ù„Ø±ÙˆØ§ØªØ¨ (HR & Payroll)
+# ==========================================
+class EmployeeProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee_profile', verbose_name="Ø­Ø³Ø§Ø¨ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…")
+    hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, default=0.00, verbose_name="Ù‚ÙŠÙ…Ø© Ø³Ø§Ø¹Ø© Ø§Ù„Ø¹Ù…Ù„ Ø§Ù„Ø¹Ø§Ø¯ÙŠØ©")
+    daily_working_hours = models.DecimalField(max_digits=4, decimal_places=2, default=8.00, verbose_name="Ø³Ø§Ø¹Ø§Øª Ø§Ù„Ø¹Ù…Ù„ Ø§Ù„ÙŠÙˆÙ…ÙŠØ©")
+    shift_start_time = models.TimeField(null=True, blank=True, verbose_name="Ù…ÙŠØ¹Ø§Ø¯ Ø§Ù„Ø­Ø¶ÙˆØ±")
+    shift_end_time = models.TimeField(null=True, blank=True, verbose_name="Ù…ÙŠØ¹Ø§Ø¯ Ø§Ù„Ø§Ù†ØµØ±Ø§Ù")
+    deduction_per_hour = models.DecimalField(max_digits=8, decimal_places=2, default=0.00, verbose_name="Ù‚ÙŠÙ…Ø© Ø§Ù„Ø®ØµÙ… Ù„Ù„Ø³Ø§Ø¹Ø©")
+    overtime_per_hour = models.DecimalField(max_digits=8, decimal_places=2, default=0.00, verbose_name="Ù‚ÙŠÙ…Ø© Ø§Ù„Ø¥Ø¶Ø§ÙÙŠ Ù„Ù„Ø³Ø§Ø¹Ø©")
+    base_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ø§Ù„Ø±Ø§ØªØ¨ Ø§Ù„Ø£Ø³Ø§Ø³ÙŠ (Ø§Ø®ØªÙŠØ§Ø±ÙŠ)")
+    is_active = models.BooleanField(default=True, verbose_name="Ø¹Ù„Ù‰ Ø±Ø£Ø³ Ø§Ù„Ø¹Ù…Ù„")
+
+    class Meta:
+        verbose_name = "Ù…Ù„Ù Ø§Ù„Ù…ÙˆØ¸Ù"
+        verbose_name_plural = "Ù…Ù„ÙØ§Øª Ø§Ù„Ù…ÙˆØ¸ÙÙŠÙ†"
+
+    def __str__(self):
+        return self.user.get_full_name() or self.user.username
+
+class Attendance(models.Model):
+    employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE, related_name='attendances', verbose_name="Ø§Ù„Ù…ÙˆØ¸Ù")
+    date = models.DateField(default=timezone.now, verbose_name="Ø§Ù„ØªØ§Ø±ÙŠØ®")
+    check_in = models.DateTimeField(null=True, blank=True, verbose_name="ÙˆÙ‚Øª Ø§Ù„Ø­Ø¶ÙˆØ±")
+    check_out = models.DateTimeField(null=True, blank=True, verbose_name="ÙˆÙ‚Øª Ø§Ù„Ø§Ù†ØµØ±Ø§Ù")
+    delay_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name="Ø³Ø§Ø¹Ø§Øª Ø§Ù„ØªØ£Ø®ÙŠØ±")
+    overtime_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name="Ø§Ù„Ø³Ø§Ø¹Ø§Øª Ø§Ù„Ø¥Ø¶Ø§ÙÙŠØ©")
+    status = models.CharField(max_length=20, choices=(('present', 'Ø­Ø§Ø¶Ø±'), ('absent', 'ØºØ§Ø¦Ø¨'), ('leave', 'Ø¥Ø¬Ø§Ø²Ø©')), default='present', verbose_name="Ø§Ù„Ø­Ø§Ù„Ø©")
+
+    class Meta:
+        verbose_name = "Ø³Ø¬Ù„ Ø­Ø¶ÙˆØ±"
+        verbose_name_plural = "Ø³Ø¬Ù„Ø§Øª Ø§Ù„Ø­Ø¶ÙˆØ± ÙˆØ§Ù„Ø§Ù†ØµØ±Ø§Ù"
+        unique_together = ('employee', 'date')
+
+    def __str__(self):
+        return f"Ø­Ø¶ÙˆØ± {self.employee.user.username} - {self.date}"
+
+class Payroll(models.Model):
+    employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE, related_name='payrolls', verbose_name="Ø§Ù„Ù…ÙˆØ¸Ù")
+    month = models.IntegerField(verbose_name="Ø§Ù„Ø´Ù‡Ø±")
+    year = models.IntegerField(verbose_name="Ø§Ù„Ø³Ù†Ø©")
+    total_worked_hours = models.DecimalField(max_digits=6, decimal_places=2, default=0.00, verbose_name="Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø³Ø§Ø¹Ø§Øª Ø§Ù„Ø¹Ù…Ù„")
+    total_delay_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name="Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø³Ø§Ø¹Ø§Øª Ø§Ù„ØªØ£Ø®ÙŠØ±")
+    total_overtime_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name="Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø³Ø§Ø¹Ø§Øª Ø§Ù„Ø¥Ø¶Ø§ÙÙŠØ©")
+    base_pay = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ø§Ù„Ù…Ø³ØªØ­Ù‚ Ø§Ù„Ø£Ø³Ø§Ø³ÙŠ")
+    overtime_pay = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ù…ÙƒØ§ÙØ£Ø© Ø§Ù„Ø¥Ø¶Ø§ÙÙŠ")
+    deductions = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø®ØµÙˆÙ…Ø§Øª")
+    net_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Ø§Ù„Ø±Ø§ØªØ¨ Ø§Ù„ØµØ§ÙÙŠ")
+    is_paid = models.BooleanField(default=False, verbose_name="ØªÙ… Ø§Ù„ØµØ±Ù")
+    paid_at = models.DateTimeField(null=True, blank=True, verbose_name="ØªØ§Ø±ÙŠØ® Ø§Ù„ØµØ±Ù")
+
+    class Meta:
+        verbose_name = "Ù…Ø³ÙŠØ± Ø±Ø§ØªØ¨"
+        verbose_name_plural = "Ù…Ø³ÙŠØ±Ø§Øª Ø§Ù„Ø±ÙˆØ§ØªØ¨"
+        unique_together = ('employee', 'month', 'year')
+
+    def __str__(self):
+        return f"Ø±Ø§ØªØ¨ {self.employee.user.username} - {self.month}/{self.year}"
+
+# ==========================================
+# 12. Ø§Ù„Ù…Ø±ØªØ¬Ø¹Ø§Øª (Returns)
+# ==========================================
+class SaleReturn(models.Model):
+    sale_invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='returns', verbose_name="ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ø¨ÙŠØ¹ Ø§Ù„Ø£ØµÙ„ÙŠØ©")
+    treasury = models.ForeignKey('Treasury', on_delete=models.PROTECT, verbose_name="Ø§Ù„Ø®Ø²ÙŠÙ†Ø© Ø§Ù„Ù…Ø®ØµÙˆÙ… Ù…Ù†Ù‡Ø§")
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="Ø¨ÙˆØ§Ø³Ø·Ø©")
+    date_created = models.DateTimeField(auto_now_add=True, verbose_name="ØªØ§Ø±ÙŠØ® Ø§Ù„Ù…Ø±ØªØ¬Ø¹")
+    refund_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…Ø³ØªØ±Ø¯ Ù„Ù„Ø¹Ù…ÙŠÙ„")
+    notes = models.TextField(blank=True, null=True, verbose_name="Ø³Ø¨Ø¨ Ø§Ù„Ø§Ø³ØªØ±Ø¬Ø§Ø¹")
+
+    class Meta:
+        verbose_name = "Ù…Ø±ØªØ¬Ø¹ Ù…Ø¨ÙŠØ¹Ø§Øª"
+        verbose_name_plural = "Ù…Ø±ØªØ¬Ø¹Ø§Øª Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª"
+
+    def __str__(self):
+        return f"Ù…Ø±ØªØ¬Ø¹ Ù…Ø¨ÙŠØ¹Ø§Øª #{self.id} Ù„ÙØ§ØªÙˆØ±Ø© #{self.sale_invoice.id}"
+
+class SaleReturnItem(models.Model):
+    return_invoice = models.ForeignKey(SaleReturn, on_delete=models.CASCADE, related_name='items', verbose_name="ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ù…Ø±ØªØ¬Ø¹")
+    sale_item = models.ForeignKey(SaleItem, on_delete=models.CASCADE, verbose_name="Ø§Ù„Ø¨Ù†Ø¯ Ø§Ù„Ø£ØµÙ„ÙŠ")
+    quantity = models.IntegerField(default=1, verbose_name="Ø§Ù„ÙƒÙ…ÙŠØ© Ø§Ù„Ù…Ø±ØªØ¬Ø¹Ø©")
+    
+    class Meta:
+        verbose_name = "Ø¨Ù†Ø¯ Ù…Ø±ØªØ¬Ø¹ Ù…Ø¨ÙŠØ¹Ø§Øª"
+        verbose_name_plural = "Ø¨Ù†ÙˆØ¯ Ù…Ø±ØªØ¬Ø¹Ø§Øª Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª"
+
+    def __str__(self):
+        return f"{self.sale_item.product.name} ({self.quantity})"
+
+class PurchaseReturn(models.Model):
+    purchase_invoice = models.ForeignKey(PurchaseInvoice, on_delete=models.CASCADE, related_name='returns', verbose_name="ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ø´Ø±Ø§Ø¡ Ø§Ù„Ø£ØµÙ„ÙŠØ©")
+    treasury = models.ForeignKey('Treasury', on_delete=models.PROTECT, verbose_name="Ø§Ù„Ø®Ø²ÙŠÙ†Ø© Ø§Ù„Ù…ÙˆØ¯Ø¹ Ø¨Ù‡Ø§")
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="Ø¨ÙˆØ§Ø³Ø·Ø©")
+    date_created = models.DateTimeField(auto_now_add=True, verbose_name="ØªØ§Ø±ÙŠØ® Ø§Ù„Ù…Ø±ØªØ¬Ø¹")
+    refund_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…Ø³ØªØ±Ø¯ Ù…Ù† Ø§Ù„Ù…ÙˆØ±Ø¯")
+    notes = models.TextField(blank=True, null=True, verbose_name="Ø³Ø¨Ø¨ Ø§Ù„Ø§Ø³ØªØ±Ø¬Ø§Ø¹")
+
+    class Meta:
+        verbose_name = "Ù…Ø±ØªØ¬Ø¹ Ù…Ø´ØªØ±ÙŠØ§Øª"
+        verbose_name_plural = "Ù…Ø±ØªØ¬Ø¹Ø§Øª Ø§Ù„Ù…Ø´ØªØ±ÙŠØ§Øª"
+
+    def __str__(self):
+        return f"Ù…Ø±ØªØ¬Ø¹ Ù…Ø´ØªØ±ÙŠØ§Øª #{self.id} Ù„ÙØ§ØªÙˆØ±Ø© #{self.purchase_invoice.id}"
+
+class PurchaseReturnItem(models.Model):
+    return_invoice = models.ForeignKey(PurchaseReturn, on_delete=models.CASCADE, related_name='items', verbose_name="ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ù…Ø±ØªØ¬Ø¹")
+    purchase_item = models.ForeignKey(PurchaseItem, on_delete=models.CASCADE, verbose_name="Ø§Ù„Ø¨Ù†Ø¯ Ø§Ù„Ø£ØµÙ„ÙŠ")
+    quantity = models.IntegerField(default=1, verbose_name="Ø§Ù„ÙƒÙ…ÙŠØ© Ø§Ù„Ù…Ø±ØªØ¬Ø¹Ø©")
+    
+    class Meta:
+        verbose_name = "Ø¨Ù†Ø¯ Ù…Ø±ØªØ¬Ø¹ Ù…Ø´ØªØ±ÙŠØ§Øª"
+        verbose_name_plural = "Ø¨Ù†ÙˆØ¯ Ù…Ø±ØªØ¬Ø¹Ø§Øª Ø§Ù„Ù…Ø´ØªØ±ÙŠØ§Øª"
+
+    def __str__(self):
+        return f"{self.purchase_item.product.name} ({self.quantity})"

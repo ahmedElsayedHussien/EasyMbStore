@@ -40,12 +40,13 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.db import transaction, models
 from django.utils import timezone
+from decimal import Decimal
 from django.contrib import messages
 from erp.models import (
     StoreSetting, Contact, Warehouse, Product, Stock, Device, DeviceAttachment,
     PurchaseInvoice, PurchaseItem, StockTransfer, StockTransferItem,
     CashShift, Expense, ExpenseCategory, SaleInvoice, SaleItem, Payment,
-    RepairTicket, RepairPartUsed, Warranty, NotificationLog
+    RepairTicket, RepairPartUsed, Warranty, NotificationLog, Treasury, ContactTransaction
 )
 from erp.forms import (
     ContactForm, UsedDeviceForm, DeviceAttachmentFormSet,
@@ -53,7 +54,7 @@ from erp.forms import (
     StockTransferForm, StockTransferItemFormSet,
     RepairTicketForm, RepairPartUsedFormSet,
     CashShiftOpenForm, CashShiftCloseForm, ExpenseForm,
-    WarehouseForm, SupplierForm, ProductForm, SystemUserCreationForm
+    WarehouseForm, SupplierForm, CustomerForm, TreasuryForm, ProductForm, SystemUserCreationForm, ContactTransactionForm
 )
 # ==========================================
 # 1. لوحة التحكم (Interactive Dashboard)
@@ -207,6 +208,7 @@ def pos_view(request):
         'customers': customers,
         'available_devices': available_devices,
         'warehouse_stocks': warehouse_stocks,
+        'product_types': Product.PRODUCT_TYPES,
     }
     return render(request, 'erp/pos.html', context)
 @login_required
@@ -406,9 +408,18 @@ def pos_checkout(request):
                 )
                 payment.save()  # سيقوم الـ Signal بإضافة المبالغ النقدية لعهدة الوردية
                 total_paid += amount
-            # التحقق من تطابق المبلغ المدفوع مع الصافي
-            if abs(total_paid - invoice.net_amount) > 0.01:
-                raise ValidationError(f"المجموع المدفوع ({total_paid}) لا يتطابق مع صافي الفاتورة ({invoice.net_amount})")
+            # التحقق من المديونية والبيع الآجل
+            if total_paid < invoice.net_amount:
+                if customer.name == 'عميل نقدي' or customer.contact_type != 'customer':
+                    raise ValidationError("لا يمكن البيع بالآجل لـ 'عميل نقدي' الافتراضي. الرجاء اختيار اسم العميل الصحيح لتقييد المديونية عليه.")
+                invoice.payment_method = 'partial' if total_paid > 0 else 'credit'
+            elif total_paid > invoice.net_amount:
+                raise ValidationError(f"المجموع المدفوع ({total_paid}) أكبر من صافي الفاتورة ({invoice.net_amount})")
+            else:
+                invoice.payment_method = 'cash'
+                
+            invoice.paid_amount = total_paid
+            invoice.save()
             # 4. تفعيل الضمان التلقائي إن كانت الفاتورة تحتوي على أجهزة مسيرنة
             for item in invoice.items.all():
                 if item.product.requires_imei and item.device:
@@ -513,6 +524,26 @@ def used_device_purchase(request):
                     device_instance.condition = 'used'
                     device_instance.is_sold = False
                     device_instance.save()
+                    
+                    # سداد مبلغ الهاتف من الخزينة المحددة
+                    treasury = device_form.cleaned_data.get('treasury')
+                    cost = device_instance.cost or 0
+                    if treasury and cost > 0:
+                        treasury_obj = Treasury.objects.select_for_update().get(id=treasury.id)
+                        if cost > treasury_obj.balance:
+                            raise ValidationError(f"رصيد الخزينة المحددة ({treasury_obj.balance} ج.م) لا يكفي لسداد قيمة الهاتف ({cost} ج.م).")
+                        treasury_obj.balance -= cost
+                        treasury_obj.save()
+                        
+                        # تسجيل الحركة على البائع كمورد
+                        ContactTransaction.objects.create(
+                            contact=seller_instance,
+                            treasury=treasury_obj,
+                            transaction_type='payment',
+                            amount=cost,
+                            description=f"سداد قيمة هاتف مستعمل IMEI: {device_instance.imei}",
+                            user=request.user
+                        )
                     # حفظ المرفقات والأوراق الرسمية بعد ربطها بالجهاز المنشأ
                     attachment_formset.instance = device_instance
                     if attachment_formset.is_valid():
@@ -614,12 +645,13 @@ def product_name_search(request):
 @login_required
 @permission_required('erp.view_purchaseinvoice', raise_exception=True)
 def purchase_invoice_list(request):
-    from erp.models import CashShift
     purchases = PurchaseInvoice.objects.all().order_by('-invoice_date').select_related('supplier', 'created_by')
     has_open_shift = CashShift.objects.filter(cashier=request.user, status='open').exists()
+    active_treasuries = Treasury.objects.filter(is_active=True)
     return render(request, 'erp/purchase_list.html', {
         'purchases': purchases,
-        'has_open_shift': has_open_shift
+        'has_open_shift': has_open_shift,
+        'active_treasuries': active_treasuries
     })
 @login_required
 @permission_required('erp.add_purchaseinvoice', raise_exception=True)
@@ -644,6 +676,17 @@ def purchase_invoice_create(request):
                             invoice.paid_amount = invoice.net_amount
                         elif invoice.paid_amount < 0:
                             invoice.paid_amount = 0
+                    
+                    # خصم المبلغ المدفوع من الخزينة المحددة
+                    if invoice.paid_amount > 0:
+                        if not invoice.treasury:
+                            raise Exception("خطأ: يرجى تحديد الخزينة التي تم سداد المبلغ منها.")
+                        treasury = Treasury.objects.select_for_update().get(id=invoice.treasury.id)
+                        if invoice.paid_amount > treasury.balance:
+                            raise Exception(f"خطأ: رصيد الخزينة المحددة ({treasury.balance} ج.م) غير كافٍ لسداد المبلغ المدفوع ({invoice.paid_amount} ج.م).")
+                        treasury.balance -= invoice.paid_amount
+                        treasury.save()
+                    
                     invoice.save()
                     # حفظ البنود وتحديث المخزون ومتوسط التكلفة تلقائياً بواسطة السجنل
                     formset.instance = invoice
@@ -670,11 +713,11 @@ def purchase_invoice_detail(request, pk):
     """
     عرض تفاصيل فاتورة الشراء من الموردين.
     """
-    from erp.models import CashShift
     invoice = get_object_or_404(PurchaseInvoice, pk=pk)
     items = invoice.items.all().select_related('product', 'warehouse')
     store_setting = StoreSetting.objects.first()
     has_open_shift = CashShift.objects.filter(cashier=request.user, status='open').exists()
+    active_treasuries = Treasury.objects.filter(is_active=True)
     # تفكيك السيريالات وعرضها بشكل مرتب إذا وجد
     for item in items:
         if item.product.requires_imei and item.imei_list:
@@ -684,6 +727,7 @@ def purchase_invoice_detail(request, pk):
         'items': items,
         'store_setting': store_setting,
         'has_open_shift': has_open_shift,
+        'active_treasuries': active_treasuries,
     }
     return render(request, 'erp/purchase_invoice_detail.html', context)
 
@@ -748,6 +792,26 @@ def purchase_invoice_pay(request, pk):
                     amount=amount,
                     description=f"سداد دفعة لفاتورة المشتريات رقم {invoice.supplier_invoice_number or invoice.id} للمورد {invoice.supplier.name}"
                 )
+            else:
+                # السداد مباشرة من الخزينة المحددة
+                treasury_id = request.POST.get('treasury')
+                if not treasury_id:
+                    messages.error(request, "خطأ: يجب تحديد الخزينة المراد السداد منها في حال عدم الخصم من الوردية.")
+                    next_url = request.META.get('HTTP_REFERER')
+                    if next_url:
+                        return redirect(next_url)
+                    return redirect('erp:purchase_list')
+                
+                treasury = get_object_or_404(Treasury.objects.select_for_update(), id=treasury_id)
+                if amount > treasury.balance:
+                    messages.error(request, f"خطأ: رصيد الخزينة المحددة ({treasury.balance} ج.م) غير كافٍ لسداد المبلغ ({amount} ج.م).")
+                    next_url = request.META.get('HTTP_REFERER')
+                    if next_url:
+                        return redirect(next_url)
+                    return redirect('erp:purchase_list')
+                
+                treasury.balance -= amount
+                treasury.save()
                 
             # تحديث قيمة المبلغ المدفوع في الفاتورة
             invoice.paid_amount += amount
@@ -871,11 +935,13 @@ def repair_ticket_list(request):
     warehouses = Warehouse.objects.filter(is_active=True)
     from django.contrib.auth.models import User
     technicians = User.objects.filter(groups__name='فني الصيانة')
+    treasuries = Treasury.objects.filter(is_active=True)
     context = {
         'tickets': tickets,
         'parts': parts,
         'warehouses': warehouses,
         'technicians': technicians,
+        'treasuries': treasuries,
     }
     return render(request, 'erp/repairs.html', context)
 @login_required
@@ -943,7 +1009,31 @@ def repair_change_status(request, pk):
 
     ticket = get_object_or_404(RepairTicket, pk=pk)
     new_status = request.POST.get('status')
+    treasury_id = request.POST.get('treasury_id')
+
     if new_status in dict(RepairTicket.STATUS_CHOICES):
+        if new_status == 'delivered':
+            if not treasury_id:
+                return JsonResponse({'error': 'يجب تحديد الخزينة عند تسليم الجهاز لتحصيل المبلغ.'}, status=400)
+            try:
+                treasury = Treasury.objects.select_for_update().get(id=treasury_id, is_active=True)
+                total_cost = ticket.total_cost
+                if total_cost > 0:
+                    treasury.balance += total_cost
+                    treasury.save()
+                    # إنشاء إيصال للعميل كإيراد صيانة
+                    from erp.models import ContactTransaction
+                    ContactTransaction.objects.create(
+                        contact=ticket.customer,
+                        treasury=treasury,
+                        transaction_type='receipt',
+                        amount=total_cost,
+                        description=f"تحصيل تكلفة صيانة لتذكرة رقم #{ticket.id}",
+                        user=request.user
+                    )
+            except Treasury.DoesNotExist:
+                return JsonResponse({'error': 'الخزينة المحددة غير موجودة أو غير نشطة.'}, status=400)
+
         ticket.status = new_status
         ticket.save()
         status_display = ticket.get_status_display()
@@ -988,6 +1078,7 @@ def repair_ticket_edit(request, pk):
     issue_description = request.POST.get('issue_description')
     technician_id = request.POST.get('technician_id')
     status = request.POST.get('status')
+    treasury_id = request.POST.get('treasury_id')
     try:
         if labor_cost is not None:
             ticket.labor_cost = models.DecimalField(max_digits=10, decimal_places=2).to_python(labor_cost)
@@ -995,6 +1086,27 @@ def repair_ticket_edit(request, pk):
             ticket.issue_description = issue_description.strip()
         if status in dict(RepairTicket.STATUS_CHOICES):
             if ticket.status != status:
+                if status == 'delivered':
+                    if not treasury_id:
+                        return JsonResponse({'error': 'يجب تحديد الخزينة عند تسليم الجهاز لتحصيل المبلغ.'}, status=400)
+                    try:
+                        treasury = Treasury.objects.select_for_update().get(id=treasury_id, is_active=True)
+                        total_cost = ticket.total_cost
+                        if total_cost > 0:
+                            treasury.balance += total_cost
+                            treasury.save()
+                            from erp.models import ContactTransaction
+                            ContactTransaction.objects.create(
+                                contact=ticket.customer,
+                                treasury=treasury,
+                                transaction_type='receipt',
+                                amount=total_cost,
+                                description=f"تحصيل تكلفة صيانة لتذكرة رقم #{ticket.id}",
+                                user=request.user
+                            )
+                    except Treasury.DoesNotExist:
+                        return JsonResponse({'error': 'الخزينة المحددة غير موجودة أو غير نشطة.'}, status=400)
+                        
                 ticket.status = status
                 # إرسال إشعار تلقائي للعميل بمناسبة تغيير الحالة
                 status_display = ticket.get_status_display()
@@ -1063,17 +1175,28 @@ def shift_manage_view(request):
             if already_open:
                 messages.error(request, "خطأ: لديك وردية مفتوحة بالفعل. لا يمكن فتح وردية جديدة قبل إغلاق الوردية الحالية.")
                 return redirect('erp:shift_manage')
-            form = CashShiftOpenForm(request.POST)
+            form = CashShiftOpenForm(request.POST, user=request.user)
             if form.is_valid():
                 shift = form.save(commit=False)
                 shift.cashier = request.user
                 shift.status = 'open'
                 shift.save()
                 messages.success(request, "تم فتح الوردية بنجاح. يومك مبارك ورزقك واسع!")
-                return redirect('erp:dashboard')
+                return redirect('erp:shift_manage')
         else:
-            form = CashShiftOpenForm()
-        return render(request, 'erp/shift_open.html', {'form': form})
+            form = CashShiftOpenForm(user=request.user)
+        
+        # تمرير أرصدة الخزن لتعبئة رصيد البداية ديناميكياً
+        if request.user.is_superuser or request.user.groups.filter(name='المدير العام').exists():
+            user_treasuries = Treasury.objects.filter(is_active=True)
+        else:
+            user_treasuries = Treasury.objects.filter(user=request.user, is_active=True)
+        balances_map = {t.id: float(t.balance) for t in user_treasuries}
+        
+        return render(request, 'erp/shift_open.html', {
+            'form': form,
+            'treasury_balances_json': json.dumps(balances_map)
+        })
 @login_required
 @permission_required('erp.add_expense', raise_exception=True)
 @require_POST
@@ -1090,14 +1213,13 @@ def shift_add_expense(request):
         if form.is_valid():
             expense = form.save(commit=False)
             expense.shift = active_shift
-            
-            # منع تسجيل مصروف أكبر من الرصيد المتوفر في درج الوردية
-            if expense.amount > active_shift.expected_closing_balance:
+            # التأكد من توفر رصيد في الخزينة المحددة
+            if expense.treasury and expense.amount > expense.treasury.balance:
                 return JsonResponse({
-                    'error': f'عذراً، لا يمكن تسجيل مصروف بقيمة {expense.amount} ج.م لأن النقدية المتوفرة في درج الوردية حالياً هي {active_shift.expected_closing_balance} ج.م فقط.'
+                    'error': f'عذراً، الرصيد المتوفر في الخزينة ({expense.treasury.name}) هو {expense.treasury.balance} ج.م فقط.'
                 }, status=400)
                 
-            expense.save() # سيقوم الـ Signal بإعادة حساب الوردية تلقائياً
+            expense.save() # ستقوم دالة الحفظ بخصم القيمة من الخزينة
             return JsonResponse({
                 'status': 'success',
                 'amount': float(expense.amount),
@@ -1120,6 +1242,10 @@ def shift_close(request):
             shift.status = 'closed'
             shift.end_time = timezone.now()
             shift.save() # سيقوم الـ pre_save بتحديث expected_closing_balance للمرة الأخيرة
+            if shift.treasury:
+                treasury = Treasury.objects.select_for_update().get(id=shift.treasury.id)
+                treasury.balance += (shift.actual_cash - shift.opening_balance)
+                treasury.save()
             discrepancy = shift.actual_cash - shift.expected_closing_balance
             if discrepancy == 0:
                 messages.success(request, "تم إغلاق الوردية وتصفيتها بنجاح بدون أي فروقات.")
@@ -1183,15 +1309,31 @@ def setup_dashboard_view(request):
         else:
             return redirect('erp:pos')
     from django.contrib.auth.models import User, Group
+    from erp.forms import StoreSettingForm
+    
+    store_setting_obj = StoreSetting.objects.first()
+    store_setting_form = StoreSettingForm(instance=store_setting_obj)
+    
     # تهيئة النماذج الفارغة بشكل افتراضي للعرض
     warehouse_form = WarehouseForm()
     supplier_form = SupplierForm()
+    customer_form = CustomerForm()
+    treasury_form = TreasuryForm()
     product_form = ProductForm()
     user_form = SystemUserCreationForm()
+    
     # معالجة طلبات الإدخال (POST)
     if request.method == 'POST':
         action = request.POST.get('action')
-        if action == 'add_warehouse':
+        if action == 'save_store_settings':
+            store_setting_form = StoreSettingForm(request.POST, request.FILES, instance=store_setting_obj)
+            if store_setting_form.is_valid():
+                store_setting_form.save()
+                messages.success(request, "تم حفظ الإعدادات العامة بنجاح.")
+                return redirect('erp:setup_dashboard')
+            else:
+                messages.error(request, "حدث خطأ في حفظ الإعدادات العامة.")
+        elif action == 'add_warehouse':
             form = WarehouseForm(request.POST)
             if form.is_valid():
                 form.save()
@@ -1200,6 +1342,15 @@ def setup_dashboard_view(request):
             else:
                 messages.error(request, "خطأ في إدخال بيانات المخزن.")
                 warehouse_form = form # احتفاظ بالنموذج غير الصالح لعرض الأخطاء
+        elif action == 'add_treasury':
+            form = TreasuryForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "تم إضافة الخزينة الجديدة بنجاح.")
+                return redirect('erp:setup_dashboard')
+            else:
+                messages.error(request, "خطأ في بيانات الخزينة.")
+                treasury_form = form
         elif action == 'add_supplier':
             form = SupplierForm(request.POST)
             if form.is_valid():
@@ -1211,6 +1362,17 @@ def setup_dashboard_view(request):
             else:
                 messages.error(request, "خطأ في إدخال بيانات المورد.")
                 supplier_form = form # احتفاظ بالنموذج غير الصالح لعرض الأخطاء
+        elif action == 'add_customer':
+            form = CustomerForm(request.POST)
+            if form.is_valid():
+                customer = form.save(commit=False)
+                customer.contact_type = 'customer' # تعيين جهة الاتصال كعميل
+                customer.save()
+                messages.success(request, "تم تسجيل العميل الجديد بنجاح.")
+                return redirect('erp:setup_dashboard')
+            else:
+                messages.error(request, "خطأ في إدخال بيانات العميل.")
+                customer_form = form # احتفاظ بالنموذج غير الصالح لعرض الأخطاء
         elif action == 'add_product':
             form = ProductForm(request.POST)
             if form.is_valid():
@@ -1258,19 +1420,164 @@ def setup_dashboard_view(request):
     # جلب قوائم البيانات الحالية
     warehouses = Warehouse.objects.all().order_by('id')
     suppliers = Contact.objects.filter(contact_type='supplier').order_by('-id')
+    customers = Contact.objects.filter(contact_type='customer').order_by('-id')
+    treasuries = Treasury.objects.select_related('user').order_by('-id')
     products = Product.objects.all().order_by('-id')
     users = User.objects.filter(is_superuser=False).prefetch_related('groups').order_by('-id')
     context = {
+        'store_setting_form': store_setting_form,
         'warehouse_form': warehouse_form,
         'supplier_form': supplier_form,
+        'customer_form': customer_form,
+        'treasury_form': treasury_form,
         'product_form': product_form,
         'user_form': user_form,
         'warehouses': warehouses,
         'suppliers': suppliers,
+        'customers': customers,
+        'treasuries': treasuries,
         'products': products,
         'users': users,
     }
     return render(request, 'erp/setup.html', context)
+
+@login_required
+def debts_list(request):
+    """
+    شاشة مديونيات العملاء ومستحقات الموردين وسدادها
+    """
+    if request.method == 'POST':
+        form = ContactTransactionForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                trans = form.save(commit=False)
+                trans.user = request.user
+                
+                original_amount = trans.amount
+                remaining_to_distribute = original_amount
+                
+                # توزيع المبلغ على الفواتير المفتوحة للعميل
+                if trans.transaction_type == 'receipt' and trans.contact.contact_type in ['customer', 'used_seller']:
+                    unpaid_sales = SaleInvoice.objects.filter(
+                        customer=trans.contact, 
+                        payment_method__in=['credit', 'partial']
+                    ).order_by('date_created')
+                    
+                    for inv in unpaid_sales:
+                        if remaining_to_distribute <= 0:
+                            break
+                        due = inv.remaining_amount
+                        pay_amount = min(due, remaining_to_distribute)
+                        
+                        inv.paid_amount += pay_amount
+                        if inv.remaining_amount <= 0:
+                            inv.payment_method = 'cash'
+                        inv.save()
+                        
+                        # تسجيل الدفعة على الفاتورة
+                        Payment.objects.create(
+                            invoice=inv,
+                            payment_method='cash',
+                            amount=pay_amount,
+                            transaction_id=trans.description or 'سداد مديونية عامة'
+                        )
+                        remaining_to_distribute -= pay_amount
+                
+                # توزيع المبلغ على فواتير المورد
+                elif trans.transaction_type == 'payment' and trans.contact.contact_type == 'supplier':
+                    unpaid_purchases = PurchaseInvoice.objects.filter(
+                        supplier=trans.contact,
+                        payment_method__in=['credit', 'partial']
+                    ).order_by('invoice_date')
+                    
+                    for inv in unpaid_purchases:
+                        if remaining_to_distribute <= 0:
+                            break
+                        due = inv.remaining_amount
+                        pay_amount = min(due, remaining_to_distribute)
+                        
+                        inv.paid_amount += pay_amount
+                        if inv.remaining_amount <= 0:
+                            inv.payment_method = 'cash'
+                        inv.save()
+                        
+                        remaining_to_distribute -= pay_amount
+                
+                # إذا تبقى مبلغ أو لم يتم توزيعه، نحفظه كحركة عامة غير مخصصة
+                if remaining_to_distribute > 0:
+                    trans.amount = remaining_to_distribute
+                    trans.save()
+                    # الخزينة تم تحديثها تلقائياً بالباقي داخل trans.save()
+                
+                # تحديث الخزينة بالمبلغ الذي تم توزيعه (لأننا لم نحفظه في trans)
+                distributed_amount = original_amount - remaining_to_distribute
+                if distributed_amount > 0:
+                    treasury = trans.treasury
+                    if trans.transaction_type == 'receipt':
+                        treasury.balance += distributed_amount
+                    elif trans.transaction_type == 'payment':
+                        treasury.balance -= distributed_amount
+                    treasury.save()
+
+                messages.success(request, f"تم تسجيل السداد بنجاح وتحديث الفواتير بقيمة {original_amount} ج.م لـ {trans.contact.name}.")
+                return redirect('erp:debts_list')
+        else:
+            messages.error(request, "حدث خطأ في بيانات السداد، يرجى المحاولة مرة أخرى.")
+    else:
+        form = ContactTransactionForm()
+
+    # جلب جميع جهات الاتصال وحساب الرصيد الحالي
+    all_contacts = Contact.objects.all()
+    customers_with_debts = []
+    suppliers_with_dues = []
+
+    for contact in all_contacts:
+        balance = contact.current_balance
+        if balance != 0:
+            contact.calculated_balance = balance
+            if contact.contact_type in ['customer', 'used_seller']:
+                customers_with_debts.append(contact)
+            elif contact.contact_type == 'supplier':
+                suppliers_with_dues.append(contact)
+
+    context = {
+        'customers_with_debts': customers_with_debts,
+        'suppliers_with_dues': suppliers_with_dues,
+        'transaction_form': form,
+    }
+    return render(request, 'erp/debts_list.html', context)
+
+@login_required
+@permission_required('erp.view_saleinvoice', raise_exception=True)
+def sale_invoice_list(request):
+    """
+    قائمة فواتير المبيعات مع البحث والتصفية
+    """
+    from django.core.paginator import Paginator
+    from django.db.models import Q
+    
+    query = request.GET.get('q', '')
+    invoices = SaleInvoice.objects.select_related('customer', 'cashier').order_by('-date_created')
+    
+    if query:
+        invoices = invoices.filter(
+            Q(id__icontains=query) |
+            Q(customer__name__icontains=query) |
+            Q(customer__phone__icontains=query)
+        )
+    
+    paginator = Paginator(invoices, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    from erp.models import Treasury
+    active_treasuries = Treasury.objects.filter(is_active=True)
+    
+    return render(request, 'erp/sale_invoice_list.html', {
+        'page_obj': page_obj,
+        'query': query,
+        'active_treasuries': active_treasuries,
+    })
 # ==========================================
 # 8. تفاصيل الفواتير وتذاكر الصيانة (Details Views)
 # ==========================================
@@ -1298,6 +1605,73 @@ def sale_invoice_detail(request, pk):
         'store_setting': store_setting,
     }
     return render(request, 'erp/sale_invoice_detail.html', context)
+
+@login_required
+@permission_required('erp.change_saleinvoice', raise_exception=True)
+def sale_invoice_pay(request, pk):
+    """
+    تسجيل سداد دفعة لفاتورة مبيعات عميل
+    """
+    from decimal import Decimal
+    from django.contrib import messages
+    from erp.models import SaleInvoice, Treasury, Payment
+    
+    if request.method == 'POST':
+        amount_str = request.POST.get('amount')
+        treasury_id = request.POST.get('treasury')
+        
+        try:
+            amount = Decimal(amount_str)
+        except (ValueError, TypeError):
+            messages.error(request, "خطأ: قيمة غير صالحة للمبلغ.")
+            return redirect('erp:sale_list')
+            
+        if amount <= 0:
+            messages.error(request, "خطأ: يجب أن يكون مبلغ السداد أكبر من صفر.")
+            return redirect('erp:sale_list')
+
+        if not treasury_id:
+            messages.error(request, "خطأ: يجب اختيار الخزينة لاستلام المبلغ.")
+            return redirect('erp:sale_list')
+
+        with transaction.atomic():
+            invoice = get_object_or_404(SaleInvoice.objects.select_for_update(), pk=pk)
+            
+            remaining = invoice.remaining_amount
+            if amount > remaining:
+                messages.error(request, f"خطأ: لا يمكن سداد مبلغ أكبر من المبلغ المتبقي ({remaining} ج.م).")
+                return redirect('erp:sale_list')
+                
+            treasury = get_object_or_404(Treasury.objects.select_for_update(), id=treasury_id)
+            
+            # زيادة رصيد الخزينة
+            treasury.balance += amount
+            treasury.save()
+            
+            # إضافة الدفعة للفاتورة
+            invoice.paid_amount += amount
+            if invoice.paid_amount >= invoice.net_amount:
+                invoice.payment_method = 'cash'
+            elif invoice.paid_amount > 0:
+                invoice.payment_method = 'partial'
+            invoice.save()
+
+            # إنشاء سجل الدفعة
+            Payment.objects.create(
+                invoice=invoice,
+                payment_method='cash',
+                amount=amount,
+                transaction_id=f"سداد آجل - خزينة {treasury.name}"
+            )
+
+            messages.success(request, f"تم سداد مبلغ {amount} ج.م وإضافته إلى خزينة {treasury.name} بنجاح.")
+            
+        next_url = request.META.get('HTTP_REFERER')
+        if next_url:
+            return redirect(next_url)
+        return redirect('erp:sale_list')
+        
+    return redirect('erp:sale_list')
 @login_required
 def repair_ticket_detail(request, pk):
     """
@@ -1385,6 +1759,7 @@ def inventory_dashboard(request):
     context = {
         'store_setting': store_setting,
         'warehouses': warehouses,
+        'product_types': Product.PRODUCT_TYPES,
         'selected_warehouse': warehouse_id,
         'selected_type': product_type,
         'search_query': search_query,
@@ -1588,8 +1963,13 @@ def reports_dashboard(request):
     used_devices_count = devices_in_stock.filter(condition='used').count()
     accessories_count = Stock.objects.filter(product__product_type='accessory', quantity__gt=0).aggregate(total=models.Sum('quantity'))['total'] or 0
     spare_parts_count = Stock.objects.filter(product__product_type='spare_part', quantity__gt=0).aggregate(total=models.Sum('quantity'))['total'] or 0
+    covers_count = Stock.objects.filter(product__product_type='cover_screen', quantity__gt=0).aggregate(total=models.Sum('quantity'))['total'] or 0
+    electrical_count = Stock.objects.filter(product__product_type='electrical', quantity__gt=0).aggregate(total=models.Sum('quantity'))['total'] or 0
+    
     accessories_in_stock = Stock.objects.filter(product__product_type='accessory', quantity__gt=0).select_related('product', 'warehouse')
     spare_parts_in_stock = Stock.objects.filter(product__product_type='spare_part', quantity__gt=0).select_related('product', 'warehouse')
+    covers_in_stock = Stock.objects.filter(product__product_type='cover_screen', quantity__gt=0).select_related('product', 'warehouse')
+    electrical_in_stock = Stock.objects.filter(product__product_type='electrical', quantity__gt=0).select_related('product', 'warehouse')
     low_stock_items = Stock.objects.filter(quantity__lt=5).select_related('product', 'warehouse')
 
     # 4.B. All products list with stock counts and pagination
@@ -2087,3 +2467,390 @@ def retry_notification(request, log_id):
         task_name=f"retry_whatsapp_log_{log.id}",
     )
     return redirect('erp:notifications_dashboard')
+
+# ==========================================
+# 11. شؤون الموظفين والرواتب (HR & Payroll)
+# ==========================================
+from erp.models import EmployeeProfile, Attendance, Payroll
+from erp.forms import EmployeeProfileForm
+import math
+
+@login_required
+@permission_required('erp.view_employeeprofile', raise_exception=True)
+def employee_list(request):
+    employees = EmployeeProfile.objects.all().select_related('user')
+    return render(request, 'erp/hr/employee_list.html', {'employees': employees})
+
+@login_required
+@permission_required('erp.add_employeeprofile', raise_exception=True)
+def employee_create(request):
+    if request.method == 'POST':
+        form = EmployeeProfileForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "تمت إضافة ملف الموظف بنجاح.")
+            return redirect('erp:employee_list')
+    else:
+        form = EmployeeProfileForm()
+    return render(request, 'erp/hr/employee_form.html', {'form': form, 'title': 'إضافة موظف جديد'})
+
+@login_required
+@permission_required('erp.change_employeeprofile', raise_exception=True)
+def employee_edit(request, pk):
+    employee = get_object_or_404(EmployeeProfile, pk=pk)
+    if request.method == 'POST':
+        form = EmployeeProfileForm(request.POST, instance=employee)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "تم تعديل بيانات الموظف بنجاح.")
+            return redirect('erp:employee_list')
+    else:
+        form = EmployeeProfileForm(instance=employee)
+    return render(request, 'erp/hr/employee_form.html', {'form': form, 'title': 'تعديل ملف موظف', 'employee': employee})
+
+@login_required
+def attendance_dashboard(request):
+    # لوحة البصمة الخاصة بالموظف
+    try:
+        profile = request.user.employee_profile
+    except EmployeeProfile.DoesNotExist:
+        messages.error(request, "ليس لديك ملف موظف لتسجيل الحضور.")
+        return redirect('erp:dashboard')
+    
+    today = timezone.now().date()
+    attendance = Attendance.objects.filter(employee=profile, date=today).first()
+    
+    # إعدادات المحل
+    store_setting = StoreSetting.objects.first()
+    
+    context = {
+        'profile': profile,
+        'attendance': attendance,
+        'store_setting': store_setting,
+    }
+    return render(request, 'erp/hr/attendance.html', context)
+
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371000  # radius of Earth in meters
+    phi_1 = math.radians(lat1)
+    phi_2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    a = math.sin(delta_phi / 2.0) ** 2 + math.cos(phi_1) * math.cos(phi_2) * math.sin(delta_lambda / 2.0) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+@login_required
+@require_POST
+def api_attendance_check(request):
+    try:
+        profile = request.user.employee_profile
+    except EmployeeProfile.DoesNotExist:
+        return JsonResponse({'error': 'ملف الموظف غير موجود.'}, status=400)
+        
+    action = request.POST.get('action') # 'check_in' or 'check_out'
+    user_lat = request.POST.get('latitude')
+    user_lon = request.POST.get('longitude')
+    
+    if not user_lat or not user_lon:
+        return JsonResponse({'error': 'لم يتم العثور على إحداثيات الموقع.'}, status=400)
+        
+    store_setting = StoreSetting.objects.first()
+    if not store_setting or not store_setting.latitude or not store_setting.longitude:
+        return JsonResponse({'error': 'لم يتم تهيئة إحداثيات المحل في الإعدادات.'}, status=400)
+        
+    distance = haversine(float(user_lat), float(user_lon), float(store_setting.latitude), float(store_setting.longitude))
+    allowed_radius = store_setting.allowed_radius or 50
+    
+    if distance > allowed_radius:
+        return JsonResponse({'error': f'أنت بعيد جداً عن المحل. المسافة: {int(distance)} متر (المسموح {allowed_radius} متر).'}, status=400)
+        
+    today = timezone.now().date()
+    now_time = timezone.now()
+    attendance, created = Attendance.objects.get_or_create(employee=profile, date=today)
+    
+    if action == 'check_in':
+        if attendance.check_in:
+            return JsonResponse({'error': 'لقد قمت بتسجيل الحضور مسبقاً اليوم.'}, status=400)
+        attendance.check_in = now_time
+        # حساب التأخير
+        if profile.shift_start_time:
+            start_datetime = timezone.make_aware(timezone.datetime.combine(today, profile.shift_start_time))
+            if now_time > start_datetime:
+                delay_secs = (now_time - start_datetime).total_seconds()
+                attendance.delay_hours = Decimal(delay_secs / 3600.0).quantize(Decimal('0.01'))
+        attendance.save()
+        return JsonResponse({'status': 'success', 'message': 'تم تسجيل الحضور بنجاح.'})
+        
+    elif action == 'check_out':
+        if not attendance.check_in:
+            return JsonResponse({'error': 'يجب تسجيل الحضور أولاً.'}, status=400)
+        if attendance.check_out:
+            return JsonResponse({'error': 'لقد قمت بتسجيل الانصراف مسبقاً اليوم.'}, status=400)
+        attendance.check_out = now_time
+        # حساب الإضافي
+        if profile.shift_end_time:
+            end_datetime = timezone.make_aware(timezone.datetime.combine(today, profile.shift_end_time))
+            if now_time > end_datetime:
+                overtime_secs = (now_time - end_datetime).total_seconds()
+                attendance.overtime_hours = Decimal(overtime_secs / 3600.0).quantize(Decimal('0.01'))
+        attendance.save()
+        return JsonResponse({'status': 'success', 'message': 'تم تسجيل الانصراف بنجاح.'})
+        
+    return JsonResponse({'error': 'إجراء غير معروف.'}, status=400)
+
+@login_required
+@permission_required('erp.view_payroll', raise_exception=True)
+def payroll_list(request):
+    payrolls = Payroll.objects.all().order_by('-year', '-month')
+    treasuries = Treasury.objects.filter(is_active=True)
+    return render(request, 'erp/hr/payroll_list.html', {'payrolls': payrolls, 'treasuries': treasuries})
+
+@login_required
+@permission_required('erp.add_payroll', raise_exception=True)
+@require_POST
+def payroll_generate(request):
+    month = request.POST.get('month')
+    year = request.POST.get('year')
+    if not month or not year:
+        messages.error(request, "يجب تحديد الشهر والسنة.")
+        return redirect('erp:payroll_list')
+        
+    month = int(month)
+    year = int(year)
+    
+    employees = EmployeeProfile.objects.filter(is_active=True)
+    generated = 0
+    for emp in employees:
+        # جمع الحضور في هذا الشهر
+        attendances = Attendance.objects.filter(employee=emp, date__year=year, date__month=month)
+        
+        total_delay = sum(a.delay_hours for a in attendances)
+        total_overtime = sum(a.overtime_hours for a in attendances)
+        total_worked_hours = 0
+        for a in attendances:
+            if a.check_in and a.check_out:
+                diff = (a.check_out - a.check_in).total_seconds() / 3600.0
+                total_worked_hours += Decimal(diff)
+                
+        # حساب الراتب العادي (حسب الراتب الأساسي، أو حسب الساعات)
+        # إذا كان لديه راتب أساسي، نستخدمه، وإلا نضرب الساعات في السعر
+        if emp.base_salary > 0:
+            base_pay = emp.base_salary
+        else:
+            base_pay = Decimal(total_worked_hours) * emp.hourly_rate
+            
+        overtime_pay = Decimal(total_overtime) * emp.overtime_per_hour
+        deductions = Decimal(total_delay) * emp.deduction_per_hour
+        
+        net_salary = base_pay + overtime_pay - deductions
+        
+        payroll, created = Payroll.objects.update_or_create(
+            employee=emp, month=month, year=year,
+            defaults={
+                'total_worked_hours': total_worked_hours,
+                'total_delay_hours': total_delay,
+                'total_overtime_hours': total_overtime,
+                'base_pay': base_pay,
+                'overtime_pay': overtime_pay,
+                'deductions': deductions,
+                'net_salary': net_salary if net_salary > 0 else 0
+            }
+        )
+        if created:
+            generated += 1
+            
+    messages.success(request, f"تم إنشاء/تحديث {generated} مسير راتب لشهر {month}/{year}.")
+    return redirect('erp:payroll_list')
+
+@login_required
+@permission_required('erp.change_payroll', raise_exception=True)
+@require_POST
+def payroll_pay(request, pk):
+    payroll = get_object_or_404(Payroll, pk=pk)
+    treasury_id = request.POST.get('treasury_id')
+    
+    if payroll.is_paid:
+        messages.error(request, "تم صرف هذا الراتب مسبقاً.")
+        return redirect('erp:payroll_list')
+        
+    if not treasury_id:
+        messages.error(request, "يجب تحديد الخزينة لصرف الراتب.")
+        return redirect('erp:payroll_list')
+        
+    try:
+        with transaction.atomic():
+            treasury = Treasury.objects.select_for_update().get(id=treasury_id, is_active=True)
+            if treasury.balance < payroll.net_salary:
+                messages.error(request, f"رصيد الخزينة المحددة لا يكفي ({treasury.balance} ج.م متوفر، مطلوب {payroll.net_salary} ج.م).")
+                return redirect('erp:payroll_list')
+                
+            treasury.balance -= payroll.net_salary
+            treasury.save()
+            
+            payroll.is_paid = True
+            payroll.paid_at = timezone.now()
+            payroll.save()
+            
+            messages.success(request, f"تم صرف راتب الموظف {payroll.employee} لشهر {payroll.month} بنجاح.")
+    except Treasury.DoesNotExist:
+        messages.error(request, "الخزينة المحددة غير صالحة.")
+        
+    return redirect('erp:payroll_list')
+
+# ==========================================
+# 12. المرتجعات (Returns)
+# ==========================================
+from erp.models import SaleReturn, SaleReturnItem, PurchaseReturn, PurchaseReturnItem
+
+@login_required
+@permission_required('erp.add_saleinvoice', raise_exception=True)
+def sale_return_create(request, pk):
+    sale_invoice = get_object_or_404(SaleInvoice, pk=pk)
+    # التحقق من عدم عمل مرتجع كامل مسبقا
+    if request.method == 'POST':
+        treasury_id = request.POST.get('treasury_id')
+        refund_amount = Decimal(request.POST.get('refund_amount', 0))
+        notes = request.POST.get('notes', '')
+        
+        if not treasury_id:
+            messages.error(request, "يجب تحديد الخزينة لخصم قيمة المرتجع.")
+            return redirect('erp:sale_detail', pk=pk)
+            
+        try:
+            with transaction.atomic():
+                treasury = Treasury.objects.select_for_update().get(pk=treasury_id)
+                if refund_amount > 0 and treasury.balance < refund_amount:
+                    messages.error(request, f"لا يوجد رصيد كافٍ في الخزينة المحددة. (متوفر: {treasury.balance})")
+                    return redirect('erp:sale_detail', pk=pk)
+                
+                # إنشاء فاتورة المرتجع
+                sale_return = SaleReturn.objects.create(
+                    sale_invoice=sale_invoice,
+                    treasury=treasury,
+                    created_by=request.user,
+                    refund_amount=refund_amount,
+                    notes=notes
+                )
+                
+                # معالجة البنود
+                has_items = False
+                for item in sale_invoice.items.all():
+                    qty_to_return = int(request.POST.get(f'return_qty_{item.id}', 0))
+                    if qty_to_return > 0:
+                        if qty_to_return > item.quantity:
+                            raise ValueError(f"الكمية المرتجعة للصنف {item.product.name} أكبر من المباعة.")
+                        
+                        SaleReturnItem.objects.create(
+                            return_invoice=sale_return,
+                            sale_item=item,
+                            quantity=qty_to_return
+                        )
+                        
+                        # تحديث المخزون
+                        stock, created = Stock.objects.get_or_create(
+                            product=item.product,
+                            warehouse=item.warehouse,
+                            defaults={'quantity': 0}
+                        )
+                        stock.quantity += qty_to_return
+                        stock.save()
+                        
+                        # تحديث حالة الجهاز لو كان موبايل
+                        if item.device:
+                            item.device.is_sold = False
+                            item.device.warehouse = item.warehouse
+                            item.device.save()
+                            
+                        has_items = True
+                        
+                if not has_items:
+                    raise ValueError("يجب تحديد صنف واحد على الأقل للاسترجاع بكمية أكبر من صفر.")
+                    
+                # خصم المبلغ من الخزينة
+                if refund_amount > 0:
+                    treasury.balance -= refund_amount
+                    treasury.save()
+                    
+                messages.success(request, "تم تسجيل مرتجع المبيعات بنجاح واسترداد المخزون.")
+                return redirect('erp:sale_detail', pk=pk)
+                
+        except ValueError as e:
+            messages.error(request, str(e))
+        except Treasury.DoesNotExist:
+            messages.error(request, "الخزينة المحددة غير صالحة.")
+        except Exception as e:
+            messages.error(request, f"حدث خطأ غير متوقع: {str(e)}")
+            
+    treasuries = Treasury.objects.filter(is_active=True)
+    return render(request, 'erp/returns/sale_return_create.html', {'sale_invoice': sale_invoice, 'treasuries': treasuries})
+
+@login_required
+@permission_required('erp.add_purchaseinvoice', raise_exception=True)
+def purchase_return_create(request, pk):
+    purchase_invoice = get_object_or_404(PurchaseInvoice, pk=pk)
+    
+    if request.method == 'POST':
+        treasury_id = request.POST.get('treasury_id')
+        refund_amount = Decimal(request.POST.get('refund_amount', 0))
+        notes = request.POST.get('notes', '')
+        
+        if not treasury_id:
+            messages.error(request, "يجب تحديد الخزينة لإيداع القيمة المستردة.")
+            return redirect('erp:purchase_detail', pk=pk)
+            
+        try:
+            with transaction.atomic():
+                treasury = Treasury.objects.select_for_update().get(pk=treasury_id)
+                
+                # إنشاء المرتجع
+                purchase_return = PurchaseReturn.objects.create(
+                    purchase_invoice=purchase_invoice,
+                    treasury=treasury,
+                    created_by=request.user,
+                    refund_amount=refund_amount,
+                    notes=notes
+                )
+                
+                has_items = False
+                for item in purchase_invoice.items.all():
+                    qty_to_return = int(request.POST.get(f'return_qty_{item.id}', 0))
+                    if qty_to_return > 0:
+                        if qty_to_return > item.quantity:
+                            raise ValueError(f"الكمية المرتجعة للصنف {item.product.name} أكبر من المشتراة.")
+                        
+                        PurchaseReturnItem.objects.create(
+                            return_invoice=purchase_return,
+                            purchase_item=item,
+                            quantity=qty_to_return
+                        )
+                        
+                        # تحديث المخزون (تخفيض)
+                        stock = Stock.objects.get(product=item.product, warehouse=item.warehouse)
+                        if stock.quantity < qty_to_return:
+                            raise ValueError(f"رصيد المخزون للصنف {item.product.name} أقل من الكمية المرتجعة، لا يمكن إرجاعها الآن.")
+                            
+                        stock.quantity -= qty_to_return
+                        stock.save()
+                        has_items = True
+                        
+                if not has_items:
+                    raise ValueError("يجب تحديد صنف واحد على الأقل للاسترجاع بكمية أكبر من صفر.")
+                    
+                # إضافة المبلغ للخزينة
+                if refund_amount > 0:
+                    treasury.balance += refund_amount
+                    treasury.save()
+                    
+                messages.success(request, "تم تسجيل مرتجع المشتريات بنجاح وتخفيض المخزون وإيداع المبلغ في الخزينة.")
+                return redirect('erp:purchase_detail', pk=pk)
+                
+        except ValueError as e:
+            messages.error(request, str(e))
+        except Treasury.DoesNotExist:
+            messages.error(request, "الخزينة المحددة غير صالحة.")
+        except Exception as e:
+            messages.error(request, f"حدث خطأ غير متوقع: {str(e)}")
+            
+    treasuries = Treasury.objects.filter(is_active=True)
+    return render(request, 'erp/returns/purchase_return_create.html', {'purchase_invoice': purchase_invoice, 'treasuries': treasuries})

@@ -512,3 +512,85 @@ html[dir="rtl"] #changelist-filter {
 .info-box-number { color: #ffffff !important; font-weight: 900 !important; font-size: 1.6rem !important; }
 .info-box-text { color: #94a3b8 !important; font-weight: 600 !important; }
 .info-box-icon { border-radius: 12px 0 0 12px !important; }
+
+/* ====================================================
+   SELECT & SELECT2 DROPDOWNS HIGH CONTRAST FIX
+   ==================================================== */
+
+/* Standard select option styling */
+select option {
+    background-color: #1e293b !important;
+    color: #f1f5f9 !important;
+}
+
+/* Select2 Container - Closed state */
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
+    background-color: #1e293b !important;
+    border: 1.5px solid #334155 !important;
+    border-radius: 8px !important;
+    color: #f1f5f9 !important;
+    height: auto !important;
+    padding: 6px 12px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: #f1f5f9 !important;
+    line-height: normal !important;
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 100% !important;
+    top: 0 !important;
+}
+
+/* Dropdown list container when open */
+.select2-dropdown {
+    background-color: #1e293b !important;
+    border: 1.5px solid #334155 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+    z-index: 9999 !important;
+}
+
+/* Search input inside the open dropdown */
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    background-color: #0f172a !important;
+    color: #f1f5f9 !important;
+    border: 1px solid #334155 !important;
+    border-radius: 6px !important;
+    padding: 6px !important;
+}
+
+/* List items / Options */
+.select2-container--default .select2-results__option {
+    color: #cbd5e1 !important;
+    padding: 8px 12px !important;
+    background-color: transparent !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+/* Highlighted (hovered) items in the dropdown list */
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+/* Selected items in the dropdown list */
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background-color: #1e3a5f !important;
+    color: #93c5fd !important;
+}
+
+/* Disabled items in the dropdown list */
+.select2-container--default .select2-results__option[aria-disabled=true] {
+    color: #64748b !important;
+}
+
+/* Select2 search results container */
+.select2-results {
+    background-color: #1e293b !important;
+}
+

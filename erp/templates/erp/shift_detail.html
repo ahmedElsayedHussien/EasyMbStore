@@ -64,16 +64,20 @@
             <h5 class="text-primary mb-3"><i class="bi bi-cash-stack"></i> تسجيل مصروف تشغيلي من الدرج</h5>
             <form id="addExpenseForm" class="row g-2 align-items-end">
                 {% csrf_token %}
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <label for="{{ expense_form.treasury.id_for_label }}">الخزينة:</label>
+                    {{ expense_form.treasury }}
+                </div>
+                <div class="col-md-3">
                     <label for="{{ expense_form.category.id_for_label }}">بند المصروف:</label>
                     {{ expense_form.category }}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="{{ expense_form.amount.id_for_label }}">المبلغ:</label>
                     {{ expense_form.amount }}
                 </div>
-                <div class="col-md-3">
-                    <label for="{{ expense_form.description.id_for_label }}">بيان/توضيح:</label>
+                <div class="col-md-2">
+                    <label for="{{ expense_form.description.id_for_label }}">البيان:</label>
                     {{ expense_form.description }}
                 </div>
                 <div class="col-md-2">
@@ -173,16 +177,18 @@
 
     // إرسال مصروف تشغيلي عبر AJAX
     function submitShiftExpense() {
+        const treasury = document.getElementById("id_treasury").value;
         const category = document.getElementById("id_category").value;
         const amount = document.getElementById("id_amount").value;
         const desc = document.getElementById("id_description").value;
 
-        if (!category || !amount) {
-            alert("يرجى اختيار البند وإدخال المبلغ.");
+        if (!treasury || !category || !amount) {
+            alert("يرجى اختيار الخزينة والبند وإدخال المبلغ.");
             return;
         }
 
         const formData = new FormData();
+        formData.append("treasury", treasury);
         formData.append("category", category);
         formData.append("amount", amount);
         formData.append("description", desc);

@@ -276,12 +276,22 @@
 
                     <div class="mb-3">
                         <label for="edit-status">حالة التذكرة:</label>
-                        <select id="edit-status" class="form-select" required>
+                        <select id="edit-status" class="form-select" required onchange="toggleEditTreasury()">
                             <option value="pending">قيد الانتظار</option>
                             <option value="in_progress">جاري العمل</option>
                             <option value="waiting_parts">في انتظار قطع الغيار</option>
                             <option value="done">جاهز للتسليم</option>
                             <option value="delivered">تم التسليم</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3" id="edit-treasury-container" style="display: none;">
+                        <label for="edit-treasury" class="form-label text-warning">الخزينة المحصل إليها (الدرج):</label>
+                        <select id="edit-treasury" class="form-select">
+                            <option value="">-- اختر الخزينة --</option>
+                            {% for t in treasuries %}
+                                <option value="{{ t.id }}">{{ t.name }}</option>
+                            {% endfor %}
                         </select>
                     </div>
 
@@ -300,6 +310,41 @@
         </div>
     </div>
 </div>
+
+<!-- مودال تسليم الجهاز وتحصيل المبلغ -->
+<div class="modal fade" id="deliverTicketModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card border border-success text-light">
+            <div class="modal-header border-success bg-dark">
+                <h5 class="modal-title text-success"><i class="bi bi-check-circle-fill"></i> تسليم الجهاز وتحصيل الإيراد</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="resetDeliverSelect()"></button>
+            </div>
+            <div class="modal-body bg-dark">
+                <form id="deliverTicketForm">
+                    <input type="hidden" id="deliver-ticket-id">
+                    <div class="mb-3 text-center">
+                        <h4 class="text-warning">إجمالي التكلفة: <span id="deliver-total-cost">0</span> ج.م</h4>
+                    </div>
+                    <div class="mb-3">
+                        <label for="deliver-treasury" class="form-label text-secondary">الخزينة المحصل إليها (الدرج):</label>
+                        <select id="deliver-treasury" class="form-select" required>
+                            <option value="">-- اختر الخزينة --</option>
+                            {% for t in treasuries %}
+                                <option value="{{ t.id }}">{{ t.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-success" onclick="submitDeliverTicket()">
+                            <i class="bi bi-cash"></i> تأكيد التسليم والتحصيل
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -311,9 +356,27 @@
         document.getElementById("part-price").value = price;
     });
 
-    // تغيير حالة التذكرة عبر AJAX
-    function updateTicketStatus(ticketId, selectElement) {
+    let currentSelectElement = null;
+    let oldSelectValue = null;
+
+    // تغيير حالة التذكرة عبر AJAX أو فتح مودال التسليم
+    function updateTicketStatus(ticketId, selectElement, totalCost = 0) {
         const newStatus = selectElement.value;
+        oldSelectValue = selectElement.dataset.originalValue;
+        if(!oldSelectValue) {
+            oldSelectValue = selectElement.querySelector('option[selected]') ? selectElement.querySelector('option[selected]').value : 'pending';
+            selectElement.dataset.originalValue = oldSelectValue;
+        }
+
+        if (newStatus === 'delivered') {
+            document.getElementById('deliver-ticket-id').value = ticketId;
+            document.getElementById('deliver-total-cost').textContent = totalCost;
+            currentSelectElement = selectElement;
+            const modal = new bootstrap.Modal(document.getElementById('deliverTicketModal'));
+            modal.show();
+            return;
+        }
+
         const formData = new FormData();
         formData.append("status", newStatus);
 
@@ -327,7 +390,47 @@
         .then(res => res.json())
         .then(data => {
             if (data.status === "success") {
-                // إعادة تحميل الصفحة لرؤية التذكرة في عمودها الجديد مباشرة
+                location.reload();
+            } else {
+                alert(`فشل التحديث: ${data.error}`);
+                selectElement.value = oldSelectValue;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("حدث خطأ في الشبكة أثناء تغيير الحالة.");
+            selectElement.value = oldSelectValue;
+        });
+    }
+
+    function resetDeliverSelect() {
+        if(currentSelectElement && oldSelectValue) {
+            currentSelectElement.value = oldSelectValue;
+        }
+    }
+
+    function submitDeliverTicket() {
+        const ticketId = document.getElementById('deliver-ticket-id').value;
+        const treasuryId = document.getElementById('deliver-treasury').value;
+        if (!treasuryId) {
+            alert('يرجى اختيار الخزينة للتحصيل.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("status", "delivered");
+        formData.append("treasury_id", treasuryId);
+
+        fetch(`/repairs/${ticketId}/change-status/`, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": getCsrfToken()
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "success") {
                 location.reload();
             } else {
                 alert(`فشل التحديث: ${data.error}`);
@@ -335,7 +438,7 @@
         })
         .catch(err => {
             console.error(err);
-            alert("حدث خطأ في الشبكة أثناء تغيير الحالة.");
+            alert("حدث خطأ في الشبكة.");
         });
     }
 
@@ -403,6 +506,19 @@
         modal.show();
     }
 
+    function toggleEditTreasury() {
+        const status = document.getElementById("edit-status").value;
+        const container = document.getElementById("edit-treasury-container");
+        const select = document.getElementById("edit-treasury");
+        if (status === 'delivered') {
+            container.style.display = 'block';
+            select.required = true;
+        } else {
+            container.style.display = 'none';
+            select.required = false;
+        }
+    }
+
     // إرسال طلب تعديل التذكرة عبر AJAX
     function submitEditTicket() {
         const ticketId = document.getElementById("edit-ticket-id").value;
@@ -410,9 +526,15 @@
         const technicianId = document.getElementById("edit-technician").value;
         const status = document.getElementById("edit-status").value;
         const issueDescription = document.getElementById("edit-issue-description").value;
+        const treasuryId = document.getElementById("edit-treasury").value;
 
         if (!laborCost || !status || !issueDescription) {
             alert("يرجى ملء الحقول المطلوبة (المصنعية، الحالة، ووصف المشكلة).");
+            return;
+        }
+        
+        if (status === 'delivered' && !treasuryId) {
+            alert("يرجى اختيار الخزينة للتحصيل.");
             return;
         }
 
@@ -421,6 +543,9 @@
         formData.append("technician_id", technicianId);
         formData.append("status", status);
         formData.append("issue_description", issueDescription);
+        if (status === 'delivered') {
+            formData.append("treasury_id", treasuryId);
+        }
 
         fetch(`/repairs/${ticketId}/edit/`, {
             method: "POST",

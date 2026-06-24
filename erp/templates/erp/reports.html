@@ -550,9 +550,17 @@
                                     <span>إكسسوارات (Accessories) <i class="bi bi-info-circle small text-secondary"></i></span>
                                     <span class="badge bg-info text-dark fs-6">{{ inventory.accessories_count }} قطعة</span>
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#sparePartsStockModal">
+                                <div class="d-flex justify-content-between align-items-center mb-3" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#sparePartsStockModal">
                                     <span>قطع غيار (Spare Parts) <i class="bi bi-info-circle small text-secondary"></i></span>
                                     <span class="badge bg-warning text-dark fs-6">{{ inventory.spare_parts_count }} قطعة</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#coversStockModal">
+                                    <span>جراب واسكرينة (Covers) <i class="bi bi-info-circle small text-secondary"></i></span>
+                                    <span class="badge bg-primary fs-6">{{ inventory.covers_count }} قطعة</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#electricalStockModal">
+                                    <span>كهرباء (Electrical) <i class="bi bi-info-circle small text-secondary"></i></span>
+                                    <span class="badge bg-danger fs-6">{{ inventory.electrical_count }} قطعة</span>
                                 </div>
                             </div>
                         </div>
@@ -1659,6 +1667,60 @@
             </div>
             <div class="modal-footer modal-footer-glass">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: تفاصيل الجرابات والاسكرينات -->
+<div class="modal fade" id="coversStockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content modal-glass">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-primary"><i class="bi bi-shield"></i> تفاصيل الجرابات والاسكرينات</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <ul class="list-group list-group-flush bg-transparent">
+                    {% for item in inventory.covers_in_stock %}
+                    <li class="list-group-item bg-transparent text-light border-secondary d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="d-block fw-bold">{{ item.product.name }}</span>
+                            <small class="text-secondary">{{ item.warehouse.name }}</small>
+                        </div>
+                        <span class="badge bg-primary rounded-pill">{{ item.quantity }}</span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item bg-transparent text-muted text-center py-4 border-0">لا توجد جرابات واسكرينات حالياً</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: تفاصيل الكهرباء -->
+<div class="modal fade" id="electricalStockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content modal-glass">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-danger"><i class="bi bi-lightning"></i> تفاصيل الكهرباء</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <ul class="list-group list-group-flush bg-transparent">
+                    {% for item in inventory.electrical_in_stock %}
+                    <li class="list-group-item bg-transparent text-light border-secondary d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="d-block fw-bold">{{ item.product.name }}</span>
+                            <small class="text-secondary">{{ item.warehouse.name }}</small>
+                        </div>
+                        <span class="badge bg-danger rounded-pill">{{ item.quantity }}</span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item bg-transparent text-muted text-center py-4 border-0">لا توجد منتجات كهرباء حالياً</li>
+                    {% endfor %}
+                </ul>
             </div>
         </div>
     </div>

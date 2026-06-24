@@ -76,6 +76,9 @@
             <i class="bi bi-arrow-right"></i> رجوع لقائمة الفواتير
         </a>
         <div>
+            <a href="{% url 'erp:purchase_return_create' invoice.id %}" class="btn btn-outline-danger me-2">
+                <i class="bi bi-box-arrow-right"></i> إرجاع بضاعة
+            </a>
             <button onclick="window.print()" class="btn btn-primary">
                 <i class="bi bi-printer-fill"></i> طباعة الفاتورة
             </button>
@@ -195,7 +198,7 @@
                         <span class="text-secondary">طريقة الدفع:</span>
                         <span class="fw-bold">
                             {% if invoice.payment_method == 'cash' %}
-                                <span class="badge bg-success">نقدي (كاش)</span>
+                                <span class="badge bg-success">مسددة بالكامل</span>
                             {% elif invoice.payment_method == 'credit' %}
                                 <span class="badge bg-danger">آجل بالكامل</span>
                             {% elif invoice.payment_method == 'partial' %}
@@ -303,6 +306,16 @@
                             <div class="form-text text-warning mt-1"><i class="bi bi-exclamation-triangle-fill"></i> لا توجد وردية مفتوحة لحسابك حالياً. لن تتمكن من الخصم من الخزينة.</div>
                         {% endif %}
                     </div>
+                    
+                    <div class="mb-3" id="treasury-select-group" style="display: none;">
+                        <label for="modal-treasury" class="form-label text-light fw-bold">اختر الخزينة للسداد منها</label>
+                        <select name="treasury" id="modal-treasury" class="form-select bg-dark border-primary text-light">
+                            <option value="">-- اختر خزينة --</option>
+                            {% for t in active_treasuries %}
+                                <option value="{{ t.id }}">{{ t.name }} (الرصيد: {{ t.balance }} ج.م)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
                 <div class="modal-footer modal-footer-glass">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
@@ -325,6 +338,27 @@
         const remainingInput = document.getElementById('modal-remaining-amount');
         const payAmountInput = document.getElementById('modal-pay-amount');
         
+        const deductShiftCheckbox = document.getElementById('modal-deduct-shift');
+        const treasurySelectGroup = document.getElementById('treasury-select-group');
+        const treasurySelect = document.getElementById('modal-treasury');
+
+        function updateTreasuryVisibility() {
+            if (deductShiftCheckbox && deductShiftCheckbox.checked) {
+                if (treasurySelectGroup) treasurySelectGroup.style.display = 'none';
+                if (treasurySelect) {
+                    treasurySelect.removeAttribute('required');
+                    treasurySelect.value = '';
+                }
+            } else {
+                if (treasurySelectGroup) treasurySelectGroup.style.display = 'block';
+                if (treasurySelect) treasurySelect.setAttribute('required', 'required');
+            }
+        }
+
+        if (deductShiftCheckbox) {
+            deductShiftCheckbox.addEventListener('change', updateTreasuryVisibility);
+        }
+        
         payButtons.forEach(btn => {
             btn.addEventListener('click', function() {
                 const invoiceId = this.dataset.invoiceId;
@@ -338,6 +372,9 @@
                 remainingInput.value = remaining.toFixed(2);
                 payAmountInput.value = remaining.toFixed(2);
                 payAmountInput.max = remaining;
+                
+                if (treasurySelect) treasurySelect.value = '';
+                updateTreasuryVisibility();
                 
                 // Set action URL
                 form.action = `/purchases/${invoiceId}/pay/`;

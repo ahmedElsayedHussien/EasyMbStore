@@ -1,11 +1,11 @@
 {% for prod in products %}
-    <div class="col-lg-4 col-md-6 col-sm-6 col-6 product-card-container" data-name="{{ prod.name }}" data-barcode="{{ prod.barcode_qr }}">
+    <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 col-12 product-card-container" data-name="{{ prod.name }}" data-barcode="{{ prod.barcode_qr }}">
         <div class="glass-card pos-product-card p-3 h-100 d-flex flex-column justify-content-between" 
              onclick="addProductToCart({{ prod.id }}, '{{ prod.name }}', {{ prod.selling_price|stringformat:'.2f' }}, {% if prod.requires_imei %}true{% else %}false{% endif %}, null, null, '', {% if prod.condition %}'{{ prod.condition }}'{% else %}null{% endif %})">
             <div>
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <h6 class="mb-0 fw-bold text-light">{{ prod.name }}</h6>
-                    <div class="d-flex align-items-center gap-1">
+                <div class="d-flex flex-wrap justify-content-between align-items-start mb-2 gap-2">
+                    <h6 class="mb-0 fw-bold text-light" style="flex: 1 1 100%;">{{ prod.name }}</h6>
+                    <div class="d-flex flex-wrap align-items-center gap-1">
                         {% if prod.condition == 'used' %}
                             <span class="badge bg-danger"><i class="bi bi-tag-fill"></i> مستعمل</span>
                         {% elif prod.condition == 'new' %}
@@ -21,15 +21,15 @@
                 </div>
                 <small class="text-secondary d-block mb-2"><i class="bi bi-barcode"></i> {{ prod.barcode_qr }}</small>
             </div>
-            <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-secondary">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 pt-2 border-top border-secondary gap-2">
                 <span class="text-primary fw-bold">{{ prod.selling_price }} ج.م</span>
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex flex-wrap align-items-center gap-1">
                     <span class="badge badge-available available-qty-badge" 
                           data-product-id="{{ prod.id }}" 
                           data-condition="{{ prod.condition|default:'' }}" 
                           data-requires-imei="{% if prod.requires_imei %}true{% else %}false{% endif %}"
                           style="font-size: 0.8rem;">المتاح: {{ prod.available_qty }}</span>
-                    <span class="btn btn-outline-primary btn-sm px-2 py-1"><i class="bi bi-plus-lg"></i> إضافة</span>
+                    <span class="btn btn-outline-primary btn-sm px-2 py-1"><i class="bi bi-plus-lg"></i> <span class="d-none d-sm-inline">إضافة</span></span>
                 </div>
             </div>
         </div>

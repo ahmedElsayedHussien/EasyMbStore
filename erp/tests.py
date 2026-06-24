@@ -532,15 +532,22 @@ class ERPPermissionsTests(TestCase):
         """
         التحقق من عدم السماح للكاشير بفتح وردية جديدة إذا كان لديه وردية مفتوحة بالفعل.
         """
+        from erp.models import Treasury
         self.client.login(username='cashier_test', password='password123')
         
+        # إنشاء خزينة للكاشير
+        treasury = Treasury.objects.create(
+            name='خزينة الدرج', opening_balance=Decimal('2000.00'),
+            balance=Decimal('2000.00'), is_active=True, user=self.cashier_user
+        )
+        
         # فتح وردية أولى
-        response = self.client.post('/shifts/', {'opening_balance': '1000.00'})
+        response = self.client.post('/shifts/', {'opening_balance': '1000.00', 'treasury': treasury.id})
         self.assertEqual(response.status_code, 302)
         self.assertEqual(CashShift.objects.filter(cashier=self.cashier_user, status='open').count(), 1)
         
         # محاولة فتح وردية ثانية بينما الأولى مفتوحة
-        response_dup = self.client.post('/shifts/', {'opening_balance': '500.00'})
+        response_dup = self.client.post('/shifts/', {'opening_balance': '500.00', 'treasury': treasury.id})
         self.assertEqual(response_dup.status_code, 200)
         
         # التأكد من أنه لم يفتح وردية ثانية مفتوحة
@@ -747,14 +754,14 @@ class ERPPermissionsTests(TestCase):
             requires_imei=True
         )
         
-        # جهاز خالص الضريبة ومساحة 1 جيجا
+        # جهاز خالص الضريبة ومساحة 128 جيجا
         device = Device.objects.create(
             product=product,
             imei='555554444433333',
             condition='used',
             warehouse=warehouse,
             cost=Decimal('35000.00'),
-            storage='1gb',  # المساحة المضافة الجديدة
+            storage='128',  # 128 جيجا - قيمة متوفرة في النظام
             ram='12',
             used_status='good_condition',
             is_tax_paid=True, # خالص الضريبة
@@ -766,8 +773,8 @@ class ERPPermissionsTests(TestCase):
         
         self.assertContains(response, 'سامسونج S24')
         self.assertContains(response, '555554444433333')
-        self.assertContains(response, '1 جيجا')
-        self.assertContains(response, '12 رام')
+        self.assertContains(response, '128 جيجا')  # 128 GB storage display
+        self.assertContains(response, '12 رام')  # 12 RAM display
         self.assertContains(response, 'خالص الضريبة')
         self.assertContains(response, 'تجربة مواصفات وضريبة')
 
@@ -1296,7 +1303,16 @@ class ERPDetailsViewsTests(TestCase):
         """
         from decimal import Decimal
         from django.utils import timezone
-        from erp.models import PurchaseInvoice, CashShift, Expense
+        from erp.models import PurchaseInvoice, CashShift, Expense, Treasury
+        
+        # إنشاء خزينة برصيد كافٍبللسداد
+        test_treasury = Treasury.objects.create(
+            name='خزينة الاختبار',
+            opening_balance=Decimal('5000.00'),
+            balance=Decimal('5000.00'),
+            is_active=True,
+            user=self.admin
+        )
         
         # 1. إنشاء فاتورة مشتريات آجلة بالكامل
         credit_invoice = PurchaseInvoice.objects.create(
@@ -1314,11 +1330,11 @@ class ERPDetailsViewsTests(TestCase):
         response = self.client.post(f'/purchases/{credit_invoice.id}/pay/', {'amount': '100.00'})
         self.assertEqual(response.status_code, 403) # Forbidden
         
-        # 3. مستخدم بصلاحية (أدمن) يسدد دفعة بدون خصم من الوردية
+        # 3. مستخدم بصلاحية (أدمن) يسدد دفعة من الخزينة مباشرة
         self.client.login(username='admin_details', password='password123')
         response = self.client.post(f'/purchases/{credit_invoice.id}/pay/', {
             'amount': '150.00',
-            'deduct_from_shift': 'off'
+            'treasury': test_treasury.id
         })
         self.assertEqual(response.status_code, 302) # Redirect
         
@@ -1326,6 +1342,10 @@ class ERPDetailsViewsTests(TestCase):
         credit_invoice.refresh_from_db()
         self.assertEqual(credit_invoice.paid_amount, Decimal('150.00'))
         self.assertEqual(credit_invoice.remaining_amount, Decimal('350.00'))
+        
+        # تحقق من خصم الخزينة
+        test_treasury.refresh_from_db()
+        self.assertEqual(test_treasury.balance, Decimal('4850.00'))  # 5000 - 150
         
         # تحقق من عدم إضافة أي مصروفات
         self.assertEqual(Expense.objects.filter(description__icontains=str(credit_invoice.id)).count(), 0)

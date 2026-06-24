@@ -275,6 +275,8 @@ def handle_shift_pre_save(sender, instance, **kwargs):
 
         total_expenses = Expense.objects.filter(
             shift=instance
+        ).filter(
+            models.Q(treasury=instance.treasury) | models.Q(treasury__isnull=True)
         ).aggregate(total=models.Sum('amount'))['total'] or 0
 
         instance.expected_closing_balance = instance.opening_balance + cash_sales - total_expenses

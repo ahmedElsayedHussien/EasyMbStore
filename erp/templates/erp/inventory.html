@@ -46,9 +46,12 @@
         <div class="col-md-3 col-lg-2">
             <label for="typeFilter" class="form-label fw-semibold text-secondary">تصنيف الصنف السائب:</label>
             <select name="type" id="typeFilter" class="form-select bg-dark text-light border-secondary">
-                <option value="">كل الأصناف السائبة</option>
-                <option value="accessory" {% if selected_type == 'accessory' %}selected{% endif %}>إكسسوارات</option>
-                <option value="spare_part" {% if selected_type == 'spare_part' %}selected{% endif %}>قطع غيار</option>
+                <option value="">كل التصنيفات (عدا الهواتف)</option>
+                {% for pt_value, pt_label in product_types %}
+                    {% if pt_value != 'phone' %}
+                        <option value="{{ pt_value }}" {% if selected_type == pt_value %}selected{% endif %}>{{ pt_label }}</option>
+                    {% endif %}
+                {% endfor %}
             </select>
         </div>
 

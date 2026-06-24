@@ -58,65 +58,104 @@
                         </a>
                     </li>
                     {% endif %}
+
+                    <!-- المبيعات -->
                     {% if perms.erp.add_saleinvoice %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.view_name == 'erp:pos' %}active{% endif %}" href="{% url 'erp:pos' %}">
-                            <i class="bi bi-cart-fill"></i> شاشة البيع (POS)
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if 'pos' in request.resolver_match.view_name or 'sale' in request.resolver_match.view_name %}active{% endif %}" href="#" id="salesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-cart-fill"></i> المبيعات
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="salesDropdown">
+                            <li><a class="dropdown-item" href="{% url 'erp:pos' %}"><i class="bi bi-cart-plus me-2"></i> نقطة البيع (POS)</a></li>
+                            <li><a class="dropdown-item" href="{% url 'erp:sale_list' %}"><i class="bi bi-receipt-cutoff me-2"></i> فواتير المبيعات</a></li>
+                            <li><hr class="dropdown-divider border-secondary"></li>
+                            <li><a class="dropdown-item" href="{% url 'erp:debts_list' %}"><i class="bi bi-wallet2 me-2"></i> حسابات العملاء والموردين</a></li>
+                        </ul>
                     </li>
                     {% endif %}
-                    {% if perms.erp.add_device %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.view_name == 'erp:used_purchase' %}active{% endif %}" href="{% url 'erp:used_purchase' %}">
-                            <i class="bi bi-arrow-down-left-circle-fill"></i> شراء المستعمل
+
+                    <!-- المشتريات -->
+                    {% if perms.erp.add_device or perms.erp.view_purchaseinvoice %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if 'purchase' in request.resolver_match.view_name %}active{% endif %}" href="#" id="purchasesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-bag-fill"></i> المشتريات
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="purchasesDropdown">
+                            {% if perms.erp.view_purchaseinvoice %}
+                            <li><a class="dropdown-item" href="{% url 'erp:purchase_list' %}"><i class="bi bi-bag-plus-fill me-2"></i> فواتير المشتريات</a></li>
+                            {% endif %}
+                            {% if perms.erp.add_device %}
+                            <li><a class="dropdown-item" href="{% url 'erp:used_purchase' %}"><i class="bi bi-arrow-down-left-circle-fill me-2"></i> شراء المستعمل</a></li>
+                            {% endif %}
+                            <!-- سيتم إضافة الموردين هنا مستقبلاً -->
+                        </ul>
                     </li>
                     {% endif %}
-                    {% if perms.erp.view_purchaseinvoice %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'purchase' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:purchase_list' %}">
-                            <i class="bi bi-bag-plus-fill"></i> المشتريات
+
+                    <!-- المخزون -->
+                    {% if perms.erp.view_stock or perms.erp.view_stocktransfer %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if 'inventory' in request.resolver_match.view_name or 'transfer' in request.resolver_match.view_name %}active{% endif %}" href="#" id="inventoryDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-box-seam-fill"></i> المخزون
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="inventoryDropdown">
+                            {% if perms.erp.view_stock %}
+                            <li><a class="dropdown-item" href="{% url 'erp:inventory_dashboard' %}"><i class="bi bi-boxes me-2"></i> المخزون والمخازن</a></li>
+                            {% endif %}
+                            {% if perms.erp.view_stocktransfer %}
+                            <li><a class="dropdown-item" href="{% url 'erp:transfer_list' %}"><i class="bi bi-arrow-left-right me-2"></i> حركة المخازن</a></li>
+                            {% endif %}
+                        </ul>
                     </li>
                     {% endif %}
-                    {% if perms.erp.view_stock %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'inventory' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:inventory_dashboard' %}">
-                            <i class="bi bi-box-seam-fill"></i> المخزون والمخازن
-                        </a>
-                    </li>
-                    {% endif %}
-                    {% if perms.erp.view_stocktransfer %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'transfer' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:transfer_list' %}">
-                            <i class="bi bi-arrow-left-right"></i> حركة المخازن
-                        </a>
-                    </li>
-                    {% endif %}
+
+                    <!-- الصيانة -->
                     {% if perms.erp.view_repairticket %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'repair' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:repair_list' %}">
-                            <i class="bi bi-tools"></i> الصيانة والتصليح
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if 'repair' in request.resolver_match.view_name %}active{% endif %}" href="#" id="repairsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-tools"></i> الصيانة
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="repairsDropdown">
+                            <li><a class="dropdown-item" href="{% url 'erp:repair_list' %}"><i class="bi bi-wrench-adjustable-circle me-2"></i> تذاكر الصيانة</a></li>
+                        </ul>
                     </li>
                     {% endif %}
-                    {% if perms.erp.view_cashshift %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'shift' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:shift_manage' %}">
-                            <i class="bi bi-safe-fill"></i> الخزينة والوردية
+
+                    <!-- شؤون الموظفين -->
+                    {% if request.user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if 'hr' in request.resolver_match.view_name or 'employee' in request.resolver_match.view_name or 'payroll' in request.resolver_match.view_name or 'attendance' in request.resolver_match.view_name %}active{% endif %}" href="#" id="hrDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-people-fill"></i> الموظفين
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="hrDropdown">
+                            <li><a class="dropdown-item" href="{% url 'erp:attendance_dashboard' %}"><i class="bi bi-fingerprint me-2"></i> البصمة (حضور وانصراف)</a></li>
+                            {% if perms.erp.view_employeeprofile %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'erp:employee_list' %}"><i class="bi bi-person-lines-fill me-2"></i> إدارة الموظفين</a></li>
+                            {% endif %}
+                            {% if perms.erp.view_payroll %}
+                            <li><a class="dropdown-item" href="{% url 'erp:payroll_list' %}"><i class="bi bi-cash-stack me-2"></i> مسير الرواتب</a></li>
+                            {% endif %}
+                        </ul>
                     </li>
                     {% endif %}
-                    {% if request.user.is_staff or request.user.is_superuser %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'reports' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:reports_dashboard' %}">
-                            <i class="bi bi-graph-up-arrow"></i> التقارير
+
+                    <!-- الإدارة والتقارير -->
+                    {% if perms.erp.view_cashshift or request.user.is_staff or request.user.is_superuser %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if 'shift' in request.resolver_match.view_name or 'reports' in request.resolver_match.view_name or 'notification' in request.resolver_match.view_name %}active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-gear-fill"></i> الإدارة
                         </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'notification' in request.resolver_match.view_name %}active{% endif %}" href="{% url 'erp:notifications_dashboard' %}">
-                            <i class="bi bi-bell-fill"></i> الإشعارات
-                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" aria-labelledby="adminDropdown">
+                            {% if perms.erp.view_cashshift %}
+                            <li><a class="dropdown-item" href="{% url 'erp:shift_manage' %}"><i class="bi bi-safe-fill me-2"></i> الخزينة والوردية</a></li>
+                            {% endif %}
+                            {% if request.user.is_staff or request.user.is_superuser %}
+                            <li><a class="dropdown-item" href="{% url 'erp:reports_dashboard' %}"><i class="bi bi-graph-up-arrow me-2"></i> التقارير المتقدمة</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'erp:notifications_dashboard' %}"><i class="bi bi-bell-fill me-2"></i> الإشعارات النظامية</a></li>
+                            {% endif %}
+                        </ul>
                     </li>
                     {% endif %}
                 </ul>

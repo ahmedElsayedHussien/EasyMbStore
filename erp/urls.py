@@ -18,7 +18,10 @@ urlpatterns = [
     path('pos/grid/', views.pos_product_grid, name='pos_product_grid'),
     path('pos/checkout/', views.pos_checkout, name='pos_checkout'),
     path('pos/inventory-snapshot/', views.pos_inventory_snapshot, name='pos_inventory_snapshot'),
+    path('sales/', views.sale_invoice_list, name='sale_list'),
     path('sales/<int:pk>/', views.sale_invoice_detail, name='sale_detail'),
+    path('sales/<int:pk>/pay/', views.sale_invoice_pay, name='sale_pay'),
+    path('sales/<int:pk>/return/', views.sale_return_create, name='sale_return_create'),
     
     # شراء المستعمل
     path('used-purchase/', views.used_device_purchase, name='used_purchase'),
@@ -26,11 +29,17 @@ urlpatterns = [
     path('products/quick-add/', views.quick_add_product, name='quick_add_product'),
     path('products/search/', views.product_name_search, name='product_name_search'),
     
+
+    
+    # المديونيات وحسابات العملاء والموردين
+    path('debts/', views.debts_list, name='debts_list'),
+    
     # المشتريات
     path('purchases/', views.purchase_invoice_list, name='purchase_list'),
     path('purchases/create/', views.purchase_invoice_create, name='purchase_create'),
     path('purchases/<int:pk>/', views.purchase_invoice_detail, name='purchase_detail'),
     path('purchases/<int:pk>/pay/', views.purchase_invoice_pay, name='purchase_pay'),
+    path('purchases/<int:pk>/return/', views.purchase_return_create, name='purchase_return_create'),
     
     # حركات تحويل المخازن
     path('transfers/', views.transfer_list, name='transfer_list'),
@@ -64,4 +73,18 @@ urlpatterns = [
     path('notifications/', views.notifications_dashboard, name='notifications_dashboard'),
     path('notifications/settings/', views.notification_settings, name='notification_settings'),
     path('notifications/<int:log_id>/retry/', views.retry_notification, name='retry_notification'),
+    
+    # شؤون الموظفين والرواتب
+    path('hr/employees/', views.employee_list, name='employee_list'),
+    path('hr/employees/create/', views.employee_create, name='employee_create'),
+    path('hr/employees/<int:pk>/edit/', views.employee_edit, name='employee_edit'),
+    
+    # البصمة الجغرافية
+    path('hr/attendance/', views.attendance_dashboard, name='attendance_dashboard'),
+    path('hr/attendance/api/check/', views.api_attendance_check, name='api_attendance_check'),
+    
+    # الرواتب
+    path('hr/payroll/', views.payroll_list, name='payroll_list'),
+    path('hr/payroll/generate/', views.payroll_generate, name='payroll_generate'),
+    path('hr/payroll/<int:pk>/pay/', views.payroll_pay, name='payroll_pay'),
 ]

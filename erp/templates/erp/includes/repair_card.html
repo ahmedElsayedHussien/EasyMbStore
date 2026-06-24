@@ -52,7 +52,7 @@
         <div class="d-flex align-items-center gap-2">
             <span class="small text-secondary" style="font-size: 0.75rem; white-space: nowrap;">الحالة:</span>
             <select class="form-select form-select-sm bg-dark text-light border-secondary flex-fill" style="font-size: 0.75rem;" 
-                    onchange="updateTicketStatus({{ ticket.id }}, this)">
+                    onchange="updateTicketStatus({{ ticket.id }}, this, '{{ ticket.total_cost|stringformat:'.2f' }}')">
                 {% for code, name in ticket.STATUS_CHOICES %}
                     <option value="{{ code }}" {% if ticket.status == code %}selected{% endif %}>{{ name }}</option>
                 {% endfor %}

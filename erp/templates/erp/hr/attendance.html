@@ -1,0 +1,169 @@
+{% extends 'erp/base.html' %}
+{% block title %}تسجيل الحضور والانصراف{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="glass-card p-4 p-md-5 text-center">
+            <h2 class="text-primary mb-4"><i class="bi bi-fingerprint" style="font-size: 3rem;"></i><br>البصمة الجغرافية</h2>
+            
+            <div class="mb-4">
+                <h5 class="text-light">مرحباً، {{ profile.user.get_full_name|default:profile.user.username }}</h5>
+                <p class="text-secondary">{{ today|date:"l, d F Y" }}</p>
+            </div>
+
+            <!-- معلومات المواعيد -->
+            <div class="row text-center mb-4 g-2">
+                <div class="col-6">
+                    <div class="p-3 rounded border border-success h-100" style="background-color: rgba(25, 135, 84, 0.1);">
+                        <i class="bi bi-box-arrow-in-right fs-4 text-success mb-2"></i>
+                        <h6 class="text-success mb-1">ميعاد الحضور</h6>
+                        <span class="text-light fw-bold">{{ profile.shift_start_time|default:"غير محدد"|time:"H:i" }}</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 rounded border border-danger h-100" style="background-color: rgba(220, 53, 69, 0.1);">
+                        <i class="bi bi-box-arrow-left fs-4 text-danger mb-2"></i>
+                        <h6 class="text-danger mb-1">ميعاد الانصراف</h6>
+                        <span class="text-light fw-bold">{{ profile.shift_end_time|default:"غير محدد"|time:"H:i" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- حالة اليوم -->
+            <div class="mb-5">
+                {% if attendance %}
+                    {% if attendance.check_in %}
+                        <div class="alert alert-success mb-2">
+                            <i class="bi bi-check-circle-fill"></i> تم تسجيل الحضور في: <strong>{{ attendance.check_in|time:"H:i a" }}</strong>
+                            {% if attendance.delay_hours > 0 %}
+                                <br><small class="text-danger">تأخير: {{ attendance.delay_hours }} ساعة</small>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                    
+                    {% if attendance.check_out %}
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-check-circle-fill"></i> تم تسجيل الانصراف في: <strong>{{ attendance.check_out|time:"H:i a" }}</strong>
+                            {% if attendance.overtime_hours > 0 %}
+                                <br><small class="text-success">إضافي: {{ attendance.overtime_hours }} ساعة</small>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="alert alert-secondary">لم تقم بتسجيل الدخول بعد لهذا اليوم.</div>
+                {% endif %}
+            </div>
+
+            <!-- أزرار البصمة -->
+            <div class="d-grid gap-3">
+                <button id="btn-checkin" class="btn btn-success btn-lg py-3 fw-bold shadow" onclick="performCheck('check_in')" 
+                    {% if attendance.check_in %}disabled{% endif %}>
+                    <i class="bi bi-geo-alt-fill me-2"></i> تسجيل الحضور (Check In)
+                </button>
+                
+                <button id="btn-checkout" class="btn btn-danger btn-lg py-3 fw-bold shadow" onclick="performCheck('check_out')"
+                    {% if not attendance.check_in or attendance.check_out %}disabled{% endif %}>
+                    <i class="bi bi-geo-alt-fill me-2"></i> تسجيل الانصراف (Check Out)
+                </button>
+            </div>
+            
+            <div id="status-message" class="mt-4 text-warning" style="display: none;">
+                <i class="bi bi-hourglass-split"></i> جاري تحديد الموقع الجغرافي...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function performCheck(actionType) {
+    const statusMsg = document.getElementById('status-message');
+    const btnIn = document.getElementById('btn-checkin');
+    const btnOut = document.getElementById('btn-checkout');
+    
+    // إيقاف الأزرار مؤقتاً
+    btnIn.disabled = true;
+    btnOut.disabled = true;
+    
+    statusMsg.innerHTML = '<i class="bi bi-hourglass-split"></i> جاري تحديد الموقع...';
+    statusMsg.className = 'mt-4 text-warning';
+    statusMsg.style.display = 'block';
+
+    if (!navigator.geolocation) {
+        statusMsg.innerHTML = '<i class="bi bi-x-circle-fill"></i> متصفحك لا يدعم تحديد الموقع الجغرافي.';
+        statusMsg.className = 'mt-4 text-danger';
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            // نجاح الحصول على الموقع
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            
+            statusMsg.innerHTML = '<i class="bi bi-arrow-repeat"></i> جاري إرسال البيانات للنظام...';
+            
+            // إرسال البيانات للـ API
+            const formData = new FormData();
+            formData.append('action', actionType);
+            formData.append('latitude', lat);
+            formData.append('longitude', lon);
+
+            fetch("{% url 'erp:api_attendance_check' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            })
+            .then(response => response.json().then(data => ({status: response.status, body: data})))
+            .then(res => {
+                if (res.status === 200) {
+                    statusMsg.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${res.body.message}`;
+                    statusMsg.className = 'mt-4 text-success';
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    statusMsg.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> خطأ: ${res.body.error}`;
+                    statusMsg.className = 'mt-4 text-danger';
+                    // إعادة تفعيل الأزرار بناءً على الحالة
+                    if (actionType === 'check_in') btnIn.disabled = false;
+                    if (actionType === 'check_out') btnOut.disabled = false;
+                }
+            })
+            .catch(error => {
+                statusMsg.innerHTML = '<i class="bi bi-x-circle-fill"></i> حدث خطأ في الاتصال بالخادم.';
+                statusMsg.className = 'mt-4 text-danger';
+                if (actionType === 'check_in') btnIn.disabled = false;
+                if (actionType === 'check_out') btnOut.disabled = false;
+            });
+        },
+        function(error) {
+            // خطأ في تحديد الموقع
+            let errorMsg = "حدث خطأ غير معروف أثناء تحديد الموقع.";
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMsg = "تم رفض إعطاء صلاحية تحديد الموقع. يرجى تفعيلها من إعدادات المتصفح.";
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMsg = "معلومات الموقع الجغرافي غير متوفرة.";
+                    break;
+                case error.TIMEOUT:
+                    errorMsg = "انتهى وقت طلب الحصول على الموقع.";
+                    break;
+            }
+            statusMsg.innerHTML = `<i class="bi bi-x-circle-fill"></i> ${errorMsg}`;
+            statusMsg.className = 'mt-4 text-danger';
+            if (actionType === 'check_in') btnIn.disabled = false;
+            if (actionType === 'check_out') btnOut.disabled = false;
+        },
+        {
+            enableHighAccuracy: false,
+            timeout: 15000,
+            maximumAge: 0
+        }
+    );
+}
+</script>
+{% endblock %}

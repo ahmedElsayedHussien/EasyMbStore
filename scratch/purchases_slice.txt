@@ -1,0 +1,111 @@
+    return render(request, 'erp/purchase_list.html', {
+        'purchases': purchases,
+        'has_open_shift': has_open_shift
+    })
+@login_required
+@permission_required('erp.add_purchaseinvoice', raise_exception=True)
+def purchase_invoice_create(request):
+    store_setting = StoreSetting.objects.first()
+    if request.method == 'POST':
+        invoice_form = PurchaseInvoiceForm(request.POST)
+        formset = PurchaseItemFormSet(request.POST)
+        if invoice_form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    # حفظ رأس الفاتورة
+                    invoice = invoice_form.save(commit=False)
+                    invoice.created_by = request.user
+                    # تعقيم وحساب المبالغ المدفوعة بناءً على طريقة الدفع
+                    if invoice.payment_method == 'cash':
+                        invoice.paid_amount = invoice.net_amount
+                    elif invoice.payment_method == 'credit':
+                        invoice.paid_amount = 0
+                    elif invoice.payment_method == 'partial':
+                        if invoice.paid_amount > invoice.net_amount:
+                            invoice.paid_amount = invoice.net_amount
+                        elif invoice.paid_amount < 0:
+                            invoice.paid_amount = 0
+                    invoice.save()
+                    # حفظ البنود وتحديث المخزون ومتوسط التكلفة تلقائياً بواسطة السجنل
+                    formset.instance = invoice
+                    formset.save()
+                    messages.success(request, "تم تسجيل فاتورة المشتريات وإدخال البضاعة للمخازن بنجاح.")
+                    return redirect('erp:purchase_list')
+            except Exception as e:
+                messages.error(request, f"حدث خطأ في الحفظ: {str(e)}")
+        else:
+            messages.error(request, "يرجى مراجعة الحقول وإدخال البنود بشكل صحيح.")
+    else:
+        invoice_form = PurchaseInvoiceForm()
+        formset = PurchaseItemFormSet()
+    context = {
+        'store_setting': store_setting,
+        'invoice_form': invoice_form,
+        'formset': formset,
+        'products_require_imei': list(Product.objects.filter(requires_imei=True).values_list('id', flat=True)),
+    }
+    return render(request, 'erp/purchase_create.html', context)
+@login_required
+@permission_required('erp.view_purchaseinvoice', raise_exception=True)
+def purchase_invoice_detail(request, pk):
+    """
+    عرض تفاصيل فاتورة الشراء من الموردين.
+    """
+    from erp.models import CashShift
+    invoice = get_object_or_404(PurchaseInvoice, pk=pk)
+    items = invoice.items.all().select_related('product', 'warehouse')
+    store_setting = StoreSetting.objects.first()
+    has_open_shift = CashShift.objects.filter(cashier=request.user, status='open').exists()
+    # تفكيك السيريالات وعرضها بشكل مرتب إذا وجد
+    for item in items:
+        if item.product.requires_imei and item.imei_list:
+            item.imeis = [imei.strip() for imei in item.imei_list.split(',') if imei.strip()]
+    context = {
+        'invoice': invoice,
+        'items': items,
+        'store_setting': store_setting,
+        'has_open_shift': has_open_shift,
+    }
+    return render(request, 'erp/purchase_invoice_detail.html', context)
+
+@login_required
+@permission_required('erp.change_purchaseinvoice', raise_exception=True)
+def purchase_invoice_pay(request, pk):
+    """
+    تسجيل سداد دفعة لفاتورة مشتريات مورد (نقداً أو آجل).
+    """
+    from decimal import Decimal
+    from django.contrib import messages
+    from erp.models import Expense, ExpenseCategory, CashShift, PurchaseInvoice
+    
+    if request.method == 'POST':
+        amount_str = request.POST.get('amount')
+        deduct_from_shift = request.POST.get('deduct_from_shift') == 'on'
+        
+        try:
+            amount = Decimal(amount_str)
+        except (ValueError, TypeError):
+            messages.error(request, "خطأ: قيمة غير صالحة للمبلغ.")
+            return redirect('erp:purchase_list')
+            
+        if amount <= 0:
+            messages.error(request, "خطأ: يجب أن يكون مبلغ السداد أكبر من صفر.")
+            return redirect('erp:purchase_list')
+
+        with transaction.atomic():
+            invoice = get_object_or_404(PurchaseInvoice.objects.select_for_update(), pk=pk)
+            
+            remaining = invoice.remaining_amount
+            if amount > remaining:
+                messages.error(request, f"خطأ: لا يمكن سداد مبلغ أكبر من المبلغ المتبقي ({remaining} ج.م).")
+                return redirect('erp:purchase_list')
+                
+            # إذا تم طلب الخصم من الوردية الحالية
+            if deduct_from_shift:
+                # التحقق من وجود وردية مفتوحة للمستخدم الحالي مع قفلها
+                shift = CashShift.objects.select_for_update().filter(cashier=request.user, status='open').first()
+                if not shift:
+                    messages.error(request, "خطأ: لا توجد وردية مفتوحة لحسابك حالياً للخصم منها. تم إلغاء عملية السداد.")
+                    next_url = request.META.get('HTTP_REFERER')
+                    if next_url:
+                        return redirect(next_url)

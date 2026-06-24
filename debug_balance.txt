@@ -1,0 +1,10 @@
+Customer: علي علي
+Opening balance: 0.00
+Unpaid Sales:
+  - Invoice 1: net=120000.00, paid=0.00, remaining=120000.00
+  - Invoice 2: net=60000.00, paid=0.00, remaining=60000.00
+  - Invoice 3: net=60000.00, paid=15000.00, remaining=45000.00
+Total from sales: 225000.00
+Receipts:
+Total from receipts: 0
+Calculated balance: 0.00

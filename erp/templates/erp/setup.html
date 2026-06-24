@@ -11,13 +11,28 @@
 <!-- تبويبات التهيئة (Configuration Tabs) -->
 <ul class="nav nav-tabs mb-4 border-secondary" id="setupTabs" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active text-light fw-semibold" id="warehouses-tab" data-bs-toggle="tab" data-bs-target="#warehouses" type="button" role="tab" aria-controls="warehouses" aria-selected="true">
+        <button class="nav-link active text-light fw-semibold" id="store-settings-tab" data-bs-toggle="tab" data-bs-target="#store-settings" type="button" role="tab" aria-controls="store-settings" aria-selected="true">
+            <i class="bi bi-shop me-1"></i> إعدادات المتجر
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link text-light fw-semibold" id="warehouses-tab" data-bs-toggle="tab" data-bs-target="#warehouses" type="button" role="tab" aria-controls="warehouses" aria-selected="false">
             <i class="bi bi-house-gear-fill me-1"></i> الفروع والمخازن
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link text-light fw-semibold" id="treasuries-tab" data-bs-toggle="tab" data-bs-target="#treasuries" type="button" role="tab" aria-controls="treasuries" aria-selected="false">
+            <i class="bi bi-safe me-1"></i> الخزن
         </button>
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link text-light fw-semibold" id="suppliers-tab" data-bs-toggle="tab" data-bs-target="#suppliers" type="button" role="tab" aria-controls="suppliers" aria-selected="false">
             <i class="bi bi-people-fill me-1"></i> الموردون والشركاء
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link text-light fw-semibold" id="customers-tab" data-bs-toggle="tab" data-bs-target="#customers" type="button" role="tab" aria-controls="customers" aria-selected="false">
+            <i class="bi bi-person-lines-fill me-1"></i> العملاء
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -34,8 +49,61 @@
 
 <div class="tab-content" id="setupTabsContent">
     
+    <!-- 0. إعدادات المتجر (Store Settings) -->
+    <div class="tab-pane fade show active" id="store-settings" role="tabpanel" aria-labelledby="store-settings-tab">
+        <div class="glass-card p-4 mx-auto" style="max-width: 800px;">
+            <h5 class="text-primary mb-4"><i class="bi bi-sliders"></i> الإعدادات العامة وموقع المحل</h5>
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_store_settings">
+                
+                <div class="row g-3">
+                    <div class="col-md-12 mb-2">
+                        <label>اسم المحل</label>
+                        {{ store_setting_form.store_name }}
+                    </div>
+                    
+                    <h6 class="text-warning mt-4 border-bottom pb-2">بيانات الموقع (لتسجيل البصمة الجغرافية)</h6>
+                    <div class="col-md-6 mb-2">
+                        <label>خط العرض (Latitude)</label>
+                        {{ store_setting_form.latitude }}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label>خط الطول (Longitude)</label>
+                        {{ store_setting_form.longitude }}
+                    </div>
+                    <div class="col-md-12 mb-2">
+                        <label>النطاق المسموح به (بالمتر)</label>
+                        {{ store_setting_form.allowed_radius }}
+                    </div>
+                    <div class="col-md-12 text-end mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="getCurrentLocationForStore()">
+                            <i class="bi bi-geo-alt"></i> تحديد موقع المحل الحالي تلقائياً
+                        </button>
+                    </div>
+
+                    <h6 class="text-warning mt-4 border-bottom pb-2">إعدادات الطباعة والإيصالات</h6>
+                    <div class="col-md-6 mb-2">
+                        <label>ترويسة الفاتورة</label>
+                        {{ store_setting_form.receipt_header }}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label>تذييل الفاتورة</label>
+                        {{ store_setting_form.receipt_footer }}
+                    </div>
+                </div>
+                
+                <div class="text-end mt-4">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-save2-fill"></i> حفظ التعديلات
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- 1. الفروع والمخازن (Warehouses) -->
-    <div class="tab-pane fade show active" id="warehouses" role="tabpanel" aria-labelledby="warehouses-tab">
+    <div class="tab-pane fade" id="warehouses" role="tabpanel" aria-labelledby="warehouses-tab">
         <div class="row g-4">
             <!-- نموذج الإضافة -->
             <div class="col-lg-4">
@@ -101,6 +169,89 @@
             </div>
         </div>
     </div>
+    <!-- الخزن (Treasuries) -->
+    <div class="tab-pane fade" id="treasuries" role="tabpanel" aria-labelledby="treasuries-tab">
+        <div class="row g-4">
+            <!-- نموذج الإضافة -->
+            <div class="col-lg-4">
+                <div class="glass-card p-4">
+                    <h5 class="text-primary mb-3"><i class="bi bi-safe me-2"></i> تسجيل خزينة جديدة</h5>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_treasury">
+                        
+                        <div class="mb-3">
+                            <label for="{{ treasury_form.name.id_for_label }}">اسم الخزينة:</label>
+                            {{ treasury_form.name }}
+                            {{ treasury_form.name.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ treasury_form.opening_balance.id_for_label }}">رصيد أول المدة (المبلغ الحالي):</label>
+                            {{ treasury_form.opening_balance }}
+                            {{ treasury_form.opening_balance.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ treasury_form.user.id_for_label }}">المستخدم المسؤول:</label>
+                            {{ treasury_form.user }}
+                            {{ treasury_form.user.errors }}
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            {{ treasury_form.is_active }}
+                            <label class="form-check-label text-light ms-2" for="{{ treasury_form.is_active.id_for_label }}">حالة الخزينة (نشطة وتقبل الأموال)</label>
+                            {{ treasury_form.is_active.errors }}
+                        </div>
+                        
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save2-fill me-2"></i> حفظ الخزينة
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- جدول المعاينة -->
+            <div class="col-lg-8">
+                <div class="glass-card p-4 overflow-auto">
+                    <h5 class="text-secondary mb-3"><i class="bi bi-list-task"></i> الخزن المسجلة حالياً</h5>
+                    <table class="table table-dark table-hover table-striped mb-0 text-center align-middle">
+                        <thead>
+                            <tr class="border-secondary text-primary">
+                                <th># معرف</th>
+                                <th>اسم الخزينة</th>
+                                <th>المسؤول</th>
+                                <th>الرصيد الحالي</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in treasuries %}
+                            <tr>
+                                <td class="text-secondary fw-bold">#{{ t.id }}</td>
+                                <td class="text-light fw-bold">{{ t.name }}</td>
+                                <td class="text-secondary">{{ t.user.username }}</td>
+                                <td class="fw-bold text-success">{{ t.balance }} ج.م</td>
+                                <td>
+                                    {% if t.is_active %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> نشطة</span>
+                                    {% else %}
+                                        <span class="badge bg-danger"><i class="bi bi-x-circle"></i> غير نشطة</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-muted py-4">لم يتم تسجيل خزن بعد.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- 2. الموردون والشركاء (Suppliers) -->
     <div class="tab-pane fade" id="suppliers" role="tabpanel" aria-labelledby="suppliers-tab">
@@ -131,6 +282,12 @@
                             {{ supplier_form.address.errors }}
                         </div>
                         
+                        <div class="mb-3">
+                            <label for="{{ supplier_form.opening_balance.id_for_label }}">رصيد أول المدة (مستحقات للمورد):</label>
+                            {{ supplier_form.opening_balance }}
+                            {{ supplier_form.opening_balance.errors }}
+                        </div>
+                        
                         <div class="d-grid mt-4">
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-save2-fill me-2"></i> حفظ المورد
@@ -149,6 +306,7 @@
                                 <th>اسم المورد / الشركة</th>
                                 <th>الهاتف</th>
                                 <th>العنوان</th>
+                                <th>الرصيد الحالي (مستحقات له)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -157,10 +315,87 @@
                                 <td class="text-light fw-bold">{{ supplier.name }}</td>
                                 <td class="text-secondary">{{ supplier.phone }}</td>
                                 <td class="text-secondary small">{{ supplier.address|default:"غير متوفر" }}</td>
+                                <td class="fw-bold {% if supplier.current_balance > 0 %}text-warning{% else %}text-success{% endif %}">{{ supplier.current_balance }} ج.م</td>
                             </tr>
                             {% empty %}
                             <tr>
                                 <td colspan="3" class="text-muted py-4">لم يتم تسجيل موردين بعد.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- العملاء -->
+    <div class="tab-pane fade" id="customers" role="tabpanel" aria-labelledby="customers-tab">
+        <div class="row g-4">
+            <!-- نموذج الإضافة -->
+            <div class="col-lg-4">
+                <div class="glass-card p-4">
+                    <h5 class="text-primary mb-3"><i class="bi bi-person-plus-fill"></i> تسجيل عميل جديد</h5>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_customer">
+                        
+                        <div class="mb-3">
+                            <label for="{{ customer_form.name.id_for_label }}">اسم العميل:</label>
+                            {{ customer_form.name }}
+                            {{ customer_form.name.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ customer_form.phone.id_for_label }}">رقم هاتف العميل:</label>
+                            {{ customer_form.phone }}
+                            {{ customer_form.phone.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ customer_form.address.id_for_label }}">عنوان العميل (اختياري):</label>
+                            {{ customer_form.address }}
+                            {{ customer_form.address.errors }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ customer_form.opening_balance.id_for_label }}">رصيد أول المدة (ديون عليه):</label>
+                            {{ customer_form.opening_balance }}
+                            {{ customer_form.opening_balance.errors }}
+                        </div>
+                        
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save2-fill me-2"></i> حفظ العميل
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- جدول المعاينة -->
+            <div class="col-lg-8">
+                <div class="glass-card p-4 overflow-auto">
+                    <h5 class="text-secondary mb-3"><i class="bi bi-list-task"></i> قائمة العملاء</h5>
+                    <table class="table table-dark table-hover table-striped mb-0 text-center align-middle">
+                        <thead>
+                            <tr class="border-secondary text-primary">
+                                <th>اسم العميل</th>
+                                <th>الهاتف</th>
+                                <th>العنوان</th>
+                                <th>الرصيد الحالي (ديون عليه)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in customers %}
+                            <tr>
+                                <td class="text-light fw-bold">{{ customer.name }}</td>
+                                <td class="text-secondary">{{ customer.phone }}</td>
+                                <td class="text-secondary small">{{ customer.address|default:"غير متوفر" }}</td>
+                                <td class="fw-bold {% if customer.current_balance > 0 %}text-warning{% else %}text-success{% endif %}">{{ customer.current_balance }} ج.م</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-muted py-4">لم يتم تسجيل عملاء بعد.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -634,5 +869,34 @@
             }
         }
     });
+
+    function getCurrentLocationForStore() {
+        if (navigator.geolocation) {
+            alert("جاري تحديد الموقع... يرجى الموافقة على الصلاحية في المتصفح والانتظار قليلاً.");
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const latField = document.getElementById('id_latitude');
+                    const lonField = document.getElementById('id_longitude');
+                    if (latField && lonField) {
+                        latField.value = position.coords.latitude.toFixed(6);
+                        lonField.value = position.coords.longitude.toFixed(6);
+                        alert("تم جلب الإحداثيات بنجاح! لا تنسَ الضغط على 'حفظ التعديلات'.");
+                    } else {
+                        alert("حدث خطأ: تعذر الوصول إلى الحقول.");
+                    }
+                },
+                function(error) {
+                    let msg = "فشل تحديد الموقع.";
+                    if (error.code === 1) msg = "تم رفض صلاحية تحديد الموقع من المتصفح.";
+                    else if (error.code === 2) msg = "موقعك غير متاح حالياً.";
+                    else if (error.code === 3) msg = "انتهى وقت الطلب (حاول مرة أخرى أو قم بإيقاف VPN/Proxy إذا كان يعمل).";
+                    alert(msg);
+                },
+                { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 }
+            );
+        } else {
+            alert("المتصفح لا يدعم ميزة تحديد الموقع.");
+        }
+    }
 </script>
 {% endblock %}

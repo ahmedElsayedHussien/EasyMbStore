@@ -3,11 +3,30 @@ from django.forms import inlineformset_factory
 from erp.models import (
     Contact, Device, DeviceAttachment, PurchaseInvoice, PurchaseItem,
     StockTransfer, StockTransferItem, RepairTicket, RepairPartUsed, CashShift, Expense,
-    Product, Warehouse
+    Product, Warehouse, Treasury, ContactTransaction
 )
 
 # ==========================================
-# 1. جهات الاتصال (Contacts)
+# 1. إعدادات المحل (Settings)
+# ==========================================
+class StoreSettingForm(forms.ModelForm):
+    class Meta:
+        from erp.models import StoreSetting
+        model = StoreSetting
+        fields = ['store_name', 'logo', 'receipt_header', 'receipt_footer', 'whatsapp_api_key', 'sms_api_key', 'latitude', 'longitude', 'allowed_radius']
+        widgets = {
+            'store_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'receipt_header': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'receipt_footer': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'whatsapp_api_key': forms.TextInput(attrs={'class': 'form-control'}),
+            'sms_api_key': forms.TextInput(attrs={'class': 'form-control'}),
+            'latitude': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.000001'}),
+            'longitude': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.000001'}),
+            'allowed_radius': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+# ==========================================
+# جهات الاتصال (Contacts)
 # ==========================================
 class ContactForm(forms.ModelForm):
     class Meta:
@@ -24,6 +43,8 @@ class ContactForm(forms.ModelForm):
 # 2. شراء الأجهزة المستعملة ومرفقاتها (Used Device & Attachments)
 # ==========================================
 class UsedDeviceForm(forms.ModelForm):
+    treasury = forms.ModelChoiceField(queryset=Treasury.objects.filter(is_active=True), label='الخزينة (لسداد التكلفة)', required=True, widget=forms.Select(attrs={'class': 'form-select'}))
+    
     class Meta:
         model = Device
         fields = ['product', 'imei', 'imei2', 'warehouse', 'cost', 'storage', 'ram', 'used_status', 'has_box', 'has_charger', 'is_tax_paid', 'notes']
@@ -65,10 +86,11 @@ DeviceAttachmentFormSet = inlineformset_factory(
 class PurchaseInvoiceForm(forms.ModelForm):
     class Meta:
         model = PurchaseInvoice
-        fields = ['supplier', 'supplier_invoice_number', 'total_amount', 'discount', 'deduction_addition_tax', 'net_amount', 'payment_method', 'paid_amount']
+        fields = ['supplier', 'supplier_invoice_number', 'treasury', 'total_amount', 'discount', 'deduction_addition_tax', 'net_amount', 'payment_method', 'paid_amount']
         widgets = {
             'supplier': forms.Select(attrs={'class': 'form-select'}),
             'supplier_invoice_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'رقم فاتورة المورد'}),
+            'treasury': forms.Select(attrs={'class': 'form-select'}),
             'total_amount': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_total_amount', 'readonly': 'readonly'}),
             'discount': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_discount', 'value': '0.00'}),
             'deduction_addition_tax': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_deduction_addition_tax', 'value': '0.00'}),
@@ -76,6 +98,10 @@ class PurchaseInvoiceForm(forms.ModelForm):
             'payment_method': forms.Select(attrs={'class': 'form-select', 'id': 'id_payment_method'}),
             'paid_amount': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_paid_amount', 'value': '0.00'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['treasury'].queryset = Treasury.objects.filter(is_active=True)
 
 class PurchaseItemForm(forms.ModelForm):
     class Meta:
@@ -193,10 +219,21 @@ RepairPartUsedFormSet = inlineformset_factory(
 class CashShiftOpenForm(forms.ModelForm):
     class Meta:
         model = CashShift
-        fields = ['opening_balance']
+        fields = ['treasury', 'opening_balance']
         widgets = {
+            'treasury': forms.Select(attrs={'class': 'form-select'}),
             'opening_balance': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'أدخل مبلغ عهدة البداية'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        self.fields['treasury'].required = True
+        if user:
+            if user.is_superuser or user.groups.filter(name='المدير العام').exists():
+                self.fields['treasury'].queryset = Treasury.objects.filter(is_active=True)
+            else:
+                self.fields['treasury'].queryset = Treasury.objects.filter(user=user, is_active=True)
 
 class CashShiftCloseForm(forms.ModelForm):
     class Meta:
@@ -209,12 +246,14 @@ class CashShiftCloseForm(forms.ModelForm):
 class ExpenseForm(forms.ModelForm):
     class Meta:
         model = Expense
-        fields = ['category', 'amount', 'description']
+        fields = ['treasury', 'category', 'amount', 'description']
         widgets = {
+            'treasury': forms.Select(attrs={'class': 'form-select', 'required': 'required'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'المبلغ'}),
             'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'الوصف / ملاحظات'}),
         }
+
 
 
 # ==========================================
@@ -232,11 +271,46 @@ class WarehouseForm(forms.ModelForm):
 class SupplierForm(forms.ModelForm):
     class Meta:
         model = Contact
-        fields = ['name', 'phone', 'address']
+        fields = ['name', 'phone', 'address', 'opening_balance']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'اسم المورد / الشركة'}),
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'رقم الهاتف'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'العنوان بالكامل'}),
+            'opening_balance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': 'رصيد أول المدة'}),
+        }
+
+class CustomerForm(forms.ModelForm):
+    class Meta:
+        model = Contact
+        fields = ['name', 'phone', 'address', 'opening_balance']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'اسم العميل'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'رقم الهاتف'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'العنوان بالكامل'}),
+            'opening_balance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': 'رصيد أول المدة'}),
+        }
+
+class TreasuryForm(forms.ModelForm):
+    class Meta:
+        model = Treasury
+        fields = ['name', 'opening_balance', 'user', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'اسم الخزينة'}),
+            'opening_balance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': 'الرصيد المبدئي'}),
+            'user': forms.Select(attrs={'class': 'form-select'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input', 'style': 'cursor: pointer;'}),
+        }
+
+class ContactTransactionForm(forms.ModelForm):
+    class Meta:
+        model = ContactTransaction
+        fields = ['contact', 'treasury', 'transaction_type', 'amount', 'description']
+        widgets = {
+            'contact': forms.Select(attrs={'class': 'form-select', 'required': 'required'}),
+            'treasury': forms.Select(attrs={'class': 'form-select', 'required': 'required'}),
+            'transaction_type': forms.Select(attrs={'class': 'form-select'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': 'المبلغ'}),
+            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'وصف الدفعة / ملاحظات'}),
         }
 
 class ProductForm(forms.ModelForm):
@@ -293,4 +367,25 @@ class SystemUserCreationForm(forms.Form):
         if User.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError("خطأ: اسم المستخدم هذا مسجل بالفعل.")
         return username
+
+# ==========================================
+# 10. شؤون الموظفين (HR)
+# ==========================================
+class EmployeeProfileForm(forms.ModelForm):
+    class Meta:
+        from erp.models import EmployeeProfile
+        model = EmployeeProfile
+        fields = ['user', 'hourly_rate', 'daily_working_hours', 'shift_start_time', 'shift_end_time', 'deduction_per_hour', 'overtime_per_hour', 'base_salary', 'is_active']
+        widgets = {
+            'user': forms.Select(attrs={'class': 'form-select'}),
+            'hourly_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'daily_working_hours': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'shift_start_time': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'shift_end_time': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'deduction_per_hour': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'overtime_per_hour': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'base_salary': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
 

@@ -1,0 +1,51 @@
+                return redirect('erp:purchase_list')
+                
+            # إذا تم طلب الخصم من الوردية الحالية
+            if deduct_from_shift:
+                # التحقق من وجود وردية مفتوحة للمستخدم الحالي مع قفلها
+                shift = CashShift.objects.select_for_update().filter(cashier=request.user, status='open').first()
+                if not shift:
+                    messages.error(request, "خطأ: لا توجد وردية مفتوحة لحسابك حالياً للخصم منها. تم إلغاء عملية السداد.")
+                    next_url = request.META.get('HTTP_REFERER')
+                    if next_url:
+                        return redirect(next_url)
+                    return redirect('erp:purchase_list')
+                    
+                # التحقق من كفاية الرصيد المتوفر في الوردية
+                if amount > shift.expected_closing_balance:
+                    messages.error(request, f"خطأ: لا يمكن سداد المبلغ من الوردية الحالية لأن النقدية المتوفرة في درج الوردية ({shift.expected_closing_balance} ج.م) أقل من المبلغ المراد سداده ({amount} ج.م).")
+                    next_url = request.META.get('HTTP_REFERER')
+                    if next_url:
+                        return redirect(next_url)
+                    return redirect('erp:purchase_list')
+                    
+                # إيجاد أو إنشاء تصنيف سداد الموردين
+                category, created = ExpenseCategory.objects.get_or_create(name="سداد موردين")
+                
+                # تسجيل المصروف
+                Expense.objects.create(
+                    shift=shift,
+                    category=category,
+                    amount=amount,
+                    description=f"سداد دفعة لفاتورة المشتريات رقم {invoice.supplier_invoice_number or invoice.id} للمورد {invoice.supplier.name}"
+                )
+                
+            # تحديث قيمة المبلغ المدفوع في الفاتورة
+            invoice.paid_amount += amount
+            invoice.save()
+            
+        messages.success(request, f"تم تسجيل سداد مبلغ {amount} ج.م للمورد {invoice.supplier.name} بنجاح.")
+        
+        # التوجيه لنفس الصفحة التي تم استدعاء الطلب منها
+        next_url = request.META.get('HTTP_REFERER')
+        if next_url:
+            return redirect(next_url)
+        return redirect('erp:purchase_list')
+        
+    return redirect('erp:purchase_list')
+
+# ==========================================
+# 5. حركة تحويل المخازن (Stock Transfers)
+# ==========================================
+@login_required
+@permission_required('erp.view_stocktransfer', raise_exception=True)

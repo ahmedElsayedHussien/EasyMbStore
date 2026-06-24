@@ -1,0 +1,41 @@
+            'price': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+RepairPartUsedFormSet = inlineformset_factory(
+    RepairTicket, RepairPartUsed,
+    form=RepairPartUsedForm,
+    extra=1,
+    can_delete=True
+)
+
+# ==========================================
+# 6. الخزينة والورديات والمصروفات (Shifts & Expenses)
+# ==========================================
+class CashShiftOpenForm(forms.ModelForm):
+    class Meta:
+        model = CashShift
+        fields = ['opening_balance']
+        widgets = {
+            'opening_balance': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'أدخل مبلغ عهدة البداية'}),
+        }
+
+class CashShiftCloseForm(forms.ModelForm):
+    class Meta:
+        model = CashShift
+        fields = ['actual_cash']
+        widgets = {
+            'actual_cash': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'أدخل المبلغ الفعلي بالدرج'}),
+        }
+
+class ExpenseForm(forms.ModelForm):
+    class Meta:
+        model = Expense
+        fields = ['category', 'amount', 'description']
+        widgets = {
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'المبلغ'}),
+            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'الوصف / ملاحظات'}),
+        }
+
+
+# ==========================================

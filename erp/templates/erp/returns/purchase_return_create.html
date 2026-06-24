@@ -1,0 +1,108 @@
+{% extends 'erp/base.html' %}
+{% block title %}مرتجع مشتريات - فاتورة #{{ purchase_invoice.id }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-primary"><i class="bi bi-box-arrow-right"></i> إصدار مرتجع مشتريات (رد للمورد)</h2>
+    <a href="{% url 'erp:purchase_detail' purchase_invoice.id %}" class="btn btn-outline-secondary">العودة للفاتورة</a>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="glass-card p-4">
+            <h5 class="text-warning mb-3">تفاصيل الفاتورة الأصلية #{{ purchase_invoice.id }}</h5>
+            <p><strong>المورد:</strong> {{ purchase_invoice.supplier.name }}</p>
+            <p><strong>التاريخ:</strong> {{ purchase_invoice.invoice_date|date:"Y-m-d H:i" }}</p>
+            <p><strong>الإجمالي:</strong> {{ purchase_invoice.net_amount }} ج.م</p>
+            
+            <hr class="border-secondary">
+            
+            <form method="post">
+                {% csrf_token %}
+                <h5 class="text-info mb-3">اختر الأصناف المراد إرجاعها للمورد (سيتم خصمها من المخزن):</h5>
+                <div class="table-responsive mb-4">
+                    <table class="table table-dark table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>الصنف</th>
+                                <th>المخزن</th>
+                                <th>الكمية المشتراة</th>
+                                <th>سعر الوحدة</th>
+                                <th style="width: 150px;">الكمية المرتجعة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in purchase_invoice.items.all %}
+                            <tr>
+                                <td>{{ item.product.name }}</td>
+                                <td>{{ item.warehouse.name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.unit_price }} ج.م</td>
+                                <td>
+                                    <input type="number" name="return_qty_{{ item.id }}" class="form-control form-control-sm return-qty" 
+                                        min="0" max="{{ item.quantity }}" value="0" data-price="{{ item.unit_price }}">
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center text-muted">لا يوجد أصناف في هذه الفاتورة.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <h5 class="text-success mb-3">تفاصيل الاسترداد المالي:</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-light">الخزينة (لإيداع المبلغ المسترد فيها): <span class="text-danger">*</span></label>
+                        <select name="treasury_id" class="form-select" required>
+                            <option value="">-- اختر الخزينة --</option>
+                            {% for t in treasuries %}
+                            <option value="{{ t.id }}">{{ t.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-light">إجمالي المبلغ المسترد (ج.م): <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" name="refund_amount" id="refund_amount" class="form-control" value="0.00" required>
+                        <small class="text-info" id="suggested_refund">المبلغ المقترح بناءً على الكميات: 0.00 ج.م</small>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label text-light">سبب الاسترجاع / ملاحظات:</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                
+                <div class="mt-4 text-end">
+                    <button type="submit" class="btn btn-success px-4 fw-bold">
+                        <i class="bi bi-check-circle-fill"></i> تأكيد إرجاع المشتريات
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const qtyInputs = document.querySelectorAll('.return-qty');
+        const refundInput = document.getElementById('refund_amount');
+        const suggestedText = document.getElementById('suggested_refund');
+        
+        function calculateRefund() {
+            let total = 0;
+            qtyInputs.forEach(input => {
+                const qty = parseInt(input.value) || 0;
+                const price = parseFloat(input.getAttribute('data-price')) || 0;
+                total += qty * price;
+            });
+            suggestedText.textContent = `المبلغ المقترح بناءً على الكميات: ${total.toFixed(2)} ج.م`;
+            // يمكنك تعيين القيمة تلقائياً إذا أردت
+            // refundInput.value = total.toFixed(2);
+        }
+        
+        qtyInputs.forEach(input => {
+            input.addEventListener('input', calculateRefund);
+        });
+    });
+</script>
+{% endblock %}

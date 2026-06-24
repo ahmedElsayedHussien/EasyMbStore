@@ -1,0 +1,189 @@
+{% extends 'erp/base.html' %}
+
+{% block title %}EasyMB - فواتير المبيعات{% endblock %}
+
+{% block content %}
+<div class="glass-card p-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <h4 class="mb-0 text-primary fw-bold"><i class="bi bi-receipt-cutoff"></i> سجل فواتير المبيعات</h4>
+        <div class="d-flex gap-2">
+            <form method="GET" class="d-flex">
+                <input type="text" name="q" class="form-control bg-dark border-secondary text-light me-2" placeholder="بحث برقم الفاتورة أو العميل..." value="{{ query }}">
+                <button type="submit" class="btn btn-outline-primary"><i class="bi bi-search"></i></button>
+            </form>
+            <a href="{% url 'erp:pos' %}" class="btn btn-primary"><i class="bi bi-cart-plus"></i> فاتورة مبيعات جديدة</a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-custom text-nowrap">
+            <thead>
+                <tr>
+                    <th>رقم الفاتورة</th>
+                    <th>العميل</th>
+                    <th>الكاشير</th>
+                    <th>الإجمالي</th>
+                    <th>الخصم</th>
+                    <th>صافي الفاتورة</th>
+                    <th>طريقة الدفع</th>
+                    <th>المدفوع</th>
+                    <th>الآجل (المتبقي)</th>
+                    <th>التاريخ</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for invoice in page_obj %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'erp:sale_detail' invoice.id %}" class="fw-bold text-primary text-decoration-none">
+                                #{{ invoice.id }}
+                            </a>
+                        </td>
+                        <td>{{ invoice.customer.name }}</td>
+                        <td>{{ invoice.cashier.username }}</td>
+                        <td>{{ invoice.total_amount }} ج.م</td>
+                        <td class="text-danger">{% if invoice.discount > 0 %}-{{ invoice.discount }} ج.م{% else %}0.00{% endif %}</td>
+                        <td class="text-success fw-bold">{{ invoice.net_amount }} ج.م</td>
+                        <td>
+                            {% if invoice.payment_method == 'cash' %}
+                                <span class="badge bg-success">مسددة بالكامل</span>
+                            {% elif invoice.payment_method == 'credit' %}
+                                <span class="badge bg-danger">آجل بالكامل</span>
+                            {% elif invoice.payment_method == 'partial' %}
+                                <span class="badge bg-warning text-dark">مسدد جزئياً</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-light">{{ invoice.paid_amount }} ج.م</td>
+                        <td class="fw-bold {% if invoice.remaining_amount > 0 %}text-warning{% else %}text-secondary{% endif %}">
+                            {{ invoice.remaining_amount }} ج.م
+                        </td>
+                        <td>{{ invoice.date_created|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            {% if invoice.remaining_amount > 0 %}
+                                <button type="button" class="btn btn-sm btn-outline-success btn-pay" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#payInvoiceModal"
+                                        data-invoice-id="{{ invoice.id }}" 
+                                        data-customer-name="{{ invoice.customer.name }}"
+                                        data-remaining="{{ invoice.remaining_amount }}">
+                                    <i class="bi bi-cash-coin"></i> سداد دفعة
+                                </button>
+                            {% endif %}
+                            <a href="{% url 'erp:sale_detail' invoice.id %}" class="btn btn-sm btn-outline-info">
+                                <i class="bi bi-eye"></i> عرض
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center text-secondary py-4">
+                            <i class="bi bi-search fs-2 d-block mb-2 text-muted"></i>
+                            لا توجد فواتير مبيعات مسجلة حتى الآن.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center pagination-sm">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page=1{% if query %}&q={{ query }}{% endif %}">&laquo; الأولى</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">السابق</a></li>
+            {% endif %}
+
+            <li class="page-item disabled"><span class="page-link">صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span></li>
+
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">التالي</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}">الأخيرة &raquo;</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- Modal سداد دفعة -->
+<div class="modal fade" id="payInvoiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-glass">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-success"><i class="bi bi-cash-coin"></i> تسجيل سداد دفعة (مبيعات)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="payInvoiceForm" method="POST" action="">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">العميل</label>
+                        <input type="text" id="modal-customer-name" class="form-control bg-dark border-secondary text-light" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">المبلغ المتبقي الحالي</label>
+                        <div class="input-group">
+                            <input type="text" id="modal-remaining-amount" class="form-control bg-dark border-secondary text-light fw-bold" readonly>
+                            <span class="input-group-text bg-secondary border-secondary text-light">ج.م</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal-pay-amount" class="form-label text-light fw-bold">المبلغ المراد تحصيله</label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" min="0.01" name="amount" id="modal-pay-amount" class="form-control bg-dark border-primary text-light fw-bold text-success" required>
+                            <span class="input-group-text bg-primary border-primary text-light">ج.م</span>
+                        </div>
+                        <div class="form-text text-secondary">أقصى مبلغ يمكن تحصيله هو المبلغ المتبقي للفاتورة.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="modal-treasury" class="form-label text-light fw-bold">اختر الخزينة لاستلام المبلغ</label>
+                        <select name="treasury" id="modal-treasury" class="form-select bg-dark border-primary text-light" required>
+                            <option value="">-- اختر خزينة --</option>
+                            {% for t in active_treasuries %}
+                                <option value="{{ t.id }}">{{ t.name }} (الرصيد: {{ t.balance }} ج.م)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer modal-footer-glass">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> تأكيد السداد</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const payButtons = document.querySelectorAll('.btn-pay');
+        const form = document.getElementById('payInvoiceForm');
+        const customerInput = document.getElementById('modal-customer-name');
+        const remainingInput = document.getElementById('modal-remaining-amount');
+        const payAmountInput = document.getElementById('modal-pay-amount');
+        
+        payButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const invoiceId = this.dataset.invoiceId;
+                const customerName = this.dataset.customerName;
+                const remaining = parseFloat(this.dataset.remaining);
+                
+                // Set values
+                customerInput.value = customerName;
+                remainingInput.value = remaining;
+                payAmountInput.max = remaining;
+                payAmountInput.value = remaining;
+                
+                // Update form action URL
+                let actionUrl = "{% url 'erp:sale_pay' 0 %}".replace('0', invoiceId);
+                form.action = actionUrl;
+            });
+        });
+    });
+</script>
+{% endblock %}

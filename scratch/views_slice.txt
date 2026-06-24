@@ -1,0 +1,131 @@
+# 7. إدارة الخزينة والورديات (Cash Shifts)
+# ==========================================
+@login_required
+@permission_required('erp.view_cashshift', raise_exception=True)
+def shift_manage_view(request):
+    # الوردية المفتوحة الحالية للكاشير
+    active_shift = CashShift.objects.filter(cashier=request.user, status='open').first()
+    if active_shift:
+        # إحضار المصاريف والعمليات التابعة للوردية الحالية
+        expenses = active_shift.expenses.all().select_related('category')
+        sales = SaleInvoice.objects.filter(shift=active_shift).select_related('customer')
+        # حساب إجمالي المبيعات الكاش
+        cash_sales = Payment.objects.filter(
+            invoice__shift=active_shift,
+            payment_method='cash'
+        ).aggregate(total=models.Sum('amount'))['total'] or 0.00
+        # حساب إجمالي المبيعات فيزا ومحفظة
+        visa_sales = Payment.objects.filter(
+            invoice__shift=active_shift,
+            payment_method='visa'
+        ).aggregate(total=models.Sum('amount'))['total'] or 0.00
+        wallet_sales = Payment.objects.filter(
+            invoice__shift=active_shift,
+            payment_method='wallet'
+        ).aggregate(total=models.Sum('amount'))['total'] or 0.00
+        expense_form = ExpenseForm()
+        close_form = CashShiftCloseForm(instance=active_shift)
+        context = {
+            'active_shift': active_shift,
+            'expenses': expenses,
+            'sales': sales,
+            'cash_sales': cash_sales,
+            'visa_sales': visa_sales,
+            'wallet_sales': wallet_sales,
+            'expense_form': expense_form,
+            'close_form': close_form,
+        }
+        return render(request, 'erp/shift_detail.html', context)
+    else:
+        # شاشة فتح وردية جديدة
+        if request.method == 'POST':
+            # التحقق الإضافي لمنع فتح أكثر من وردية لنفس الكاشير
+            already_open = CashShift.objects.filter(cashier=request.user, status='open').exists()
+            if already_open:
+                messages.error(request, "خطأ: لديك وردية مفتوحة بالفعل. لا يمكن فتح وردية جديدة قبل إغلاق الوردية الحالية.")
+                return redirect('erp:shift_manage')
+            form = CashShiftOpenForm(request.POST)
+            if form.is_valid():
+                shift = form.save(commit=False)
+                shift.cashier = request.user
+                shift.status = 'open'
+                shift.save()
+                messages.success(request, "تم فتح الوردية بنجاح. يومك مبارك ورزقك واسع!")
+                return redirect('erp:dashboard')
+        else:
+            form = CashShiftOpenForm()
+        return render(request, 'erp/shift_open.html', {'form': form})
+@login_required
+@permission_required('erp.add_expense', raise_exception=True)
+@require_POST
+def shift_add_expense(request):
+    if not (request.user.is_staff or request.user.is_superuser):
+        return JsonResponse({'error': 'غير مسموح للكاشير بتسجيل مصروفات'}, status=403)
+    
+    with transaction.atomic():
+        active_shift = CashShift.objects.select_for_update().filter(cashier=request.user, status='open').first()
+        if not active_shift:
+            return JsonResponse({'error': 'لا توجد وردية مفتوحة لتسجيل المصاريف'}, status=400)
+        
+        form = ExpenseForm(request.POST)
+        if form.is_valid():
+            expense = form.save(commit=False)
+            expense.shift = active_shift
+            
+            # منع تسجيل مصروف أكبر من الرصيد المتوفر في درج الوردية
+            if expense.amount > active_shift.expected_closing_balance:
+                return JsonResponse({
+                    'error': f'عذراً، لا يمكن تسجيل مصروف بقيمة {expense.amount} ج.م لأن النقدية المتوفرة في درج الوردية حالياً هي {active_shift.expected_closing_balance} ج.م فقط.'
+                }, status=400)
+                
+            expense.save() # سيقوم الـ Signal بإعادة حساب الوردية تلقائياً
+            return JsonResponse({
+                'status': 'success',
+                'amount': float(expense.amount),
+                'category': expense.category.name,
+                'description': expense.description
+            })
+    return JsonResponse({'error': 'بيانات غير صالحة'}, status=400)
+@login_required
+@permission_required('erp.change_cashshift', raise_exception=True)
+@require_POST
+def shift_close(request):
+    with transaction.atomic():
+        active_shift = CashShift.objects.select_for_update().filter(cashier=request.user, status='open').first()
+        if not active_shift:
+            messages.error(request, "لا توجد وردية مفتوحة لإغلاقها.")
+            return redirect('erp:shift_manage')
+        form = CashShiftCloseForm(request.POST, instance=active_shift)
+        if form.is_valid():
+            shift = form.save(commit=False)
+            shift.status = 'closed'
+            shift.end_time = timezone.now()
+            shift.save() # سيقوم الـ pre_save بتحديث expected_closing_balance للمرة الأخيرة
+            discrepancy = shift.actual_cash - shift.expected_closing_balance
+            if discrepancy == 0:
+                messages.success(request, "تم إغلاق الوردية وتصفيتها بنجاح بدون أي فروقات.")
+            elif discrepancy > 0:
+                messages.warning(request, f"تم إغلاق الوردية بوجود فائض قدره {discrepancy} ج.م.")
+            else:
+                messages.error(request, f"تم إغلاق الوردية بوجود عجز قدره {abs(discrepancy)} ج.م.")
+            return redirect('erp:dashboard')
+    messages.error(request, "حدث خطأ أثناء محاولة إغلاق الوردية.")
+    return redirect('erp:shift_manage')
+@login_required
+def device_history(request, pk):
+    device = get_object_or_404(Device, pk=pk)
+    # 1. تفاصيل الشراء (جديد من مورد)
+    purchase_invoice = None
+    purchase_item = None
+    if device.purchased_from and device.purchased_from.contact_type == 'supplier':
+        items = PurchaseItem.objects.filter(product=device.product)
+        for item in items:
+            if item.imei_list:
+                imeis = [i.strip() for i in item.imei_list.replace('/', ',').split(',') if i.strip()]
+                if device.imei in imeis or (device.imei2 and device.imei2 in imeis):
+                    purchase_item = item
+                    purchase_invoice = item.invoice
+                    break
+    # 2. تفاصيل البيع
+    sale_item = SaleItem.objects.filter(device=device).first()
+    sale_invoice = sale_item.invoice if sale_item else None

@@ -1,0 +1,155 @@
+{% extends 'erp/base.html' %}
+{% block title %}مسير الرواتب{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-primary"><i class="bi bi-cash-stack"></i> مسير الرواتب (Payroll)</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#generatePayrollModal">
+        <i class="bi bi-gear-fill"></i> توليد رواتب شهر
+    </button>
+</div>
+
+<div class="glass-card p-4">
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle custom-table">
+            <thead>
+                <tr>
+                    <th>الموظف</th>
+                    <th>الشهر/السنة</th>
+                    <th>الأساسي</th>
+                    <th>الإضافي</th>
+                    <th>الخصومات</th>
+                    <th>الصافي المستحق</th>
+                    <th>حالة الصرف</th>
+                    <th>إجراء</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payroll in payrolls %}
+                <tr>
+                    <td class="fw-bold">{{ payroll.employee.user.get_full_name|default:payroll.employee.user.username }}</td>
+                    <td>{{ payroll.month }} / {{ payroll.year }}</td>
+                    <td>{{ payroll.base_pay }} ج.م</td>
+                    <td class="text-success">+ {{ payroll.overtime_pay }} ج.م</td>
+                    <td class="text-danger">- {{ payroll.deductions }} ج.م</td>
+                    <td class="text-info fw-bold">{{ payroll.net_salary }} ج.م</td>
+                    <td>
+                        {% if payroll.is_paid %}
+                            <span class="badge bg-success">تم الصرف</span><br>
+                            <small class="text-muted">{{ payroll.paid_at|date:"Y-m-d" }}</small>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">قيد الانتظار</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if not payroll.is_paid %}
+                            <button class="btn btn-sm btn-success pay-btn" 
+                                data-bs-toggle="modal" data-bs-target="#payPayrollModal"
+                                data-id="{{ payroll.id }}"
+                                data-amount="{{ payroll.net_salary }}"
+                                data-emp="{{ payroll.employee.user.get_full_name|default:payroll.employee.user.username }}"
+                                data-month="{{ payroll.month }}/{{ payroll.year }}">
+                                <i class="bi bi-wallet2"></i> صرف الراتب
+                            </button>
+                        {% else %}
+                            <button class="btn btn-sm btn-outline-secondary" disabled>تم</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">لا توجد سجلات رواتب.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- مودال توليد مسير الرواتب -->
+<div class="modal fade" id="generatePayrollModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content glass-card">
+            <form method="post" action="{% url 'erp:payroll_generate' %}">
+                {% csrf_token %}
+                <div class="modal-header border-bottom border-secondary">
+                    <h5 class="modal-title text-primary">توليد رواتب شهر</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-light">سيتم حساب الرواتب والخصومات والإضافي لجميع الموظفين بناءً على سجلات البصمة الخاصة بهذا الشهر.</p>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label">الشهر</label>
+                            <input type="number" name="month" class="form-control" min="1" max="12" value="{% now 'n' %}" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">السنة</label>
+                            <input type="number" name="year" class="form-control" min="2020" value="{% now 'Y' %}" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">توليد الرواتب</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- مودال صرف الراتب -->
+<div class="modal fade" id="payPayrollModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content glass-card">
+            <form method="post" id="payPayrollForm">
+                {% csrf_token %}
+                <div class="modal-header border-bottom border-secondary">
+                    <h5 class="modal-title text-success">صرف راتب الموظف</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2"><strong>الموظف:</strong> <span id="pay-emp-name" class="text-light"></span></p>
+                    <p class="mb-2"><strong>عن شهر:</strong> <span id="pay-month" class="text-light"></span></p>
+                    <p class="mb-4"><strong>المبلغ المستحق:</strong> <span id="pay-amount" class="text-info fw-bold fs-5"></span> ج.م</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-warning">اختر الخزينة (الدرج) لخصم المبلغ منها:</label>
+                        <select name="treasury_id" class="form-select" required>
+                            <option value="">-- اختر الخزينة --</option>
+                            {% for t in treasuries %}
+                                <option value="{{ t.id }}">{{ t.name }} (رصيد: {{ t.balance }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success">تأكيد عملية الصرف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const payBtns = document.querySelectorAll('.pay-btn');
+    payBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            const amount = this.getAttribute('data-amount');
+            const emp = this.getAttribute('data-emp');
+            const month = this.getAttribute('data-month');
+            
+            document.getElementById('pay-emp-name').textContent = emp;
+            document.getElementById('pay-month').textContent = month;
+            document.getElementById('pay-amount').textContent = amount;
+            
+            const form = document.getElementById('payPayrollForm');
+            form.action = `/hr/payroll/${id}/pay/`;
+        });
+    });
+});
+</script>
+{% endblock %}

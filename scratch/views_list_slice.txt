@@ -1,0 +1,21 @@
+    return JsonResponse({'products': results})
+# ==========================================
+# 4. المشتريات (Purchase Invoices)
+# ==========================================
+@login_required
+@permission_required('erp.view_purchaseinvoice', raise_exception=True)
+def purchase_invoice_list(request):
+    from erp.models import CashShift
+    purchases = PurchaseInvoice.objects.all().order_by('-invoice_date').select_related('supplier', 'created_by')
+    has_open_shift = CashShift.objects.filter(cashier=request.user, status='open').exists()
+    return render(request, 'erp/purchase_list.html', {
+        'purchases': purchases,
+        'has_open_shift': has_open_shift
+    })
+@login_required
+@permission_required('erp.add_purchaseinvoice', raise_exception=True)
+def purchase_invoice_create(request):
+    store_setting = StoreSetting.objects.first()
+    if request.method == 'POST':
+        invoice_form = PurchaseInvoiceForm(request.POST)
+        formset = PurchaseItemFormSet(request.POST)

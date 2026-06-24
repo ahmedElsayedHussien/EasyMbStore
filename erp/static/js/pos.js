@@ -372,25 +372,50 @@ function calculateInvoiceTotals() {
         document.getElementById("trade-in-device-select").value = "";
     }
 
-    // تحديث طرق الدفع مع الحفاظ على قيم فيزا ومحفظة المدخلة وتعديل الكاش تلقائياً ومنع التلاعب
+    // تحديث طرق الدفع
+    let payCash = parseFloat(document.getElementById("pay-cash").value) || 0;
     let payVisa = parseFloat(document.getElementById("pay-visa").value) || 0;
     let payWallet = parseFloat(document.getElementById("pay-wallet").value) || 0;
 
-    if (payVisa > netAmount) {
-        payVisa = netAmount;
-        document.getElementById("pay-visa").value = payVisa.toFixed(2);
-    }
-    if (payWallet > netAmount - payVisa) {
-        payWallet = netAmount - payVisa;
-        document.getElementById("pay-wallet").value = payWallet.toFixed(2);
-    }
-    if (payVisa > netAmount - payWallet) {
-        payVisa = netAmount - payWallet;
-        document.getElementById("pay-visa").value = payVisa.toFixed(2);
-    }
+    const isCreditSale = document.getElementById("enable-credit-sale").checked;
 
-    const remainingCash = Math.max(0, netAmount - payVisa - payWallet);
-    document.getElementById("pay-cash").value = remainingCash.toFixed(2);
+    if (!isCreditSale) {
+        // دفع كامل: منع تجاوز الصافي وضبط الكاش تلقائياً بناءً على ما أدخل في الفيزا والمحفظة
+        if (payVisa > netAmount) payVisa = netAmount;
+        if (payWallet > netAmount - payVisa) payWallet = netAmount - payVisa;
+        
+        document.getElementById("pay-visa").value = payVisa.toFixed(2);
+        document.getElementById("pay-wallet").value = payWallet.toFixed(2);
+        
+        payCash = Math.max(0, netAmount - payVisa - payWallet);
+        document.getElementById("pay-cash").value = payCash.toFixed(2);
+        
+        document.getElementById("summary-remaining-section").classList.add("d-none");
+    } else {
+        // بيع آجل: لا يتم ضبط الكاش تلقائياً، ويتم حساب المتبقي
+        let totalPaid = payCash + payVisa + payWallet;
+        // منع دفع مبلغ أكبر من الصافي في حالة الآجل أيضاً
+        if (totalPaid > netAmount) {
+            payCash = Math.max(0, netAmount - payVisa - payWallet);
+            document.getElementById("pay-cash").value = payCash.toFixed(2);
+            totalPaid = netAmount;
+        }
+        
+        let remaining = Math.max(0, netAmount - totalPaid);
+        document.getElementById("summary-remaining").textContent = `${remaining.toFixed(2)} ج.م`;
+        document.getElementById("summary-remaining-section").classList.remove("d-none");
+    }
+}
+
+function toggleCreditSale() {
+    const isCredit = document.getElementById("enable-credit-sale").checked;
+    const cashInput = document.getElementById("pay-cash");
+    if (isCredit) {
+        cashInput.removeAttribute("readonly");
+    } else {
+        cashInput.setAttribute("readonly", true);
+    }
+    calculateInvoiceTotals();
 }
 
 // إرسال الفاتورة والتسوية
@@ -427,8 +452,15 @@ function submitPOSInvoice() {
     const netAmount = parseFloat(document.getElementById("summary-net").textContent);
     const totalPaid = payCash + payVisa + payWallet;
 
-    if (Math.abs(totalPaid - netAmount) > 0.02) {
-        alert(`المجموع المدفوع (${totalPaid.toFixed(2)}) لا يتطابق مع صافي الفاتورة (${netAmount.toFixed(2)})`);
+    const isCreditSale = document.getElementById("enable-credit-sale").checked;
+    
+    if (totalPaid > netAmount + 0.02) {
+        alert(`المجموع المدفوع (${totalPaid.toFixed(2)}) لا يمكن أن يكون أكبر من صافي الفاتورة (${netAmount.toFixed(2)})`);
+        return;
+    }
+    
+    if (!isCreditSale && totalPaid < netAmount - 0.02) {
+        alert(`المجموع المدفوع (${totalPaid.toFixed(2)}) أقل من الصافي (${netAmount.toFixed(2)}). يرجى تفعيل (البيع بالآجل) أو تسديد كامل المبلغ.`);
         return;
     }
 

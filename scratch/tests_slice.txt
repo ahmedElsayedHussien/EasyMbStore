@@ -1,0 +1,83 @@
+=== SLICE 1: lines 530-555 ===
+
+    def test_cannot_open_multiple_shifts_simultaneously(self):
+        """
+        التحقق من عدم السماح للكاشير بفتح وردية جديدة إذا كان لديه وردية مفتوحة بالفعل.
+        """
+        self.client.login(username='cashier_test', password='password123')
+        
+        # فتح وردية أولى
+        response = self.client.post('/shifts/', {'opening_balance': '1000.00'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(CashShift.objects.filter(cashier=self.cashier_user, status='open').count(), 1)
+        
+        # محاولة فتح وردية ثانية بينما الأولى مفتوحة
+        response_dup = self.client.post('/shifts/', {'opening_balance': '500.00'})
+        self.assertEqual(response_dup.status_code, 200)
+        
+        # التأكد من أنه لم يفتح وردية ثانية مفتوحة
+        self.assertEqual(CashShift.objects.filter(cashier=self.cashier_user, status='open').count(), 1)
+
+    def test_cashier_expense_restriction(self):
+        """
+        التحقق من حجب تسجيل المصروفات وقائمة المصروفات عن الكاشير (غير المسؤول) 
+        وإظهارها للمسؤولين (is_staff/is_superuser).
+        """
+        from erp.models import CashShift, ExpenseCategory
+        # 1. تهيئة وردية للكاشير
+
+=== SLICE 2: lines 755-780 ===
+            warehouse=warehouse,
+            cost=Decimal('35000.00'),
+            storage='1gb',  # المساحة المضافة الجديدة
+            ram='12',
+            used_status='good_condition',
+            is_tax_paid=True, # خالص الضريبة
+            notes='تجربة مواصفات وضريبة'
+        )
+        
+        response = self.client.get(f'/devices/{device.pk}/history/')
+        self.assertEqual(response.status_code, 200)
+        
+        self.assertContains(response, 'سامسونج S24')
+        self.assertContains(response, '555554444433333')
+        self.assertContains(response, '1 جيجا')
+        self.assertContains(response, '12 رام')
+        self.assertContains(response, 'خالص الضريبة')
+        self.assertContains(response, 'تجربة مواصفات وضريبة')
+
+    def test_out_of_stock_products_hidden_in_pos(self):
+        """
+        التحقق من إخفاء المنتجات التي نفذت كميتها (الأجهزة المباعة أو الإكسسوارات صفرية المخزن) من شاشة البيع.
+        """
+        self.client.login(username='cashier_test', password='password123')
+        warehouse = Warehouse.objects.create(name='المعرض الرئيسي', is_active=True)
+        
+
+=== SLICE 3: lines 1315-1340 ===
+        self.assertEqual(response.status_code, 403) # Forbidden
+        
+        # 3. مستخدم بصلاحية (أدمن) يسدد دفعة بدون خصم من الوردية
+        self.client.login(username='admin_details', password='password123')
+        response = self.client.post(f'/purchases/{credit_invoice.id}/pay/', {
+            'amount': '150.00',
+            'deduct_from_shift': 'off'
+        })
+        self.assertEqual(response.status_code, 302) # Redirect
+        
+        # تحقق من تعديل الفاتورة
+        credit_invoice.refresh_from_db()
+        self.assertEqual(credit_invoice.paid_amount, Decimal('150.00'))
+        self.assertEqual(credit_invoice.remaining_amount, Decimal('350.00'))
+        
+        # تحقق من عدم إضافة أي مصروفات
+        self.assertEqual(Expense.objects.filter(description__icontains=str(credit_invoice.id)).count(), 0)
+        
+        # 4. سداد مع الخصم من الوردية
+        # تعيين صلاحية تعديل فواتير الشراء للمستخدم الكاشير
+        from django.contrib.auth.models import Permission
+        change_invoice_perm = Permission.objects.get(codename='change_purchaseinvoice')
+        view_shift_perm = Permission.objects.get(codename='view_cashshift')
+        self.staff_cashier.user_permissions.add(change_invoice_perm, view_shift_perm)
+        
+        # تسجيل الدخول بالكاشير

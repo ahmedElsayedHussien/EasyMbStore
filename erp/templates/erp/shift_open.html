@@ -16,6 +16,12 @@
                 {% csrf_token %}
                 
                 <div class="mb-4">
+                    <label for="{{ form.treasury.id_for_label }}" class="fs-6 mb-2">الخزينة المربوطة:</label>
+                    {{ form.treasury }}
+                    {{ form.treasury.errors }}
+                </div>
+                
+                <div class="mb-4">
                     <label for="{{ form.opening_balance.id_for_label }}" class="fs-6 mb-2">مبلغ عهدة البداية (ج.م):</label>
                     {{ form.opening_balance }}
                     {{ form.opening_balance.errors }}
@@ -30,4 +36,37 @@
         </div>
     </div>
 </div>
+
+<script id="treasury-balances" type="application/json">
+    {{ treasury_balances_json|safe }}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const treasurySelect = document.querySelector('select[name="treasury"]');
+    const openingBalanceInput = document.querySelector('input[name="opening_balance"]');
+    const balancesData = document.getElementById('treasury-balances');
+    
+    if (treasurySelect && openingBalanceInput && balancesData) {
+        const balances = JSON.parse(balancesData.textContent);
+        
+        treasurySelect.addEventListener('change', function() {
+            const selectedId = this.value;
+            if (selectedId && balances[selectedId] !== undefined) {
+                openingBalanceInput.value = balances[selectedId].toFixed(2);
+            } else {
+                openingBalanceInput.value = '';
+            }
+        });
+        
+        // Trigger once on load if a treasury is already selected
+        if (treasurySelect.value && openingBalanceInput.value === '') {
+            const selectedId = treasurySelect.value;
+            if (balances[selectedId] !== undefined) {
+                openingBalanceInput.value = balances[selectedId].toFixed(2);
+            }
+        }
+    }
+});
+</script>
 {% endblock %}

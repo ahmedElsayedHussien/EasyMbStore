@@ -1,0 +1,164 @@
+{% extends 'erp/base.html' %}
+{% load static %}
+
+{% block title %}المديونيات وحسابات العملاء والموردين{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="text-primary mb-0"><i class="bi bi-wallet2"></i> إدارة المديونيات وحسابات العملاء والموردين</h3>
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#paymentModal">
+            <i class="bi bi-plus-lg"></i> تسجيل سند صرف / قبض
+        </button>
+    </div>
+
+    <!-- Tabs for Customers and Suppliers -->
+    <ul class="nav nav-tabs custom-tabs mb-4" id="debtsTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold fs-5" id="customers-tab" data-bs-toggle="tab" data-bs-target="#customers" type="button" role="tab" aria-controls="customers" aria-selected="true">
+                <i class="bi bi-people-fill text-warning"></i> مديونيات العملاء (مستحقات لنا)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold fs-5" id="suppliers-tab" data-bs-toggle="tab" data-bs-target="#suppliers" type="button" role="tab" aria-controls="suppliers" aria-selected="false">
+                <i class="bi bi-truck text-danger"></i> مستحقات الموردين (ديون علينا)
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="debtsTabContent">
+        <!-- Customers Tab -->
+        <div class="tab-pane fade show active" id="customers" role="tabpanel" aria-labelledby="customers-tab">
+            <div class="glass-card p-4">
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover">
+                        <thead>
+                            <tr>
+                                <th>اسم العميل</th>
+                                <th>رقم الهاتف</th>
+                                <th>المديونية (المتبقي عليه)</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in customers_with_debts %}
+                            <tr>
+                                <td>{{ customer.name }}</td>
+                                <td>{{ customer.phone|default:"--" }}</td>
+                                <td class="text-warning fw-bold fs-5">{{ customer.calculated_balance }} ج.م</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-success pay-btn" data-contact-id="{{ customer.id }}" data-contact-name="{{ customer.name }}" data-type="receipt" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                                        <i class="bi bi-cash-coin"></i> تحصيل دفعة
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-secondary py-4">لا توجد مديونيات مستحقة على العملاء.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Suppliers Tab -->
+        <div class="tab-pane fade" id="suppliers" role="tabpanel" aria-labelledby="suppliers-tab">
+            <div class="glass-card p-4">
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover">
+                        <thead>
+                            <tr>
+                                <th>اسم المورد</th>
+                                <th>رقم الهاتف</th>
+                                <th>المستحق للمورد (المتبقي له)</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for supplier in suppliers_with_dues %}
+                            <tr>
+                                <td>{{ supplier.name }}</td>
+                                <td>{{ supplier.phone|default:"--" }}</td>
+                                <td class="text-danger fw-bold fs-5">{{ supplier.calculated_balance }} ج.م</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-danger pay-btn" data-contact-id="{{ supplier.id }}" data-contact-name="{{ supplier.name }}" data-type="payment" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                                        <i class="bi bi-credit-card"></i> صرف دفعة للمورد
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-secondary py-4">لا توجد ديون مستحقة للموردين.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card border-secondary text-light">
+            <div class="modal-header border-secondary bg-dark">
+                <h5 class="modal-title text-primary" id="paymentModalLabel"><i class="bi bi-cash-stack"></i> تسجيل سند (صرف / قبض)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="modal-body bg-dark">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">جهة الاتصال:</label>
+                        {{ transaction_form.contact }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">الخزينة (سحب/إيداع):</label>
+                        {{ transaction_form.treasury }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary">نوع الحركة:</label>
+                        {{ transaction_form.transaction_type }}
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary">المبلغ:</label>
+                            {{ transaction_form.amount }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary">البيان/الملاحظات:</label>
+                            {{ transaction_form.description }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary bg-dark">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle"></i> تأكيد وحفظ السند</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const payBtns = document.querySelectorAll('.pay-btn');
+        payBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const contactId = this.getAttribute('data-contact-id');
+                const tType = this.getAttribute('data-type');
+                
+                // Set form values
+                document.getElementById('id_contact').value = contactId;
+                document.getElementById('id_transaction_type').value = tType;
+            });
+        });
+    });
+</script>
+{% endblock %}

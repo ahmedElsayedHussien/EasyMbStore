@@ -93,6 +93,45 @@
 
     <!-- اللوحة الرئيسية (البحث وقائمة المنتجات) -->
     <div class="pos-main-panel">
+        <!-- إعدادات الفاتورة (عميل، خصم، إلخ) - منقولة من الشريط الجانبي لتوفير المساحة -->
+        <div class="glass-card p-2 mb-3 bg-dark">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small text-secondary mb-1" for="customer-select"><i class="bi bi-person-fill text-primary"></i> العميل:</label>
+                    <select id="customer-select" class="form-select form-select-sm">
+                        {% for cust in customers %}
+                            <option value="{{ cust.id }}" {% if cust.contact_type == 'customer' and cust.name == 'عميل نقدي' or forloop.first %}selected{% endif %}>
+                                {{ cust.name }} ({{ cust.phone }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary mb-1" for="invoice-discount">الخصم (ج.م):</label>
+                    <input type="number" id="invoice-discount" class="form-control form-control-sm" value="0.00" min="0" step="0.01" oninput="calculateInvoiceTotals()">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary mb-1" for="trade-in-value">قيمة الاستبدال:</label>
+                    <input type="number" id="trade-in-value" class="form-control form-control-sm" value="0.00" min="0" step="0.01" oninput="calculateInvoiceTotals()">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary mb-1" for="warranty-days"><i class="bi bi-shield-check text-success"></i> ضمان (أيام):</label>
+                    <input type="number" id="warranty-days" class="form-control form-control-sm" value="14" min="0" step="1">
+                </div>
+                <div class="col-md-3 d-none" id="trade-in-device-section">
+                    <label class="form-label small text-secondary mb-1" for="trade-in-device-select"><i class="bi bi-arrow-left-right text-purple"></i> الجهاز المستبدل:</label>
+                    <select id="trade-in-device-select" class="form-select form-select-sm">
+                        <option value="">-- اختر --</option>
+                        {% for dev in available_devices %}
+                            {% if dev.condition == 'used' %}
+                                <option value="{{ dev.id }}" data-cost="{{ dev.cost|stringformat:'.2f' }}">{{ dev.product.name }} (IMEI: {{ dev.imei }})</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
         <!-- شريط البحث والباركود -->
         <div class="glass-card p-3 mb-3">
             <div class="row g-2 align-items-center">
@@ -139,7 +178,17 @@
                     hx-get="{% url 'erp:pos_product_grid' %}"
                     hx-target="#products-grid"
                     hx-include="#product-search, #active-category"
-                    onclick="setActiveCategory(event, 'accessory')">🔌 إكسسوارات</button>
+                    onclick="setActiveCategory(event, 'accessory')">🔌 إكسسوار عام</button>
+            <button type="button" class="btn btn-sm btn-outline-info btn-category px-3" data-category="cover_screen"
+                    hx-get="{% url 'erp:pos_product_grid' %}"
+                    hx-target="#products-grid"
+                    hx-include="#product-search, #active-category"
+                    onclick="setActiveCategory(event, 'cover_screen')">🛡️ جراب واسكرينة</button>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-category px-3" data-category="electrical"
+                    hx-get="{% url 'erp:pos_product_grid' %}"
+                    hx-target="#products-grid"
+                    hx-include="#product-search, #active-category"
+                    onclick="setActiveCategory(event, 'electrical')">💡 كهرباء</button>
             <button type="button" class="btn btn-sm btn-outline-warning btn-category px-3" data-category="spare_part"
                     hx-get="{% url 'erp:pos_product_grid' %}"
                     hx-target="#products-grid"
@@ -176,51 +225,7 @@
 
         <!-- خلاصة الحسابات وطرق الدفع -->
         <div class="pos-summary">
-            <!-- اختيار العميل -->
-            <div class="mb-3">
-                <label for="customer-select"><i class="bi bi-person-fill text-primary"></i> العميل:</label>
-                <select id="customer-select" class="form-select">
-                    {% for cust in customers %}
-                        <option value="{{ cust.id }}" {% if cust.contact_type == 'customer' and cust.name == 'عميل نقدي' or forloop.first %}selected{% endif %}>
-                            {{ cust.name }} ({{ cust.phone }})
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
 
-            <!-- تفاصيل الخصم والاستبدال -->
-            <div class="row g-2 mb-3">
-                <div class="col-6">
-                    <label for="invoice-discount">الخصم (ج.م):</label>
-                    <input type="number" id="invoice-discount" class="form-control" value="0.00" min="0" step="0.01" oninput="calculateInvoiceTotals()">
-                </div>
-                <div class="col-6">
-                    <label for="trade-in-value">قيمة الاستبدال (ج.م):</label>
-                    <input type="number" id="trade-in-value" class="form-control" value="0.00" min="0" step="0.01" oninput="calculateInvoiceTotals()">
-                </div>
-            </div>
-
-            <!-- مدة الضمان للأجهزة -->
-            <div class="mb-3">
-                <label for="warranty-days"><i class="bi bi-shield-check text-success"></i> مدة الضمان للأجهزة (أيام):</label>
-                <input type="number" id="warranty-days" class="form-control" value="14" min="0" step="1">
-            </div>
-
-            <!-- اختيار الجهاز المستبدل (Trade-in) -->
-            <div class="mb-3 d-none" id="trade-in-device-section">
-                <label for="trade-in-device-select"><i class="bi bi-arrow-left-right text-purple"></i> ربط الجهاز المستبدل (من المخزون):</label>
-                <select id="trade-in-device-select" class="form-select">
-                    <option value="">-- اختر الجهاز المستبدل --</option>
-                    {% for dev in available_devices %}
-                        {% if dev.condition == 'used' %}
-                            <option value="{{ dev.id }}" data-cost="{{ dev.cost|stringformat:'.2f' }}">{{ dev.product.name }} (IMEI: {{ dev.imei }}{% if dev.imei2 %} / {{ dev.imei2 }}{% endif %} - تكلفة: {{ dev.cost }} ج.م)</option>
-                        {% endif %}
-                    {% endfor %}
-                </select>
-                <div class="form-text text-secondary mt-1">
-                    ملاحظة: لتسجيل جهاز استبدال جديد، قم بتسجيله أولاً من شاشة "شراء المستعمل".
-                </div>
-            </div>
 
             <!-- ملخص الحساب -->
             <div class="border-top border-secondary pt-3 mb-3">
@@ -240,22 +245,32 @@
                     <span class="fw-bold text-light">الصافي المطلوب:</span>
                     <span id="summary-net" class="fw-bold text-success">0.00 ج.م</span>
                 </div>
+                <div class="d-flex justify-content-between fs-5 border-top border-secondary pt-2 mt-2 d-none" id="summary-remaining-section">
+                    <span class="fw-bold text-warning">المتبقي آجل:</span>
+                    <span id="summary-remaining" class="fw-bold text-warning">0.00 ج.م</span>
+                </div>
             </div>
 
             <!-- توزيع طرق الدفع -->
-            <h6 class="text-secondary mb-2"><i class="bi bi-credit-card-2-front"></i> توزيع الدفع والتحصيل:</h6>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="text-secondary mb-0"><i class="bi bi-credit-card-2-front"></i> توزيع الدفع والتحصيل:</h6>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="enable-credit-sale" onchange="toggleCreditSale()">
+                    <label class="form-check-label text-warning small" for="enable-credit-sale">تفعيل البيع بالآجل</label>
+                </div>
+            </div>
             <div class="row g-2 mb-3">
                 <div class="col-4">
                     <label class="small">كاش / نقدي</label>
-                    <input type="number" id="pay-cash" class="form-control bg-dark text-success fw-bold" value="0.00" step="0.01" readonly>
+                    <input type="number" id="pay-cash" class="form-control bg-dark text-success fw-bold" value="0.00" step="0.01" readonly oninput="calculateInvoiceTotals()">
                 </div>
                 <div class="col-4">
                     <label class="small">فيزا / كارت</label>
-                    <input type="number" id="pay-visa" class="form-control bg-dark text-info fw-bold" value="0.00" step="0.01">
+                    <input type="number" id="pay-visa" class="form-control bg-dark text-info fw-bold" value="0.00" step="0.01" oninput="calculateInvoiceTotals()">
                 </div>
                 <div class="col-4">
                     <label class="small">محفظة إلكترونية</label>
-                    <input type="number" id="pay-wallet" class="form-control bg-dark text-warning fw-bold" value="0.00" step="0.01">
+                    <input type="number" id="pay-wallet" class="form-control bg-dark text-warning fw-bold" value="0.00" step="0.01" oninput="calculateInvoiceTotals()">
                 </div>
             </div>
 

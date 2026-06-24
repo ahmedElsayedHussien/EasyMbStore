@@ -1,0 +1,50 @@
+        except Stock.DoesNotExist:
+            Stock.objects.create(product=product, warehouse=warehouse, quantity=qty)
+
+
+# ==========================================
+# 5. إدارة الخزينة والورديات (Shift & Expenses Balance)
+# ==========================================
+@receiver(pre_save, sender=CashShift)
+def handle_shift_pre_save(sender, instance, **kwargs):
+    # حساب الرصيد المتوقع إغلاق الوردية به تلقائياً
+    if instance.id:
+        cash_sales = Payment.objects.filter(
+            invoice__shift=instance,
+            payment_method='cash'
+        ).aggregate(total=models.Sum('amount'))['total'] or 0
+
+        total_expenses = Expense.objects.filter(
+            shift=instance
+        ).aggregate(total=models.Sum('amount'))['total'] or 0
+
+        instance.expected_closing_balance = instance.opening_balance + cash_sales - total_expenses
+    else:
+        instance.expected_closing_balance = instance.opening_balance
+
+
+def trigger_shift_recalculation(shift):
+    if shift and shift.status == 'open':
+        shift.save()  # سيقوم pre_save بإعادة الحساب تلقائياً
+
+
+@receiver(post_save, sender=Payment)
+def handle_payment_saved(sender, instance, **kwargs):
+    if instance.payment_method == 'cash':
+        trigger_shift_recalculation(instance.invoice.shift)
+
+
+@receiver(post_delete, sender=Payment)
+def handle_payment_deleted(sender, instance, **kwargs):
+    if instance.payment_method == 'cash':
+        trigger_shift_recalculation(instance.invoice.shift)
+
+
+@receiver(post_save, sender=Expense)
+def handle_expense_saved(sender, instance, **kwargs):
+    trigger_shift_recalculation(instance.shift)
+
+
+@receiver(post_delete, sender=Expense)
+def handle_expense_deleted(sender, instance, **kwargs):
+    trigger_shift_recalculation(instance.shift)

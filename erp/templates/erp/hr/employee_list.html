@@ -1,0 +1,63 @@
+{% extends 'erp/base.html' %}
+{% block title %}إدارة الموظفين{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-primary"><i class="bi bi-people-fill"></i> قائمة الموظفين</h2>
+    <a href="{% url 'erp:employee_create' %}" class="btn btn-success">
+        <i class="bi bi-person-plus-fill"></i> إضافة موظف جديد
+    </a>
+</div>
+
+<div class="glass-card p-4">
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle custom-table">
+            <thead>
+                <tr>
+                    <th>اسم الموظف</th>
+                    <th>الحالة</th>
+                    <th>ساعات العمل</th>
+                    <th>ميعاد الحضور والانصراف</th>
+                    <th>قيمة الساعة الأساسية</th>
+                    <th>تعديل</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in employees %}
+                <tr>
+                    <td>
+                        <span class="fw-bold text-light">{{ emp.user.get_full_name|default:emp.user.username }}</span>
+                    </td>
+                    <td>
+                        {% if emp.is_active %}
+                            <span class="badge bg-success">نشط</span>
+                        {% else %}
+                            <span class="badge bg-danger">غير نشط</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ emp.daily_working_hours }} ساعة</td>
+                    <td>
+                        <small class="text-secondary d-block">
+                            <i class="bi bi-box-arrow-in-right text-success"></i> الحضور: {{ emp.shift_start_time|default:"غير محدد"|time:"H:i" }}
+                        </small>
+                        <small class="text-secondary d-block">
+                            <i class="bi bi-box-arrow-left text-danger"></i> الانصراف: {{ emp.shift_end_time|default:"غير محدد"|time:"H:i" }}
+                        </small>
+                    </td>
+                    <td class="text-info fw-bold">{{ emp.hourly_rate }} ج.م</td>
+                    <td>
+                        <a href="{% url 'erp:employee_edit' emp.id %}" class="btn btn-sm btn-outline-warning">
+                            <i class="bi bi-pencil-square"></i> تعديل
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">لا يوجد موظفين مسجلين حالياً.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
