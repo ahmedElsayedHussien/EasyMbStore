@@ -1254,8 +1254,24 @@ def shift_close(request):
             else:
                 messages.error(request, f"تم إغلاق الوردية بوجود عجز قدره {abs(discrepancy)} ج.م.")
             return redirect('erp:dashboard')
-    messages.error(request, "حدث خطأ أثناء محاولة إغلاق الوردية.")
     return redirect('erp:shift_manage')
+
+@login_required
+@permission_required('erp.view_cashshift', raise_exception=True)
+def cash_status(request):
+    """
+    شاشة حالة النقدية: تعرض الخزائن والأرصدة الحالية
+    """
+    treasuries = Treasury.objects.filter(is_active=True).order_by('-balance')
+    
+    # حساب إجمالي النقدية
+    total_cash = sum(t.balance for t in treasuries)
+    
+    context = {
+        'treasuries': treasuries,
+        'total_cash': total_cash,
+    }
+    return render(request, 'erp/cash_status.html', context)
 @login_required
 def device_history(request, pk):
     device = get_object_or_404(Device, pk=pk)

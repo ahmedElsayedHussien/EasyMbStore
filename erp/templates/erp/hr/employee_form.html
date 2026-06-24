@@ -20,6 +20,16 @@
                 <div class="text-danger small">{{ form.user.errors }}</div>
                 {% endif %}
             </div>
+            <div class="col-md-12 mb-3">
+                <label class="form-label text-light fw-bold">{{ form.new_password.label }}</label>
+                {{ form.new_password }}
+                {% if form.new_password.help_text %}
+                <div class="form-text text-secondary"><i class="bi bi-info-circle"></i> {{ form.new_password.help_text }}</div>
+                {% endif %}
+                {% if form.new_password.errors %}
+                <div class="text-danger small">{{ form.new_password.errors }}</div>
+                {% endif %}
+            </div>
             
             <h5 class="text-warning mt-4 mb-3 border-bottom pb-2">بيانات الراتب وساعات العمل</h5>
             

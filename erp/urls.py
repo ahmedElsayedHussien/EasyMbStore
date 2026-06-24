@@ -55,8 +55,9 @@ urlpatterns = [
     path('repairs/<int:pk>/edit/', views.repair_ticket_edit, name='repair_edit'),
     path('contacts/add-ajax/', views.ajax_create_customer, name='ajax_create_customer'),
     
-    # الورديات والخزينة
+    # الوردية والنقدية
     path('shifts/', views.shift_manage_view, name='shift_manage'),
+    path('cash-status/', views.cash_status, name='cash_status'),
     path('shifts/add-expense/', views.shift_add_expense, name='shift_add_expense'),
     path('shifts/close/', views.shift_close, name='shift_close'),
     

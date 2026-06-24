@@ -372,10 +372,17 @@ class SystemUserCreationForm(forms.Form):
 # 10. شؤون الموظفين (HR)
 # ==========================================
 class EmployeeProfileForm(forms.ModelForm):
+    new_password = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'اتركه فارغاً إذا لم ترغب بتغيير كلمة المرور'}),
+        label="تغيير كلمة المرور (اختياري)",
+        help_text="إذا قمت بإدخال كلمة مرور هنا، سيتم تغيير كلمة مرور حساب هذا الموظف."
+    )
+
     class Meta:
         from erp.models import EmployeeProfile
         model = EmployeeProfile
-        fields = ['user', 'hourly_rate', 'daily_working_hours', 'shift_start_time', 'shift_end_time', 'deduction_per_hour', 'overtime_per_hour', 'base_salary', 'is_active']
+        fields = ['user', 'new_password', 'hourly_rate', 'daily_working_hours', 'shift_start_time', 'shift_end_time', 'deduction_per_hour', 'overtime_per_hour', 'base_salary', 'is_active']
         widgets = {
             'user': forms.Select(attrs={'class': 'form-select'}),
             'hourly_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
@@ -388,4 +395,14 @@ class EmployeeProfileForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
-
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        new_password = self.cleaned_data.get('new_password')
+        
+        if new_password and instance.user:
+            instance.user.set_password(new_password)
+            instance.user.save()
+            
+        if commit:
+            instance.save()
+        return instance
