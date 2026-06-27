@@ -19,10 +19,25 @@ national_id_validator = RegexValidator(
 )
 
 # ==========================================
-# 1. إعدادات المحل والهوية البصرية (Settings)
+# 1. إعدادات المحل والهوية البصرية والفروع (Settings & Branches)
 # ==========================================
+class Branch(models.Model):
+    name = models.CharField(max_length=100, verbose_name="اسم الفرع")
+    address = models.TextField(blank=True, null=True, verbose_name="عنوان الفرع")
+    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="رقم الهاتف")
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+
+    class Meta:
+        verbose_name = "فرع"
+        verbose_name_plural = "الفروع"
+
+    def __str__(self):
+        return self.name
+
 class StoreSetting(models.Model):
-    store_name = models.CharField(max_length=255, verbose_name="اسم المحل")
+    branch = models.OneToOneField(Branch, on_delete=models.CASCADE, null=True, blank=True, related_name='store_setting', verbose_name="الفرع المرتبط")
+    store_name = models.CharField(max_length=255, verbose_name="اسم المحل (العلامة التجارية)")
     logo = models.ImageField(upload_to='store_assets/', null=True, blank=True, verbose_name="شعار المحل")
     receipt_header = models.TextField(blank=True, verbose_name="ترويسة الفاتورة")
     receipt_footer = models.TextField(blank=True, verbose_name="تذييل الفاتورة")
@@ -33,6 +48,11 @@ class StoreSetting(models.Model):
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="خط العرض (Latitude) للمحل")
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="خط الطول (Longitude) للمحل")
     allowed_radius = models.IntegerField(default=50, verbose_name="النطاق المسموح للبصمة (بالمتر)")
+    
+    # إعدادات نظام نقاط الولاء
+    enable_loyalty_system = models.BooleanField(default=True, verbose_name="تفعيل نظام نقاط الولاء")
+    loyalty_points_per_egp = models.DecimalField(max_digits=10, decimal_places=2, default=1.00, verbose_name="عدد النقاط المكتسبة لكل جنيه")
+    egp_per_100_points = models.DecimalField(max_digits=10, decimal_places=2, default=5.00, verbose_name="قيمة الخصم لكل 100 نقطة مستبدلة")
 
     class Meta:
         verbose_name = "إعدادات المتجر"
@@ -52,12 +72,16 @@ class Contact(models.Model):
         ('used_seller', 'بائع أجهزة مستعملة (فرد)'),
     )
     name = models.CharField(max_length=255, verbose_name="الاسم")
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1, verbose_name="الفرع")
     phone = models.CharField(max_length=20, unique=True, validators=[phone_validator], verbose_name="رقم الهاتف")
     contact_type = models.CharField(max_length=20, choices=CONTACT_TYPES, verbose_name="نوع جهة الاتصال")
     
     # بيانات قانونية لبائعي الأجهزة المستعملة
     national_id = models.CharField(max_length=14, blank=True, null=True, validators=[national_id_validator], verbose_name="الرقم القومي")
     address = models.TextField(blank=True, null=True, verbose_name="العنوان")
+    
+    # رصيد نقاط الولاء للعميل
+    loyalty_points = models.IntegerField(default=0, verbose_name="رصيد نقاط الولاء")
     opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="رصيد أول المدة")
 
     @property
@@ -70,6 +94,9 @@ class Contact(models.Model):
             # خصم المبالغ المسددة (سندات القبض)
             receipts = self.contacttransaction_set.filter(transaction_type='receipt')
             balance -= sum(t.amount for t in receipts)
+            # خصم المديونية المرجعة (مرتجعات المبيعات)
+            for inv in self.saleinvoice_set.all():
+                balance -= sum(ret.debt_reduction for ret in inv.returns.all())
         elif self.contact_type == 'supplier':
             # المستحقات للمورد
             unpaid_purchases = self.purchaseinvoice_set.filter(payment_method__in=['credit', 'partial'])
@@ -77,6 +104,9 @@ class Contact(models.Model):
             # خصم المبالغ المدفوعة (سندات الصرف)
             payments = self.contacttransaction_set.filter(transaction_type='payment')
             balance -= sum(t.amount for t in payments)
+            # خصم المستحقات المرجعة (مرتجعات المشتريات)
+            for inv in self.purchaseinvoice_set.all():
+                balance -= sum(ret.debt_reduction for ret in inv.returns.all())
         return balance
 
     class Meta:
@@ -119,7 +149,8 @@ class ContactTransaction(models.Model):
 # 3. المخازن والأصناف (Inventory & Products)
 # ==========================================
 class Warehouse(models.Model):
-    name = models.CharField(max_length=100, verbose_name="اسم المخزن / الفرع")
+    name = models.CharField(max_length=100, verbose_name="اسم المخزن")
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1, verbose_name="الفرع")
     is_active = models.BooleanField(default=True, verbose_name="نشط")
 
     class Meta:
@@ -130,6 +161,7 @@ class Warehouse(models.Model):
         return self.name
 
 class Product(models.Model):
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1, verbose_name="الفرع")
     PRODUCT_TYPES = (
         ('phone', 'موبايل'),
         ('accessory', 'إكسسوار عام'),
@@ -194,6 +226,7 @@ class Device(models.Model):
     condition = models.CharField(max_length=20, choices=CONDITIONS, verbose_name="الحالة")
     warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, verbose_name="المخزن الحالي")
     is_sold = models.BooleanField(default=False, verbose_name="مباع؟")
+    is_returned_to_seller = models.BooleanField(default=False, verbose_name="تم إرجاعه للبائع")
     
     purchased_from = models.ForeignKey(Contact, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="تم الشراء من (للمستعمل)")
     cost = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="تكلفة الشراء")
@@ -239,6 +272,7 @@ class DeviceAttachment(models.Model):
 # 4. المشتريات وحركة المخزون (Purchases & Transfers)
 # ==========================================
 class PurchaseInvoice(models.Model):
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1, verbose_name="الفرع")
     supplier = models.ForeignKey(Contact, on_delete=models.PROTECT, limit_choices_to={'contact_type': 'supplier'}, verbose_name="المورد")
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="مستلم البضاعة")
     invoice_date = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الفاتورة")
@@ -325,6 +359,7 @@ class StockTransferItem(models.Model):
 # 5. إدارة الخزينة والورديات (Cash & Shifts)
 # ==========================================
 class CashShift(models.Model):
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1, verbose_name="الفرع")
     STATUS_CHOICES = (('open', 'مفتوحة'), ('closed', 'مغلقة'))
     cashier = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="الكاشير")
     start_time = models.DateTimeField(auto_now_add=True, verbose_name="وقت فتح الوردية")
@@ -351,6 +386,7 @@ class ExpenseCategory(models.Model):
         return self.name
 
 class Expense(models.Model):
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1, verbose_name="الفرع")
     shift = models.ForeignKey(CashShift, on_delete=models.CASCADE, related_name='expenses', verbose_name="الوردية")
     treasury = models.ForeignKey('Treasury', on_delete=models.PROTECT, null=True, blank=True, verbose_name="الخزينة المنصرف منها")
     category = models.ForeignKey(ExpenseCategory, on_delete=models.PROTECT, verbose_name="بند المصروف")
@@ -375,6 +411,7 @@ class Expense(models.Model):
 # 6. المبيعات ونقاط البيع (Sales & POS)
 # ==========================================
 class SaleInvoice(models.Model):
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1, verbose_name="الفرع")
     shift = models.ForeignKey(CashShift, on_delete=models.PROTECT, verbose_name="الوردية")
     cashier = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="الكاشير")
     customer = models.ForeignKey(Contact, on_delete=models.PROTECT, verbose_name="العميل")
@@ -388,6 +425,14 @@ class SaleInvoice(models.Model):
     trade_in_value = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="قيمة الاستبدال")
     
     net_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="الصافي")
+
+    # نظام الولاء والبطاقات
+    points_earned = models.IntegerField(default=0, verbose_name="نقاط مكتسبة")
+    points_redeemed = models.IntegerField(default=0, verbose_name="نقاط مستبدلة")
+    points_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="خصم النقاط المستبدلة")
+    
+    gift_card = models.ForeignKey('GiftCard', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="بطاقة الهدية المستخدمة")
+    gift_card_deduction = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="المخصوم من بطاقة الهدية")
 
     PAYMENT_METHOD_CHOICES = (
         ('cash', 'نقدي (كاش)'),
@@ -449,6 +494,7 @@ class RepairTicket(models.Model):
         ('pending', 'قيد الانتظار'), ('in_progress', 'جاري العمل'),
         ('waiting_parts', 'في انتظار قطع الغيار'), ('done', 'جاهز للتسليم'), ('delivered', 'تم التسليم')
     )
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1, verbose_name="الفرع")
     customer = models.ForeignKey(Contact, on_delete=models.CASCADE, verbose_name="العميل")
     technician = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="الفني المختص")
     device_model = models.CharField(max_length=100, verbose_name="موديل الجهاز")
@@ -458,6 +504,8 @@ class RepairTicket(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="حالة التذكرة")
     estimated_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="التكلفة التقديرية")
     labor_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="مصنعية")
+    warranty_days = models.IntegerField(default=0, verbose_name="أيام الضمان بعد الصيانة")
+    parent_ticket = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='followups', verbose_name="تذكرة الضمان الأب")
     created_at = models.DateTimeField(default=timezone.now, verbose_name="تاريخ الدخول")
 
     class Meta:
@@ -632,6 +680,7 @@ class NotificationSettings(models.Model):
 # 9. نظام الخزن والعهد (Treasury & Safes)
 # ==========================================
 class Treasury(models.Model):
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, default=1, verbose_name="الفرع")
     name = models.CharField(max_length=100, verbose_name="اسم الخزينة")
     opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="رصيد أول المدة")
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="الرصيد الحالي")
@@ -721,12 +770,40 @@ class SalesTarget(models.Model):
     def __str__(self):
         return f"تارجت {self.get_period_display()} لـ {self.user.username} - {self.date} ({self.target_amount} ج)"
 
+# ==========================================
+# 12. سجل مراقبة النظام (Audit Log)
+# ==========================================
+class AuditLog(models.Model):
+    ACTION_CHOICES = (
+        ('create', 'إنشاء'),
+        ('update', 'تعديل'),
+        ('delete', 'حذف'),
+    )
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="المستخدم")
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name="العملية")
+    model_name = models.CharField(max_length=100, verbose_name="النموذج / الجدول")
+    object_id = models.CharField(max_length=255, verbose_name="معرف العنصر")
+    object_repr = models.CharField(max_length=255, verbose_name="وصف العنصر")
+    changes = models.JSONField(default=dict, blank=True, null=True, verbose_name="التفاصيل / التغييرات")
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ ووقت الحركة")
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name="عنوان الـ IP")
+
+    class Meta:
+        verbose_name = "سجل مراقبة"
+        verbose_name_plural = "سجل النظام (Audit Log)"
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.get_action_display()} - {self.model_name} ({self.object_repr})"
+
 
 # ==========================================
 # 10. شؤون الموظفين والرواتب (HR & Payroll)
 # ==========================================
 class EmployeeProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee_profile', verbose_name="حساب المستخدم")
+    active_branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True, related_name='active_employees', verbose_name="الفرع النشط حالياً")
+    allowed_branches = models.ManyToManyField(Branch, blank=True, related_name='employees', verbose_name="الفروع المسموح بها")
     hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, default=0.00, verbose_name="قيمة ساعة العمل العادية")
     daily_working_hours = models.DecimalField(max_digits=4, decimal_places=2, default=8.00, verbose_name="ساعات العمل اليومية")
     shift_start_time = models.TimeField(null=True, blank=True, verbose_name="ميعاد الحضور")
@@ -783,7 +860,25 @@ class Payroll(models.Model):
         return f"راتب {self.employee.user.username} - {self.month}/{self.year}"
 
 # ==========================================
-# 12. المرتجعات (Returns)
+# بطاقات الهدايا (Gift Cards)
+# ==========================================
+class GiftCard(models.Model):
+    code = models.CharField(max_length=50, unique=True, verbose_name="كود البطاقة")
+    initial_balance = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="الرصيد الابتدائي")
+    current_balance = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="الرصيد الحالي")
+    is_active = models.BooleanField(default=True, verbose_name="مفعلة")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإصدار")
+    expires_at = models.DateField(null=True, blank=True, verbose_name="تاريخ الانتهاء")
+
+    class Meta:
+        verbose_name = "بطاقة هدية"
+        verbose_name_plural = "بطاقات الهدايا"
+
+    def __str__(self):
+        return f"{self.code} - {self.current_balance} ج.م"
+
+# ==========================================
+# 6. المبيعات (Sales)
 # ==========================================
 class SaleReturn(models.Model):
     sale_invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='returns', verbose_name="فاتورة البيع الأصلية")
@@ -791,6 +886,7 @@ class SaleReturn(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="بواسطة")
     date_created = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ المرتجع")
     refund_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="المبلغ المسترد للعميل")
+    debt_reduction = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="قيمة الخصم من المديونية")
     notes = models.TextField(blank=True, null=True, verbose_name="سبب الاسترجاع")
 
     class Meta:
@@ -818,6 +914,7 @@ class PurchaseReturn(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name="بواسطة")
     date_created = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ المرتجع")
     refund_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="المبلغ المسترد من المورد")
+    debt_reduction = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="قيمة الخصم من المستحقات")
     notes = models.TextField(blank=True, null=True, verbose_name="سبب الاسترجاع")
 
     class Meta:

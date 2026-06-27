@@ -62,9 +62,14 @@
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label text-light">إجمالي المبلغ المسترد (ج.م): <span class="text-danger">*</span></label>
-                        <input type="number" step="0.01" name="refund_amount" id="refund_amount" class="form-control" value="0.00" required>
+                        <label class="form-label text-light">إجمالي المبلغ المسترد نقداً (ج.م):</label>
+                        <input type="number" step="0.01" name="refund_amount" id="refund_amount" class="form-control" value="0.00">
                         <small class="text-info" id="suggested_refund">المبلغ المقترح بناءً على الكميات: 0.00 ج.م</small>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label text-warning">المبلغ المخصوم من مستحقات المورد (ج.م):</label>
+                        <input type="number" step="0.01" name="debt_reduction" id="debt_reduction" class="form-control border-warning" value="0.00">
+                        <small class="text-muted">الرصيد الحالي للمورد: {{ purchase_invoice.supplier.current_balance }} ج.م</small>
                     </div>
                     <div class="col-12">
                         <label class="form-label text-light">سبب الاسترجاع / ملاحظات:</label>

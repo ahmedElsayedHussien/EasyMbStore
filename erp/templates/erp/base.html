@@ -36,6 +36,9 @@
             const theme = localStorage.getItem('theme') || 'dark';
             if (theme === 'light') {
                 document.documentElement.classList.add('light-theme');
+                if (document.body) {
+                    document.body.classList.add('light-theme');
+                }
             }
         })();
     </script>
@@ -166,7 +169,9 @@
                         <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" aria-labelledby="adminDropdown">
 
                             {% if request.user.is_staff or request.user.is_superuser %}
-                            <li><a class="dropdown-item" href="{% url 'erp:reports_dashboard' %}"><i class="bi bi-graph-up-arrow me-2"></i> التقارير المتقدمة</a></li>
+                            <li><a class="dropdown-item" href="{% url 'erp:reports_dashboard' %}" onclick="localStorage.removeItem('activeReportsTab');"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>التقارير الشاملة</a></li>
+                            <li><a class="dropdown-item" href="{% url 'erp:gift_cards_manage' %}"><i class="bi bi-gift-fill me-2 text-danger"></i>إدارة بطاقات الهدايا</a></li>
+                            <li><a class="dropdown-item" href="{% url 'erp:system_audit_log' %}"><i class="bi bi-journal-text me-2 text-warning"></i>سجل النظام الشامل (Audit Log)</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{% url 'erp:notifications_dashboard' %}"><i class="bi bi-bell-fill me-2"></i> الإشعارات النظامية</a></li>
                             {% endif %}
@@ -188,6 +193,25 @@
                         <i id="themeToggleIcon" class="bi bi-sun-fill"></i>
                     </button>
                     {% if request.user.is_authenticated %}
+                        {% if user_allowed_branches %}
+                        <form action="{% url 'erp:switch_branch' %}" method="POST" class="d-inline me-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-dark text-warning border-secondary">
+                                    <i class="bi bi-shop"></i>
+                                </span>
+                                <select name="branch_id" class="form-select bg-dark text-light border-secondary" onchange="this.form.elements['next'].value = window.location.pathname + window.location.search + window.location.hash; this.form.submit()" style="max-width: 150px;">
+                                    {% if user_allowed_branches|length > 1 %}
+                                    <option value="all" {% if is_all_branches %}selected{% endif %}>كل الفروع (مجمّع)</option>
+                                    {% endif %}
+                                    {% for b in user_allowed_branches %}
+                                    <option value="{{ b.id }}" {% if active_branch and active_branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </form>
+                        {% endif %}
                         <span class="text-secondary me-3">
                             <i class="bi bi-person-circle"></i> {{ request.user.username }}
                         </span>
@@ -196,11 +220,7 @@
                             <i class="bi bi-sliders"></i> التأسيس والإعداد
                         </a>
                         {% endif %}
-                        {% if request.user.is_staff or request.user.is_superuser %}
-                        <a href="/admin/" class="btn btn-outline-light btn-sm me-2" target="_blank">
-                            <i class="bi bi-gear-fill"></i> لوحة الإدارة
-                        </a>
-                        {% endif %}
+                        <!-- تم إخفاء زر لوحة الإدارة بناء على طلبك -->
                         <form action="{% url 'erp:logout' %}" method="POST" class="d-inline">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-outline-danger btn-sm">

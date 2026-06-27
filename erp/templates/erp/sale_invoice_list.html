@@ -67,9 +67,12 @@
                                         data-invoice-id="{{ invoice.id }}" 
                                         data-customer-name="{{ invoice.customer.name }}"
                                         data-remaining="{{ invoice.remaining_amount }}">
-                                    <i class="bi bi-cash-coin"></i> سداد دفعة
+                                    <i class="bi bi-cash-coin"></i> سداد
                                 </button>
                             {% endif %}
+                            <a href="{% url 'erp:sale_return_create' invoice.id %}" class="btn btn-sm btn-outline-danger" title="إرجاع أصناف">
+                                <i class="bi bi-arrow-return-left"></i> مرتجع
+                            </a>
                             <a href="{% url 'erp:sale_detail' invoice.id %}" class="btn btn-sm btn-outline-info">
                                 <i class="bi bi-eye"></i> عرض
                             </a>

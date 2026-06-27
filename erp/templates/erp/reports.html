@@ -37,6 +37,35 @@
         box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08) !important;
     }
     
+    /* شارة توضح أن الكارت قابل للضغط */
+    .report-kpi-card[data-bs-toggle="modal"] {
+        position: relative;
+    }
+    .report-kpi-card[data-bs-toggle="modal"]::after {
+        content: "👆 اضغط للتفاصيل";
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        font-size: 0.65rem;
+        font-weight: bold;
+        background: rgba(13, 110, 253, 0.15);
+        color: #3b82f6;
+        padding: 4px 8px;
+        border-radius: 12px;
+        border: 1px solid rgba(13, 110, 253, 0.3);
+        transition: all 0.3s ease;
+        pointer-events: none;
+    }
+    body.light-theme .report-kpi-card[data-bs-toggle="modal"]::after {
+        background: rgba(13, 110, 253, 0.1);
+        color: #0d6efd;
+    }
+    .report-kpi-card[data-bs-toggle="modal"]:hover::after {
+        background: #0d6efd;
+        color: #fff;
+        transform: scale(1.05);
+    }
+    
     /* Glassmorphic Modal styling */
     .modal-content-glass {
         background: rgba(15, 22, 38, 0.85) !important;
@@ -177,9 +206,157 @@
             </form>
         </div>
 
-        <!-- تبويبات التقارير -->
+        <!-- تبويبات التقارير (مخفية لتعمل كقاعدة تنقل) -->
         <div class="glass-card p-4">
-            <ul class="nav nav-tabs nav-tabs-custom mb-4" id="reportsTab" role="tablist">
+            
+            <!-- شبكة كروت التقارير -->
+            <div id="reports-grid" class="row g-4 mb-4">
+                <!-- 1 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#financials-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-cash-coin fs-1 text-success mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">التقارير المالية</h5>
+                    </div>
+                </div>
+                <!-- 2 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#sales-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-cart-check fs-1 text-primary mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">المبيعات</h5>
+                    </div>
+                </div>
+                <!-- 3 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#purchases-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-bag-check fs-1 text-info mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">المشتريات</h5>
+                    </div>
+                </div>
+                <!-- 4 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#inventory-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-box-seam fs-1 text-warning mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">المخزون</h5>
+                    </div>
+                </div>
+                <!-- 5 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#maintenance-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-tools fs-1 text-danger mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">الصيانة</h5>
+                    </div>
+                </div>
+                <!-- 6 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#cashier-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-person-badge fs-1 text-light mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">الكاشير والورديات</h5>
+                    </div>
+                </div>
+                <!-- 7 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#customers-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-people-fill fs-1 text-success mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">العملاء المميزون</h5>
+                    </div>
+                </div>
+                <!-- 8 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#used-devices-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-phone-flip fs-1 text-secondary mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">الأجهزة المستعملة</h5>
+                    </div>
+                </div>
+                <!-- 9 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#warranty-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-shield-check fs-1 text-info mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">الضمانات</h5>
+                    </div>
+                </div>
+                <!-- 10 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#receivables-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-currency-dollar fs-1 text-danger mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">ديون العملاء (مستحقات المحل)</h5>
+                        <p class="text-muted small mt-2 mb-0">متابعة الفواتير غير المحصلة بالكامل (الشكك)</p>
+                    </div>
+                </div>
+                <!-- 11 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#tech-report-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-award fs-1 text-primary mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">أداء الفنيين</h5>
+                    </div>
+                </div>
+                <!-- 12 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#cashflow-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-graph-up fs-1 text-success mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">التدفق النقدي</h5>
+                    </div>
+                </div>
+                <!-- 13 -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#achievements-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-award-fill fs-1 text-warning mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">المحققات</h5>
+                    </div>
+                </div>
+                <!-- 14 -->
+                <div class="col-md-3 col-sm-6">
+                    <a href="{% url 'erp:treasury_report' %}" class="text-decoration-none">
+                        <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" style="cursor: pointer; transition: 0.3s;">
+                            <i class="bi bi-bank fs-1 text-light mb-2 d-block"></i>
+                            <h5 class="text-light mb-0">حركة الخزينة</h5>
+                        </div>
+                    </a>
+                </div>
+                <!-- 15 Taxes -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-warning bg-dark h-100" data-target="#taxes-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-receipt fs-1 text-warning mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">الإقرار الضريبي</h5>
+                    </div>
+                </div>
+                <!-- 16 Loyalty -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-info bg-dark h-100" data-target="#loyalty-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-gift fs-1 text-info mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">برنامج الولاء</h5>
+                    </div>
+                </div>
+                <!-- 17 Returns -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-danger bg-dark h-100" data-target="#returns-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-arrow-return-left fs-1 text-danger mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">إجمالي المرتجعات</h5>
+                    </div>
+                </div>
+                <!-- 18 IMEI -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-primary bg-dark h-100" data-target="#imei-tracker-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-search fs-1 text-primary mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">تتبع السيريال (IMEI)</h5>
+                    </div>
+                </div>
+                <!-- 19 Debts -->
+                <div class="col-md-3 col-sm-6">
+                    <div class="report-card p-4 text-center rounded border border-secondary bg-dark h-100" data-target="#customer-debts-tab" style="cursor: pointer; transition: 0.3s;">
+                        <i class="bi bi-person-lines-fill fs-1 text-light mb-2 d-block"></i>
+                        <h5 class="text-light mb-0">مديونيات العملاء الآجلة</h5>
+                    </div>
+                </div>
+            </div>
+
+            <!-- حاوية التقرير النشط -->
+            <div id="active-report-container" class="d-none">
+                <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+                    <h3 id="active-report-title" class="text-primary fw-bold mb-0"></h3>
+                    <button class="btn btn-outline-light" id="btn-back-to-grid"><i class="bi bi-grid-3x3-gap-fill me-2"></i>عودة لقائمة التقارير</button>
+                </div>
+
+            <ul class="nav nav-tabs nav-tabs-custom mb-4 d-none" id="reportsTab" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="financials-tab" data-bs-toggle="tab" data-bs-target="#financials" type="button" role="tab" aria-controls="financials" aria-selected="true">
                         <i class="bi bi-cash-coin me-1"></i> التقارير المالية
@@ -245,9 +422,118 @@
                         <i class="bi bi-award-fill me-1"></i> المحققات والعمولات
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link text-warning fw-bold" id="taxes-tab" data-bs-toggle="tab" data-bs-target="#taxes" type="button" role="tab">الضرائب</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link text-warning fw-bold" id="loyalty-tab" data-bs-toggle="tab" data-bs-target="#loyalty" type="button" role="tab">الولاء</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link text-warning fw-bold" id="returns-tab" data-bs-toggle="tab" data-bs-target="#returns" type="button" role="tab">المرتجعات</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link text-warning fw-bold" id="imei-tracker-tab" data-bs-toggle="tab" data-bs-target="#imei-tracker" type="button" role="tab">تتبع السيريال</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link text-warning fw-bold" id="customer-debts-tab" data-bs-toggle="tab" data-bs-target="#customer-debts" type="button" role="tab">المديونيات</button>
+                </li>
             </ul>
 
             <div class="tab-content" id="reportsTabContent">
+                
+                <!-- تقرير الضرائب -->
+                <div class="tab-pane fade" id="taxes" role="tabpanel" aria-labelledby="taxes-tab">
+                    <div class="p-3 rounded border border-warning bg-dark w-100">
+                        <h5 class="text-warning border-bottom border-warning pb-2"><i class="bi bi-receipt"></i> الإقرار الضريبي</h5>
+                        <div class="mt-3">
+                            <p class="mb-1 text-light fs-5">ضرائب محصلة (مبيعات): <span class="float-end fw-bold text-success">{{ new_reports.sales_tax }} ج.م</span></p>
+                            <p class="mb-1 text-light fs-5">ضرائب مدفوعة (مشتريات): <span class="float-end fw-bold text-danger">{{ new_reports.purchases_tax }} ج.م</span></p>
+                            <hr class="border-secondary">
+                            <p class="mb-0 fs-4 text-light">الضريبة المستحقة: <span class="float-end fw-bold text-warning">{{ new_reports.net_tax }} ج.م</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- إحصائيات برنامج الولاء -->
+                <div class="tab-pane fade" id="loyalty" role="tabpanel" aria-labelledby="loyalty-tab">
+                    <div class="p-3 rounded border border-info bg-dark w-100">
+                        <h5 class="text-info border-bottom border-info pb-2"><i class="bi bi-gift"></i> أداء برنامج الولاء</h5>
+                        <div class="mt-3">
+                            <p class="mb-1 text-light fs-5">النقاط المكتسبة للعملاء: <span class="float-end fw-bold text-success">{{ new_reports.loyalty_earned }} نقطة</span></p>
+                            <p class="mb-1 text-light fs-5">النقاط المستبدلة: <span class="float-end fw-bold text-warning">{{ new_reports.loyalty_redeemed }} نقطة</span></p>
+                            <hr class="border-secondary">
+                            <p class="mb-0 fs-4 text-light">قيمة الخصومات المهداة: <span class="float-end fw-bold text-danger">{{ new_reports.loyalty_discount }} ج.م</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تقرير المرتجعات -->
+                <div class="tab-pane fade" id="returns" role="tabpanel" aria-labelledby="returns-tab">
+                    <div class="p-3 rounded border border-danger bg-dark w-100">
+                        <h5 class="text-danger border-bottom border-danger pb-2"><i class="bi bi-arrow-return-left"></i> إجمالي المرتجعات</h5>
+                        <div class="mt-3">
+                            <p class="mb-1 text-light fs-5">مرتجعات مبيعات (للعملاء): <span class="float-end fw-bold text-danger">{{ new_reports.sales_returns }} ج.م</span></p>
+                            <p class="mb-1 text-light fs-5">مرتجعات مشتريات (للموردين): <span class="float-end fw-bold text-success">{{ new_reports.purchases_returns }} ج.م</span></p>
+                            <hr class="border-secondary">
+                            <p class="mb-0 text-muted">هذه المبالغ تمثل إجمالي الحركات العكسية التي تمت خلال الفترة المحددة أعلاه.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تتبع دورة حياة السيريال -->
+                <div class="tab-pane fade" id="imei-tracker" role="tabpanel" aria-labelledby="imei-tracker-tab">
+                    <div class="glass-card border border-primary p-4 mb-4">
+                        <h4 class="text-primary mb-3"><i class="bi bi-search"></i> تتبع دورة حياة جهاز بالسيريال (IMEI Tracker)</h4>
+                        <div class="input-group mb-3">
+                            <span class="input-group-text bg-dark text-light border-secondary"><i class="bi bi-upc-scan"></i></span>
+                            <input type="text" id="imei-search-input" class="form-control bg-dark text-light border-secondary" placeholder="أدخل رقم السيريال IMEI هنا...">
+                            <button class="btn btn-primary" id="btn-track-imei" type="button">بحث وتتبع</button>
+                        </div>
+                        <div id="imei-tracker-results" class="d-none mt-3">
+                            <div class="timeline-container p-3 rounded bg-dark border border-secondary" id="imei-timeline">
+                                <!-- Results will be rendered here by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- كشف حساب العملاء الآجل -->
+                <div class="tab-pane fade" id="customer-debts" role="tabpanel" aria-labelledby="customer-debts-tab">
+                    <div class="glass-card border border-secondary p-4">
+                        <h4 class="text-light mb-2"><i class="bi bi-person-lines-fill"></i> مديونيات العملاء الآجلة (الرصيد الحالي القائم)</h4>
+                        <div class="alert alert-warning bg-dark border-warning mb-3">
+                            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+                            <strong>ملاحظة:</strong> هذا التقرير يعرض <strong>كامل الديون القائمة حتى اليوم</strong> بصرف النظر عن فترة التقرير المختارة، لضمان عدم إسقاط أي دين قديم.
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-striped align-middle border border-secondary text-center">
+                                <thead>
+                                    <tr>
+                                        <th>العميل</th>
+                                        <th>رقم الهاتف</th>
+                                        <th>الرصيد المستحق (المديونية الحالية)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stmt in new_reports.customer_statements %}
+                                    <tr>
+                                        <td class="fw-bold text-info">{{ stmt.customer.name }}</td>
+                                        <td class="text-muted small">{{ stmt.customer.phone }}</td>
+                                        <td class="text-danger fw-bold fs-5">{{ stmt.remaining }} ج.م</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="text-center text-success py-4">
+                                            <i class="bi bi-check-circle-fill fs-3 d-block mb-2"></i>
+                                            ممتاز! لا توجد مديونيات مستحقة على أي عميل حالياً.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- 1. تبويب التقارير المالية -->
                 <div class="tab-pane fade show active" id="financials" role="tabpanel" aria-labelledby="financials-tab">
@@ -260,20 +546,31 @@
                     <div class="row g-3 mb-4">
                         <div class="col-md-3">
                             <div class="report-kpi-card text-center" data-bs-toggle="modal" data-bs-target="#salesRevenueModal">
-                                <h6 class="text-secondary small">إيرادات المبيعات</h6>
+                                <h6 class="text-secondary small">إيرادات المبيعات (قبل المرتجعات)</h6>
                                 <h3 class="text-success fw-bold">{{ financials.total_sales_revenue }} ج.م</h3>
+                                {% if financials.total_sales_returns > 0 %}
+                                <small class="text-danger">- مرتجعات: {{ financials.total_sales_returns }} ج.م</small><br>
+                                <small class="text-success fw-bold">= صافي: {{ financials.net_sales_revenue }} ج.م</small>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="report-kpi-card text-center" data-bs-toggle="modal" data-bs-target="#cogsModal">
                                 <h6 class="text-secondary small">تكلفة البضاعة المباعة (COGS)</h6>
                                 <h3 class="text-danger fw-bold">{{ financials.total_cogs }} ج.م</h3>
+                                {% if financials.returned_cogs > 0 %}
+                                <small class="text-success">- تكلفة مرتجعة: {{ financials.returned_cogs }} ج.م</small><br>
+                                <small class="text-warning fw-bold">= صافي COGS: {{ financials.net_cogs }} ج.م</small>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="report-kpi-card text-center" data-bs-toggle="modal" data-bs-target="#operatingExpensesModal">
                                 <h6 class="text-secondary small">المصروفات التشغيلية</h6>
                                 <h3 class="text-warning fw-bold">{{ financials.total_expenses }} ج.م</h3>
+                                {% if financials.tech_profit > 0 %}
+                                <small class="text-success">+ أرباح صيانة: {{ financials.tech_profit }} ج.م</small>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -282,6 +579,7 @@
                                 <h3 class="{% if financials.net_profit >= 0 %}text-info{% else %}text-danger{% endif %} fw-bold">
                                     {{ financials.net_profit }} ج.م
                                 </h3>
+                                <small class="text-muted" style="font-size:0.7rem">مبيعات - COGS - مصاريف + أرباح صيانة - مرتجعات</small>
                             </div>
                         </div>
                     </div>
@@ -299,28 +597,33 @@
                     </div>
 
                     <!-- كشف حسابات الموردين -->
-                    <h5 class="text-primary mt-4 mb-3"><i class="bi bi-person-lines-fill"></i> كشف حساب الموردين والديون المستحقة</h5>
+                    <h5 class="text-primary mt-4 mb-3"><i class="bi bi-person-lines-fill"></i> كشف حساب الموردين (الرصيد المستحق الحالي)</h5>
+                    <div class="alert alert-info bg-dark border-info mb-3">
+                        <i class="bi bi-info-circle-fill text-info me-2"></i>
+                        <strong>توضيح:</strong> يعرض هذا الجدول المبالغ المستحقة للموردين حالياً بناءً على الرصيد الكلي (بما في ذلك سندات الصرف والمرتجعات).
+                    </div>
                     <div class="table-responsive mb-4">
                         <table class="table table-dark table-striped align-middle border border-secondary">
                             <thead>
                                 <tr>
                                     <th>اسم المورد</th>
-                                    <th>إجمالي التوريدات المستلمة</th>
-                                    <th>إجمالي المسدد له</th>
-                                    <th>المتبقي (الديون المستحقة للمورد)</th>
+                                    <th>رقم الهاتف</th>
+                                    <th>المتبقي للمورد (المستحق حالياً)</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for statement in financials.supplier_statements %}
-                                <tr style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#supplierModal-{{ statement.supplier.id }}">
-                                    <td class="fw-bold"><span class="text-primary hover-underline">{{ statement.supplier.name }}</span></td>
-                                    <td>{{ statement.total_purchased }} ج.م</td>
-                                    <td>{{ statement.total_paid }} ج.م</td>
-                                    <td class="{% if statement.remaining > 0 %}text-danger fw-bold{% endif %}">{{ statement.remaining }} ج.م</td>
+                                <tr>
+                                    <td class="fw-bold text-primary">{{ statement.supplier.name }}</td>
+                                    <td class="text-muted small">{{ statement.supplier.phone }}</td>
+                                    <td class="text-danger fw-bold fs-5">{{ statement.remaining }} ج.م</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="4" class="text-center text-muted py-3">لا توجد حركات شراء مسجلة للموردين.</td>
+                                    <td colspan="3" class="text-center text-success py-4">
+                                        <i class="bi bi-check-circle-fill fs-3 d-block mb-2"></i>
+                                        ممتاز! لا توجد مستحقات مستحقة لأي مورد حالياً.
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -392,6 +695,26 @@
                                 <h3 class="text-success fw-bold">{{ sales.net }} ج.م</h3>
                             </div>
                         </div>
+                        {% if sales.returns_count > 0 %}
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center border-danger">
+                                <h6 class="text-secondary small">عدد المرتجعات</h6>
+                                <h3 class="text-danger fw-bold">{{ sales.returns_count }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center border-warning">
+                                <h6 class="text-secondary small">قيمة المرتجعات</h6>
+                                <h3 class="text-warning fw-bold">{{ sales.returns_amount }} ج.م</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="report-kpi-card text-center border-info">
+                                <h6 class="text-secondary small">صافي المبيعات بعد المرتجعات</h6>
+                                <h3 class="text-info fw-bold">{{ sales.net_after_returns }} ج.م</h3>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="row mt-4">
@@ -1026,16 +1349,22 @@
                     </div>
                 </div>
 
-                <!-- ═══ تقرير 10: الذمم المدينة ═══ -->
+                <!-- ═══ تقرير 10: ديون العملاء ═══ -->
                 <div class="tab-pane fade" id="receivables" role="tabpanel">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h5 class="text-secondary mb-0"><i class="bi bi-currency-dollar"></i> تقرير الذمم المدينة</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="text-secondary mb-0"><i class="bi bi-currency-dollar"></i> تقرير ديون العملاء (مستحقات المحل)</h5>
                         <button onclick="window.print()" class="btn btn-outline-light btn-sm print-btn"><i class="bi bi-printer"></i> طباعة</button>
                     </div>
+                    
+                    <div class="alert alert-info border-info bg-dark text-light mb-4" role="alert">
+                        <i class="bi bi-info-circle-fill text-info me-2"></i> 
+                        <strong>توضيح:</strong> يعرض هذا التقرير إجمالي الأموال المتبقية لك في السوق (الديون) عند العملاء الذين اشتروا بالآجل (أو بالتقسيط) ولم يسددوا كامل قيمة الفاتورة.
+                    </div>
+
                     <div class="row g-3 mb-4">
                         <div class="col-md-4">
                             <div class="report-kpi-card text-center border-danger">
-                                <h6 class="text-secondary small">إجمالي الذمم المدينة</h6>
+                                <h6 class="text-secondary small">إجمالي الديون عند العملاء</h6>
                                 <h3 class="text-danger fw-bold">{{ receivables_report.total }} ج.م</h3>
                             </div>
                         </div>
@@ -1066,7 +1395,7 @@
                                 {% empty %}
                                 <tr><td colspan="7" class="text-center text-success py-4">
                                     <i class="bi bi-check-circle-fill fs-3 d-block mb-2"></i>
-                                    ممتاز! لا توجد ذمم مدينة غير محصلة في هذه الفترة.
+                                    ممتاز! لا توجد ديون أو فواتير غير محصلة في هذه الفترة.
                                 </td></tr>
                                 {% endfor %}
                             </tbody>
@@ -1130,27 +1459,26 @@
                     <div class="table-responsive">
                         <table class="table table-dark table-striped align-middle border border-secondary small">
                             <thead><tr>
-                                <th>التاريخ</th><th>الفواتير</th><th>الإيرادات</th>
-                                <th>المصاريف</th><th>الصافي</th><th>الحالة</th>
+                                <th>التاريخ</th><th>إجمالي الوارد</th>
+                                <th>إجمالي المنصرف</th><th>الصافي</th><th>الحالة</th>
                             </tr></thead>
                             <tbody>
                                 {% for d in cashflow_report.daily %}
                                 <tr>
                                     <td class="fw-bold">{{ d.day|date:"Y-m-d" }}</td>
-                                    <td>{{ d.count }}</td>
                                     <td class="text-success fw-bold">{{ d.revenue }} ج.م</td>
                                     <td class="text-danger">{{ d.expenses }} ج.م</td>
                                     <td class="fw-bold {% if d.net >= 0 %}text-success{% else %}text-danger{% endif %}">
                                         {% if d.net >= 0 %}+{% endif %}{{ d.net }} ج.م
                                     </td>
                                     <td>
-                                        {% if d.net > 0 %}<span class="badge bg-success">ربح</span>
-                                        {% elif d.net < 0 %}<span class="badge bg-danger">خسارة</span>
+                                        {% if d.net > 0 %}<span class="badge bg-success">وارد</span>
+                                        {% elif d.net < 0 %}<span class="badge bg-danger">منصرف</span>
                                         {% else %}<span class="badge bg-secondary">تعادل</span>{% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="6" class="text-center text-muted py-4">لا توجد بيانات في هذه الفترة.</td></tr>
+                                <tr><td colspan="5" class="text-center text-muted py-4">لا توجد حركات خزينة في هذه الفترة.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -1237,55 +1565,6 @@
     </div>
 </div>
 
-<!-- 2. COGS Modal -->
-<div class="modal fade" id="cogsModal" tabindex="-1" aria-labelledby="cogsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content modal-content-glass">
-            <div class="modal-header modal-header-glass">
-                <h5 class="modal-title fw-bold text-danger" id="cogsModalLabel">
-                    <i class="bi bi-tags-fill me-2"></i> تفاصيل تكلفة البضاعة المباعة (COGS)
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="table-responsive">
-                    <table class="table table-dark table-striped align-middle border border-secondary">
-                        <thead>
-                            <tr>
-                                <th>الفاتورة</th>
-                                <th>الصنف</th>
-                                <th>السيريال / IMEI</th>
-                                <th>الكمية</th>
-                                <th>تكلفة الوحدة</th>
-                                <th>إجمالي التكلفة</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in financials.cogs_list %}
-                            <tr>
-                                <td>#{{ item.invoice.id }}</td>
-                                <td class="fw-bold">{{ item.product.name }}</td>
-                                <td class="text-secondary small">{{ item.device_imei|default:"-" }}</td>
-                                <td>{{ item.quantity }}</td>
-                                <td>{{ item.unit_cost }} ج.م</td>
-                                <td class="text-danger fw-bold">{{ item.total_cost }} ج.م</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-3">لا توجد تفاصيل تكلفة متاحة لهذه الفترة.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer modal-footer-glass">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- 3. Operating Expenses Modal -->
 <div class="modal fade" id="operatingExpensesModal" tabindex="-1" aria-labelledby="operatingExpensesModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -1333,54 +1612,9 @@
     </div>
 </div>
 
-<!-- 4. Net Profit Modal -->
-<div class="modal fade" id="netProfitModal" tabindex="-1" aria-labelledby="netProfitModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content modal-content-glass">
-            <div class="modal-header modal-header-glass">
-                <h5 class="modal-title fw-bold text-info" id="netProfitModalLabel">
-                    <i class="bi bi-calculator-fill me-2"></i> كشف الأرباح والخسائر التقديري
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="p-3 rounded mb-4" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05);">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="text-secondary"><i class="bi bi-graph-up-arrow me-1 text-success"></i> إجمالي الإيرادات (المبيعات)</span>
-                        <span class="text-success fw-bold">+ {{ financials.total_sales_revenue }} ج.م</span>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="text-secondary"><i class="bi bi-tags me-1 text-danger"></i> تكلفة البضاعة المباعة (COGS)</span>
-                        <span class="text-danger fw-bold">- {{ financials.total_cogs }} ج.م</span>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="text-secondary"><i class="bi bi-cash me-1 text-warning"></i> المصروفات التشغيلية</span>
-                        <span class="text-warning fw-bold">- {{ financials.total_expenses }} ج.م</span>
-                    </div>
-                    <hr class="border-secondary my-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="fs-5 fw-bold text-info"><i class="bi bi-pie-chart me-1"></i> صافي الأرباح التقديرية</span>
-                        <span class="fs-4 fw-bold {% if financials.net_profit >= 0 %}text-info{% else %}text-danger{% endif %}">
-                            {{ financials.net_profit }} ج.م
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="alert alert-info border-0 bg-info-subtle text-info-emphasis d-flex align-items-center p-3 rounded" role="alert">
-                    <i class="bi bi-info-circle-fill fs-4 me-2"></i>
-                    <div>
-                        هذا التقرير تقديري للفترة المحددة. يتم احتساب تكلفة البضاعة بناءً على تكلفة الأجهزة المسجلة أو متوسط التكلفة للاكسسوارات.
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer modal-footer-glass">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- 5. Supplier Invoices Modals (Loops) -->
+
+<!-- 5. Supplier Account Statement Modals -->
 {% for statement in financials.supplier_statements %}
 <div class="modal fade" id="supplierModal-{{ statement.supplier.id }}" tabindex="-1" aria-labelledby="supplierModalLabel-{{ statement.supplier.id }}" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered">
@@ -1392,35 +1626,28 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- Supplier Info & Overall Balance Cards -->
                 <div class="row g-3 mb-4">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="p-3 rounded text-center" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
                             <h6 class="text-secondary small">الهاتف</h6>
                             <h5 class="fw-bold">{{ statement.supplier.phone|default:"غير مسجل" }}</h5>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="p-3 rounded text-center" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.15);">
-                            <h6 class="text-primary small">إجمالي التوريدات (المشتريات)</h6>
-                            <h5 class="text-primary fw-bold">{{ statement.total_purchased }} ج.م</h5>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="p-3 rounded text-center" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15);">
-                            <h6 class="text-success small">إجمالي المسدد</h6>
-                            <h5 class="text-success fw-bold">{{ statement.total_paid }} ج.م</h5>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="p-3 rounded text-center" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15);">
-                            <h6 class="text-danger small">المتبقي (الديون المستحقة للمورد)</h6>
+                            <h6 class="text-danger small">الرصيد المستحق للمورد (حالياً)</h6>
                             <h5 class="text-danger fw-bold">{{ statement.remaining }} ج.م</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded text-center" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15);">
+                            <h6 class="text-info small">توضيح</h6>
+                            <small class="text-muted">الرصيد يشمل كل الفواتير وسندات الصرف والمرتجعات</small>
                         </div>
                     </div>
                 </div>
 
-                <!-- Supplier Purchase Invoices Table -->
+                <!-- فواتير شراء هذا المورد -->
                 <h6 class="text-primary fw-bold mb-3"><i class="bi bi-list-task me-1"></i> سجل فواتير الشراء والتوريد</h6>
                 <div class="table-responsive">
                     <table class="table table-dark table-striped align-middle border border-secondary">
@@ -1437,7 +1664,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for inv in statement.invoices %}
+                            {% for inv in statement.supplier.purchaseinvoice_set.all %}
                             <tr>
                                 <td class="fw-bold">#{{ inv.id }}</td>
                                 <td>{{ inv.invoice_date|date:"Y-m-d H:i" }}</td>
@@ -1825,43 +2052,170 @@
             }
         });
     });
+
+    // IMEI Tracker Logic
+    const btnTrack = document.getElementById('btn-track-imei');
+    const inputImei = document.getElementById('imei-search-input');
+    const resultsDiv = document.getElementById('imei-tracker-results');
+    const timelineContainer = document.getElementById('imei-timeline');
+
+    if (btnTrack && inputImei) {
+        btnTrack.addEventListener('click', function() {
+            const imei = inputImei.value.trim();
+            if (!imei) {
+                alert("الرجاء إدخال رقم السيريال أولاً.");
+                return;
+            }
+            
+            btnTrack.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> جاري البحث...';
+            btnTrack.disabled = true;
+            
+            fetch(`{% url 'erp:imei_lifecycle_report' %}?imei=${encodeURIComponent(imei)}`)
+            .then(res => res.json())
+            .then(data => {
+                btnTrack.innerHTML = 'بحث وتتبع';
+                btnTrack.disabled = false;
+                
+                if (data.status === 'success') {
+                    resultsDiv.classList.remove('d-none');
+                    if (data.history.length === 0) {
+                        timelineContainer.innerHTML = `<div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle"></i> لم يتم العثور على أي حركات مسجلة لهذا السيريال (${imei}).</div>`;
+                    } else {
+                        let html = `<h5 class="text-light border-bottom border-secondary pb-2 mb-3">السجل التاريخي للسيريال: <span class="text-info">${imei}</span></h5>`;
+                        html += `<ul class="list-group list-group-flush bg-transparent">`;
+                        
+                        data.history.forEach((item, index) => {
+                            let icon = "bi-circle-fill text-secondary";
+                            if (item.event.includes("شراء")) icon = "bi-box-arrow-in-right text-success";
+                            else if (item.event.includes("بيع")) icon = "bi-box-arrow-up-right text-info";
+                            else if (item.event.includes("صيانة")) icon = "bi-tools text-warning";
+                            else if (item.event.includes("مرتجع")) icon = "bi-arrow-return-left text-danger";
+                            
+                            html += `
+                            <li class="list-group-item bg-transparent text-light border-secondary d-flex align-items-start">
+                                <i class="bi ${icon} fs-5 me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="mb-1 text-light fw-bold">${item.event} <small class="text-muted ms-2" dir="ltr">${item.date_str}</small></h6>
+                                    <p class="mb-0 text-muted small">${item.product}</p>
+                                    <p class="mb-0 text-light mt-1">${item.details}</p>
+                                </div>
+                            </li>`;
+                        });
+                        html += `</ul>`;
+                        timelineContainer.innerHTML = html;
+                    }
+                } else {
+                    alert(data.error || "حدث خطأ أثناء البحث.");
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                btnTrack.innerHTML = 'بحث وتتبع';
+                btnTrack.disabled = false;
+                alert("حدث خطأ في الاتصال بالخادم.");
+            });
+        });
+        
+        // Trigger on Enter key
+        inputImei.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                btnTrack.click();
+            }
+        });
+    }
 </script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Restore active tab from localStorage if exists
-        const activeTabTarget = localStorage.getItem("activeReportsTab");
-        if (activeTabTarget) {
-            const tabButton = document.querySelector(`button[data-bs-target="${activeTabTarget}"]`);
-            if (tabButton) {
-                if (window.bootstrap && window.bootstrap.Tab) {
-                    const tab = new bootstrap.Tab(tabButton);
-                    tab.show();
-                } else {
-                    document.querySelectorAll('.nav-tabs-custom .nav-link').forEach(btn => {
-                        btn.classList.remove('active');
-                        btn.setAttribute('aria-selected', 'false');
-                    });
-                    document.querySelectorAll('.tab-content .tab-pane').forEach(pane => {
-                        pane.classList.remove('show', 'active');
-                    });
-                    tabButton.classList.add('active');
-                    tabButton.setAttribute('aria-selected', 'true');
-                    const targetPane = document.querySelector(activeTabTarget);
-                    if (targetPane) {
-                        targetPane.classList.add('show', 'active');
+        const gridContainer = document.getElementById('reports-grid');
+        const activeContainer = document.getElementById('active-report-container');
+        const activeTitle = document.getElementById('active-report-title');
+        const btnBack = document.getElementById('btn-back-to-grid');
+        const reportCards = document.querySelectorAll('.report-card');
+        
+        function handleNavigation() {
+            const hash = window.location.hash;
+            
+            if (hash && hash.endsWith('-tab')) {
+                // Find corresponding card
+                const card = document.querySelector(`.report-card[data-target="${hash}"]`);
+                if (card) {
+                    const titleElement = card.querySelector('h5');
+                    if (titleElement) {
+                        activeTitle.innerHTML = titleElement.innerHTML;
                     }
+                    
+                    // Hide grid, show container
+                    gridContainer.classList.add('d-none');
+                    activeContainer.classList.remove('d-none');
+                    
+                    // Fix the target selector to match the tab pane ID
+                    const targetPaneSelector = hash.replace('-tab', '');
+                    
+                    // Trigger the hidden bootstrap tab to show the correct pane
+                    const tabButton = document.querySelector(`button[data-bs-target="${targetPaneSelector}"]`);
+                    if (tabButton && window.bootstrap && window.bootstrap.Tab) {
+                        const tab = new bootstrap.Tab(tabButton);
+                        tab.show();
+                    } else {
+                        // Fallback
+                        document.querySelectorAll('.tab-content .tab-pane').forEach(pane => {
+                            pane.classList.remove('show', 'active');
+                        });
+                        const targetPane = document.querySelector(targetPaneSelector);
+                        if (targetPane) {
+                            targetPane.classList.add('show', 'active');
+                        }
+                        if (tabButton) {
+                            document.querySelectorAll('.nav-tabs-custom .nav-link').forEach(btn => {
+                                btn.classList.remove('active');
+                                btn.setAttribute('aria-selected', 'false');
+                            });
+                            tabButton.classList.add('active');
+                            tabButton.setAttribute('aria-selected', 'true');
+                        }
+                    }
+                } else {
+                    showGrid();
                 }
+            } else {
+                showGrid();
             }
         }
+        
+        function showGrid() {
+            activeContainer.classList.add('d-none');
+            gridContainer.classList.remove('d-none');
+        }
 
-        // Listen for tab show events to save active tab to localStorage
-        const tabElList = document.querySelectorAll('button[data-bs-toggle="tab"]');
-        tabElList.forEach(tabEl => {
-            tabEl.addEventListener('shown.bs.tab', function(event) {
-                const target = event.target.getAttribute('data-bs-target');
-                localStorage.setItem("activeReportsTab", target);
+        // Handle clicking on a report card
+        reportCards.forEach(card => {
+            card.addEventListener('click', function(e) {
+                const targetSelector = this.getAttribute('data-target');
+                if (targetSelector) {
+                    // كارت بيفتح تقرير داخل الصفحة
+                    e.preventDefault();
+                    window.location.hash = targetSelector;
+                }
+                // لو مفيش data-target، اتركه يكمل طبيعي (مثلاً <a href> لصفحة خارجية)
             });
         });
+        
+        // Handle back button
+        if (btnBack) {
+            btnBack.addEventListener('click', function(e) {
+                e.preventDefault();
+                // Push an empty hash without '#' using history API to clean the URL
+                window.history.pushState("", document.title, window.location.pathname + window.location.search);
+                showGrid();
+            });
+        }
+        
+        // Listen to browser back/forward buttons
+        window.addEventListener('hashchange', handleNavigation);
+        
+        // Handle initial load
+        handleNavigation();
     });
 </script>
 {% endblock %}

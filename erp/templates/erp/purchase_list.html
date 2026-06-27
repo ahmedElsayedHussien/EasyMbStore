@@ -62,11 +62,15 @@
                                         data-invoice-num="{{ purchase.supplier_invoice_number|default:purchase.id }}"
                                         data-supplier-name="{{ purchase.supplier.name }}"
                                         data-remaining="{{ purchase.remaining_amount }}">
-                                    <i class="bi bi-cash-coin"></i> سداد دفعة
+                                    <i class="bi bi-cash-coin"></i> سداد
                                 </button>
-                            {% else %}
-                                <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-check-all"></i> مسددة بالكامل</span>
                             {% endif %}
+                            <a href="{% url 'erp:purchase_return_create' purchase.id %}" class="btn btn-sm btn-outline-danger" title="إرجاع مشتريات">
+                                <i class="bi bi-box-arrow-right"></i> مرتجع
+                            </a>
+                            <a href="{% url 'erp:purchase_detail' purchase.id %}" class="btn btn-sm btn-outline-info">
+                                <i class="bi bi-eye"></i> عرض
+                            </a>
                         </td>
                     </tr>
                 {% empty %}

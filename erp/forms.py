@@ -13,7 +13,7 @@ class StoreSettingForm(forms.ModelForm):
     class Meta:
         from erp.models import StoreSetting
         model = StoreSetting
-        fields = ['store_name', 'logo', 'receipt_header', 'receipt_footer', 'whatsapp_api_key', 'sms_api_key', 'latitude', 'longitude', 'allowed_radius']
+        fields = ['store_name', 'logo', 'receipt_header', 'receipt_footer', 'whatsapp_api_key', 'sms_api_key', 'latitude', 'longitude', 'allowed_radius', 'loyalty_points_per_egp', 'egp_per_100_points']
         widgets = {
             'store_name': forms.TextInput(attrs={'class': 'form-control'}),
             'receipt_header': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
@@ -23,6 +23,8 @@ class StoreSettingForm(forms.ModelForm):
             'latitude': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.000001'}),
             'longitude': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.000001'}),
             'allowed_radius': forms.NumberInput(attrs={'class': 'form-control'}),
+            'loyalty_points_per_egp': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'egp_per_100_points': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
         }
 
 # ==========================================
@@ -184,7 +186,7 @@ class RepairTicketForm(forms.ModelForm):
 
     class Meta:
         model = RepairTicket
-        fields = ['customer', 'technician', 'device_model', 'device_imei', 'issue_description', 'status', 'labor_cost']
+        fields = ['customer', 'technician', 'device_model', 'device_imei', 'issue_description', 'status', 'labor_cost', 'warranty_days', 'parent_ticket']
         widgets = {
             'customer': forms.Select(attrs={'class': 'form-select'}),
             'technician': forms.Select(attrs={'class': 'form-select'}),
@@ -192,7 +194,9 @@ class RepairTicketForm(forms.ModelForm):
             'device_imei': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'السيريال / IMEI'}),
             'issue_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'تفاصيل المشكلة والعطل'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
-            'labor_cost': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'تكلفة المصنعية'}),
+            'labor_cost': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'warranty_days': forms.NumberInput(attrs={'class': 'form-control', 'step': '1'}),
+            'parent_ticket': forms.HiddenInput(),
         }
 
 class RepairPartUsedForm(forms.ModelForm):
@@ -264,7 +268,7 @@ class WarehouseForm(forms.ModelForm):
         model = Warehouse
         fields = ['name', 'is_active']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'اسم المخزن / الفرع'}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'اسم المخزن'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input', 'style': 'cursor: pointer;'}),
         }
 

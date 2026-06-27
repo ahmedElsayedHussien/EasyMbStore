@@ -9,8 +9,9 @@ urlpatterns = [
     path('accounts/login/', auth_views.LoginView.as_view(template_name='erp/login.html'), name='login'),
     path('accounts/logout/', auth_views.LogoutView.as_view(next_page='erp:login'), name='logout'),
     
-    # لوحة التحكم
+    # لوحة التحكم وتبديل الفروع
     path('', views.dashboard_view, name='dashboard'),
+    path('switch-branch/', views.switch_branch, name='switch_branch'),
     
     # نقطة البيع (POS)
     path('pos/', views.pos_view, name='pos'),
@@ -18,6 +19,7 @@ urlpatterns = [
     path('pos/grid/', views.pos_product_grid, name='pos_product_grid'),
     path('pos/checkout/', views.pos_checkout, name='pos_checkout'),
     path('pos/inventory-snapshot/', views.pos_inventory_snapshot, name='pos_inventory_snapshot'),
+    path('pos/verify-gift-card/', views.verify_gift_card, name='verify_gift_card'),
     path('sales/', views.sale_invoice_list, name='sale_list'),
     path('sales/<int:pk>/', views.sale_invoice_detail, name='sale_detail'),
     path('sales/<int:pk>/pay/', views.sale_invoice_pay, name='sale_pay'),
@@ -25,6 +27,7 @@ urlpatterns = [
     
     # شراء المستعمل
     path('used-purchase/', views.used_device_purchase, name='used_purchase'),
+    path('used-return/<int:pk>/', views.used_device_return, name='used_device_return'),
     path('devices/<int:pk>/history/', views.device_history, name='device_history'),
     path('products/quick-add/', views.quick_add_product, name='quick_add_product'),
     path('products/search/', views.product_name_search, name='product_name_search'),
@@ -53,6 +56,7 @@ urlpatterns = [
     path('repairs/<int:pk>/add-part/', views.repair_add_part, name='repair_add_part'),
     path('repairs/<int:pk>/change-status/', views.repair_change_status, name='repair_change_status'),
     path('repairs/<int:pk>/edit/', views.repair_ticket_edit, name='repair_edit'),
+    path('repairs/check-warranty-imei/', views.check_warranty_imei, name='check_warranty_imei'),
     path('contacts/add-ajax/', views.ajax_create_customer, name='ajax_create_customer'),
     
     # الوردية والنقدية
@@ -69,6 +73,7 @@ urlpatterns = [
     
     # التقارير الشاملة
     path('reports/', views.reports_dashboard, name='reports_dashboard'),
+    path('reports/imei-lifecycle/', views.imei_lifecycle_report, name='imei_lifecycle_report'),
 
     # الإشعارات والواتساب
     path('notifications/', views.notifications_dashboard, name='notifications_dashboard'),
@@ -97,4 +102,10 @@ urlpatterns = [
     
     # إدارة المحققات والعمولات
     path('targets-manage/', views.targets_manage, name='targets_manage'),
+    
+    # بطاقات الهدايا
+    path('gift-cards/', views.gift_cards_manage, name='gift_cards_manage'),
+    
+    # سجل النظام (Audit Log)
+    path('audit-log/', views.system_audit_log, name='system_audit_log'),
 ]

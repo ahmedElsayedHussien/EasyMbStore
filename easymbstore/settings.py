@@ -11,9 +11,14 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -25,14 +30,26 @@ SECRET_KEY = 'django-insecure-l)b6cp3j)c29r)9^^(5lz_9ei2(p5ox4^i01d^^z)l687)0__(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'mbstore.pythonanywhere.com', '.pythonanywhere.com']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'mbstore.pythonanywhere.com', '.pythonanywhere.com', '.localhost']
 CSRF_TRUSTED_ORIGINS = ['https://*.pythonanywhere.com', 'http://127.0.0.1:8000', 'http://localhost:8000']
 
 
 # Application definition
 
-INSTALLED_APPS = [
+
+SHARED_APPS = [
+    'django_tenants',
+    'tenants',
     'jazzmin',
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+]
+
+TENANT_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -44,7 +61,14 @@ INSTALLED_APPS = [
     'erp.apps.ErpConfig',
 ]
 
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
+
+TENANT_MODEL = 'tenants.Shop'
+TENANT_DOMAIN_MODEL = 'tenants.Domain'
+
+
 MIDDLEWARE = [
+    'django_tenants.middleware.main.TenantMainMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -53,6 +77,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
+    'erp.middleware.AuditLogMiddleware',
+    'erp.middleware.BranchMiddleware',
 ]
 
 ROOT_URLCONF = 'easymbstore.urls'
@@ -67,6 +93,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'erp.context_processors.branch_processor',
             ],
         },
     },
@@ -78,10 +105,18 @@ WSGI_APPLICATION = 'easymbstore.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+DATABASE_ROUTERS = (
+    'django_tenants.routers.TenantSyncRouter',
+)
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django_tenants.postgresql_backend',
+        'NAME': os.environ.get('DB_NAME', 'easymbstore_db'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
@@ -145,6 +180,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+MULTITENANT_RELATIVE_MEDIA_ROOT = ''
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'django_tenants.files.storage.TenantFileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+}
+
 LOGIN_REDIRECT_URL = 'erp:dashboard'
 LOGOUT_REDIRECT_URL = 'erp:login'
 
@@ -189,7 +235,7 @@ JAZZMIN_SETTINGS = {
     # ── الشريط الجانبي ──
     "show_sidebar": True,
     "navigation_expanded": True,
-    "hide_apps": [],
+    "hide_apps": ["django_q"],
     "hide_models": [],
 
     # ── ترتيب النماذج ──
@@ -286,3 +332,6 @@ JAZZMIN_UI_TWEAKS = {
     "actions_sticky_top": True,
 }
 
+
+# السماح بفتح النوافذ المنبثقة (Modals) في لوحة الإدارة
+X_FRAME_OPTIONS = 'SAMEORIGIN'

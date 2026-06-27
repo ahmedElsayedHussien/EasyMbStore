@@ -4,7 +4,8 @@ from erp.models import (
     PurchaseInvoice, PurchaseItem, StockTransfer, StockTransferItem,
     CashShift, ExpenseCategory, Expense, SaleInvoice, SaleItem, Payment,
     RepairTicket, RepairPartUsed, Warranty, NotificationLog, NotificationSettings,
-    Treasury, TreasuryTransaction, CommissionRule, SalesTarget
+    Treasury, TreasuryTransaction, CommissionRule, SalesTarget,
+    Branch, EmployeeProfile
 )
 
 # 1. إعدادات المحل (Singleton Settings)
@@ -161,7 +162,22 @@ class CommissionRuleAdmin(admin.ModelAdmin):
     list_display = ('product_type', 'sales_milestone', 'commission_amount')
     search_fields = ('product_type',)
 
+
+
 @admin.register(SalesTarget)
 class SalesTargetAdmin(admin.ModelAdmin):
     list_display = ('user', 'period', 'target_amount', 'date')
     list_filter = ('period', 'user', 'date')
+
+
+@admin.register(Branch)
+class BranchAdmin(admin.ModelAdmin):
+    list_display = ('name', 'address', 'phone', 'is_active')
+    search_fields = ('name', 'address')
+    list_filter = ('is_active',)
+
+@admin.register(EmployeeProfile)
+class EmployeeProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'is_active', 'active_branch')
+    search_fields = ('user__username',)
+    filter_horizontal = ('allowed_branches',)

@@ -11,7 +11,12 @@
                 <h4 class="mb-0 text-primary fw-bold">
                     <i class="bi bi-clock-history"></i> تقرير تاريخ وتفاصيل الجهاز
                 </h4>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap justify-content-end">
+                    {% if device.condition == 'used' and not device.is_sold and not device.is_returned_to_seller %}
+                        <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#returnToSellerModal">
+                            <i class="bi bi-arrow-return-left"></i> إرجاع للبائع
+                        </button>
+                    {% endif %}
                     <a href="{% url 'erp:used_purchase' %}" class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-arrow-down-left-circle"></i> شراء مستعمل جديد
                     </a>
@@ -299,4 +304,44 @@
         </div>
     </div>
 </div>
+
+<!-- Modal: إرجاع الجهاز المستعمل للبائع -->
+{% if device.condition == 'used' and not device.is_sold and not device.is_returned_to_seller %}
+<div class="modal fade" id="returnToSellerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light border-warning">
+            <form action="{% url 'erp:used_device_return' device.id %}" method="post">
+                {% csrf_token %}
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-warning"><i class="bi bi-exclamation-triangle"></i> إرجاع الجهاز للبائع</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>أنت على وشك إرجاع الجهاز المستعمل <strong>{{ device.imei }}</strong> للبائع <strong>{{ device.purchased_from.name|default:"غير محدد" }}</strong>.</p>
+                    <p class="text-success fw-bold">تكلفة الشراء المستردة: {{ device.cost }} ج.م</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-light">الخزينة (لإيداع المبلغ المسترد فيها): <span class="text-danger">*</span></label>
+                        <select name="treasury_id" class="form-select" required>
+                            <option value="">-- اختر الخزينة --</option>
+                            {% for t in treasuries %}
+                            <option value="{{ t.id }}">{{ t.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="alert alert-warning py-2 mb-0">
+                        <i class="bi bi-info-circle"></i> هذه العملية ستزيل الجهاز من المخزن الحالي وتلغي توفره للبيع، كما ستسجل إيصال قبض بالمبلغ في الخزينة المحددة.
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-warning fw-bold">تأكيد الإرجاع</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

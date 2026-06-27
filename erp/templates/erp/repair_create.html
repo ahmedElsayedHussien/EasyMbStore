@@ -11,6 +11,11 @@
                 <a href="{% url 'erp:repair_list' %}" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-right"></i> إلغاء وعودة</a>
             </div>
 
+            <div class="alert alert-info bg-dark text-info border-info mb-4" role="alert">
+                <i class="bi bi-lightbulb-fill text-warning me-2"></i>
+                <strong>نظام الضمان الذكي:</strong> عند إدخالك السيريال (IMEI) لجهاز تمت صيانته مسبقاً، سيتحقق النظام تلقائياً من فترة الضمان وينبهك لفتح التذكرة كـ <strong>"تذكرة ضمان/مراجعة"</strong> مجانية إن لزم الأمر.
+            </div>
+
             <form method="POST">
                 {% csrf_token %}
                 
@@ -48,11 +53,18 @@
                         {{ form.issue_description }}
                         {{ form.issue_description.errors }}
                     </div>
-                    <div class="col-12">
+                    <div class="col-md-6">
                         <label for="{{ form.labor_cost.id_for_label }}">أجر المصنعية / الصيانة (ج.م):</label>
                         {{ form.labor_cost }}
                         {{ form.labor_cost.errors }}
                     </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.warranty_days.id_for_label }}">فترة الضمان (بالأيام):</label>
+                        {{ form.warranty_days }}
+                        {{ form.warranty_days.errors }}
+                        <small class="text-secondary">اكتب 0 إذا كانت بدون ضمان.</small>
+                    </div>
+                    {{ form.parent_ticket }}
                     <div class="col-12">
                         <label for="{{ form.status.id_for_label }}">حالة التذكرة المبدئية:</label>
                         {{ form.status }}
@@ -231,6 +243,38 @@ document.addEventListener("DOMContentLoaded", function() {
                 errorsDiv.classList.remove("d-none");
                 errorsDiv.textContent = "حدث خطأ في الاتصال بالسيرفر.";
             });
+        });
+    }
+
+    // 3. التحقق من الضمان عند كتابة السيريال (IMEI)
+    const imeiInput = document.getElementById("id_device_imei");
+    if (imeiInput) {
+        imeiInput.addEventListener("blur", function() {
+            const imei = this.value.trim();
+            if (imei.length > 3) {
+                fetch(`{% url 'erp:check_warranty_imei' %}?imei=${encodeURIComponent(imei)}`)
+                .then(response => response.json())
+                .then(data => {
+                    // إزالة أي تنبيه سابق
+                    const oldAlert = document.getElementById("warranty-alert");
+                    if (oldAlert) oldAlert.remove();
+                    
+                    if (data.found) {
+                        const alertDiv = document.createElement("div");
+                        alertDiv.id = "warranty-alert";
+                        alertDiv.className = `alert mt-2 ${data.in_warranty ? 'alert-warning' : 'alert-info'}`;
+                        
+                        let html = `<strong><i class="bi bi-info-circle"></i> تنبيه:</strong> ${data.message}`;
+                        if (data.in_warranty) {
+                            html += `<br><a href="{% url 'erp:repair_create' %}?parent_id=${data.ticket_id}" class="btn btn-sm btn-dark mt-2">إنشاء تذكرة مراجعة / ضمان</a>`;
+                        }
+                        alertDiv.innerHTML = html;
+                        
+                        imeiInput.parentNode.appendChild(alertDiv);
+                    }
+                })
+                .catch(err => console.error("Error checking warranty:", err));
+            }
         });
     }
 });

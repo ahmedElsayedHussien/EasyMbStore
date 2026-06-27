@@ -43,7 +43,7 @@ from django.utils import timezone
 from decimal import Decimal
 from django.contrib import messages
 from erp.models import (
-    StoreSetting, Contact, Warehouse, Product, Stock, Device, DeviceAttachment,
+    Branch, StoreSetting, Contact, Warehouse, Product, Stock, Device, DeviceAttachment,
     PurchaseInvoice, PurchaseItem, StockTransfer, StockTransferItem,
     CashShift, Expense, ExpenseCategory, SaleInvoice, SaleItem, Payment,
     RepairTicket, RepairPartUsed, Warranty, NotificationLog, Treasury, ContactTransaction
@@ -56,6 +56,39 @@ from erp.forms import (
     CashShiftOpenForm, CashShiftCloseForm, ExpenseForm,
     WarehouseForm, SupplierForm, CustomerForm, TreasuryForm, ProductForm, SystemUserCreationForm, ContactTransactionForm
 )
+from django.shortcuts import redirect
+from django.contrib.auth.decorators import login_required
+
+
+from django.shortcuts import redirect
+from django.contrib import messages
+from functools import wraps
+
+def require_specific_branch(view_func):
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        if request.branch is None:
+            messages.warning(request, 'يجب تحديد فرع معين للقيام بهذه العملية (لا يمكن استخدام كل الفروع).')
+            return redirect('erp:dashboard')
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+@login_required
+@require_POST
+def switch_branch(request):
+    branch_id = request.POST.get('branch_id')
+    if branch_id:
+        request.session['active_branch_id'] = branch_id
+    # إعادة توجيه للصفحة السابقة أو للرئيسية
+    next_url = request.POST.get('next', 'erp:dashboard')
+    if not next_url.startswith('/'):
+        from django.urls import reverse
+        try:
+            next_url = reverse(next_url)
+        except:
+            next_url = reverse('erp:dashboard')
+    return redirect(next_url)
+
 # ==========================================
 # 1. لوحة التحكم (Interactive Dashboard)
 # ==========================================
@@ -74,18 +107,41 @@ def dashboard_view(request):
     # إعدادات المحل
     store_setting = StoreSetting.objects.first()
     # حساب الإيرادات الإجمالية
-    total_sales = SaleInvoice.objects.aggregate(total=models.Sum('net_amount'))['total'] or 0.00
+    total_sales = SaleInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches).aggregate(total=models.Sum('net_amount'))['total'] or 0.00
     # الوردية المفتوحة الحالية للمستخدم
     active_shift = CashShift.objects.filter(cashier=request.user, status='open').first()
     active_shift_balance = active_shift.expected_closing_balance if active_shift else 0.00
     # تذاكر الصيانة النشطة
     active_repairs_count = RepairTicket.objects.exclude(status='delivered').count()
+    from django.utils.timezone import now
+    from django.db.models import Sum
+    current_date = now()
+    start_of_month = current_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # مبيعات الشهر الحالي
+    current_month_sales = SaleInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, date_created__gte=start_of_month).aggregate(total=Sum('net_amount'))['total'] or 0.00
+    # مشتريات الشهر الحالي
+    current_month_purchases = PurchaseInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, invoice_date__gte=start_of_month).aggregate(total=Sum('net_amount'))['total'] or 0.00
+    # مصروفات الشهر الحالي
+    current_month_expenses = Expense.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, shift__start_time__gte=start_of_month).aggregate(total=Sum('amount'))['total'] or 0.00
+    
+    # أكثر الأصناف مبيعاً هذا الشهر
+    top_selling_products = Product.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, saleitem__invoice__date_created__gte=start_of_month)\
+                                          .annotate(total_sold=Sum('saleitem__quantity'))\
+                                          .order_by('-total_sold')[:5]
+                                          
+    # أقل الأصناف مبيعاً هذا الشهر
+    least_selling_products = Product.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, saleitem__invoice__date_created__gte=start_of_month)\
+                                            .annotate(total_sold=Sum('saleitem__quantity'))\
+                                            .filter(total_sold__gt=0)\
+                                            .order_by('total_sold')[:5]
+
     # النواقص (أصناف كميتها في أي مخزن أقل من 5)
-    low_stock_items = Stock.objects.filter(quantity__lt=5).select_related('product', 'warehouse')
+    low_stock_items = Stock.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches, quantity__lt=5).select_related('product', 'warehouse')
     # آخر فواتير بيع
-    recent_sales = SaleInvoice.objects.order_by('-date_created')[:5].select_related('customer', 'cashier')
+    recent_sales = SaleInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches).order_by('-date_created')[:5].select_related('customer', 'cashier')
     # آخر تذاكر صيانة
-    recent_tickets = RepairTicket.objects.order_by('-id')[:5].select_related('customer', 'technician')
+    recent_tickets = RepairTicket.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches).order_by('-id')[:5].select_related('customer', 'technician')
     # سجل الإشعارات
     recent_notifications = NotificationLog.objects.order_by('-sent_at')[:5].select_related('customer')
     # البحث السريع بـ QR/الباركود
@@ -93,11 +149,11 @@ def dashboard_view(request):
     search_result = None
     if search_query:
         # البحث عن منتج بالباركود
-        product = Product.objects.filter(barcode_qr=search_query).first()
+        product = Product.objects.filter(barcode_qr=search_query, branch__in=[request.branch] if request.branch else request.user_allowed_branches).first()
         if product:
             # إحضار تفاصيل المخزون والأجهزة
-            stocks = Stock.objects.filter(product=product).select_related('warehouse')
-            unsold_devices = Device.objects.filter(product=product, is_sold=False).select_related('warehouse')
+            stocks = Stock.objects.filter(product=product, warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches).select_related('warehouse')
+            unsold_devices = Device.objects.filter(product=product, is_sold=False, warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches).select_related('warehouse')
             search_result = {
                 'type': 'product',
                 'object': product,
@@ -106,7 +162,7 @@ def dashboard_view(request):
             }
         else:
             # البحث عن جهاز سيريال IMEI
-            device = Device.objects.filter(models.Q(imei=search_query) | models.Q(imei2=search_query)).select_related('product', 'warehouse', 'purchased_from').first()
+            device = Device.objects.filter(models.Q(imei=search_query) | models.Q(imei2=search_query), warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches).select_related('product', 'warehouse', 'purchased_from').first()
             if device:
                 search_result = {
                     'type': 'device',
@@ -124,8 +180,13 @@ def dashboard_view(request):
         'recent_sales': recent_sales,
         'recent_tickets': recent_tickets,
         'recent_notifications': recent_notifications,
-        'search_result': search_result,
         'search_query': search_query,
+        'search_result': search_result,
+        'current_month_sales': current_month_sales,
+        'current_month_purchases': current_month_purchases,
+        'current_month_expenses': current_month_expenses,
+        'top_selling_products': top_selling_products,
+        'least_selling_products': least_selling_products,
     }
     return render(request, 'erp/dashboard.html', context)
 # ==========================================
@@ -133,6 +194,7 @@ def dashboard_view(request):
 # ==========================================
 @login_required
 @permission_required('erp.add_saleinvoice', raise_exception=True)
+@require_specific_branch
 def pos_view(request):
     # التحقق من وجود وردية مفتوحة للكاشير الحالي
     active_shift = CashShift.objects.filter(cashier=request.user, status='open').first()
@@ -144,11 +206,11 @@ def pos_view(request):
     # جلب المنتجات والمخازن والعملاء للتفاعل الفوري
     from django.db.models import Sum, Count, Q, Case, When, Value, IntegerField
     from django.db.models.functions import Coalesce
-    products = Product.objects.annotate(
+    products = Product.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches).annotate(
         available_qty=Coalesce(
             Case(
-                When(requires_imei=True, then=Count('device', filter=Q(device__is_sold=False))),
-                default=Sum('stock__quantity'),
+                When(requires_imei=True, then=Count('device', filter=Q(device__is_sold=False, device__warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches))),
+                default=Sum('stock__quantity', filter=Q(stock__warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches)),
                 output_field=IntegerField()
             ),
             Value(0)
@@ -157,7 +219,7 @@ def pos_view(request):
     card_list = []
     for prod in products:
         if prod.requires_imei:
-            new_qty = prod.device_set.filter(is_sold=False, condition='new').count()
+            new_qty = prod.device_set.filter(is_sold=False, condition='new', warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches).count()
             if new_qty > 0:
                 card_list.append({
                     'id': prod.id,
@@ -170,7 +232,7 @@ def pos_view(request):
                     'available_qty': new_qty,
                     'condition': 'new'
                 })
-            used_qty = prod.device_set.filter(is_sold=False, condition='used').count()
+            used_qty = prod.device_set.filter(is_sold=False, condition='used', warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches).count()
             if used_qty > 0:
                 card_list.append({
                     'id': prod.id,
@@ -195,11 +257,11 @@ def pos_view(request):
                 'available_qty': prod.available_qty,
                 'condition': None
             })
-    warehouses = Warehouse.objects.filter(is_active=True)
-    customers = Contact.objects.filter(contact_type__in=['customer', 'used_seller'])
-    warehouse_stocks = Stock.objects.filter(quantity__gt=0).select_related('product', 'warehouse')
+    warehouses = Warehouse.objects.filter(is_active=True, branch__in=[request.branch] if request.branch else request.user_allowed_branches)
+    customers = Contact.objects.filter(contact_type__in=['customer', 'used_seller'], branch__in=[request.branch] if request.branch else request.user_allowed_branches)
+    warehouse_stocks = Stock.objects.filter(quantity__gt=0, warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches).select_related('product', 'warehouse')
     # الأجهزة المتاحة للبيع
-    available_devices = Device.objects.filter(is_sold=False).select_related('product', 'warehouse')
+    available_devices = Device.objects.filter(is_sold=False, warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches).select_related('product', 'warehouse')
     context = {
         'active_shift': active_shift,
         'store_setting': store_setting,
@@ -212,15 +274,16 @@ def pos_view(request):
     }
     return render(request, 'erp/pos.html', context)
 @login_required
+@require_specific_branch
 def pos_product_search(request):
     """
     مستدعى للبحث السريع عن الباركود أثناء إضافته من قارئ الباركود.
     """
     code = request.GET.get('code', '').strip()
-    product = Product.objects.filter(barcode_qr=code).first()
+    product = Product.objects.filter(barcode_qr=code, branch__in=[request.branch] if request.branch else request.user_allowed_branches).first()
     if not product:
         # البحث في الأجهزة بالسيريال
-        device = Device.objects.filter(models.Q(imei=code) | models.Q(imei2=code), is_sold=False).select_related('product', 'warehouse').first()
+        device = Device.objects.filter(models.Q(imei=code) | models.Q(imei2=code), is_sold=False, warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches).select_related('product', 'warehouse').first()
         if device:
             imei_label = f"{device.imei} / {device.imei2}" if device.imei2 else device.imei
             cond_str = "جديد" if device.condition == 'new' else "مستعمل"
@@ -249,6 +312,7 @@ def pos_product_search(request):
     })
 @login_required
 @permission_required('erp.add_saleinvoice', raise_exception=True)
+@require_specific_branch
 def pos_product_grid(request):
     """
     مستدعى ديناميكياً لتحديث شبكة المنتجات بالبحث و/أو القسم (HTMX AJAX search).
@@ -257,11 +321,11 @@ def pos_product_grid(request):
     category = request.GET.get('category', '').strip()
     from django.db.models import Sum, Count, Q, Case, When, Value, IntegerField
     from django.db.models.functions import Coalesce
-    products = Product.objects.annotate(
+    products = Product.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches).annotate(
         available_qty=Coalesce(
             Case(
-                When(requires_imei=True, then=Count('device', filter=Q(device__is_sold=False))),
-                default=Sum('stock__quantity'),
+                When(requires_imei=True, then=Count('device', filter=Q(device__is_sold=False, device__warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches))),
+                default=Sum('stock__quantity', filter=Q(stock__warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches)),
                 output_field=IntegerField()
             ),
             Value(0)
@@ -278,7 +342,7 @@ def pos_product_grid(request):
     card_list = []
     for prod in products:
         if prod.requires_imei:
-            new_qty = prod.device_set.filter(is_sold=False, condition='new').count()
+            new_qty = prod.device_set.filter(is_sold=False, condition='new', warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches).count()
             if new_qty > 0:
                 card_list.append({
                     'id': prod.id,
@@ -291,7 +355,7 @@ def pos_product_grid(request):
                     'available_qty': new_qty,
                     'condition': 'new'
                 })
-            used_qty = prod.device_set.filter(is_sold=False, condition='used').count()
+            used_qty = prod.device_set.filter(is_sold=False, condition='used', warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches).count()
             if used_qty > 0:
                 card_list.append({
                     'id': prod.id,
@@ -320,6 +384,7 @@ def pos_product_grid(request):
 @login_required
 @permission_required('erp.add_saleinvoice', raise_exception=True)
 @require_POST
+@require_specific_branch
 def pos_checkout(request):
     """
     حفظ الفاتورة عبر معاملة قاعدة بيانات متكاملة لضمان موثوقية الخصم والماليات.
@@ -336,6 +401,11 @@ def pos_checkout(request):
     traded_in_device_id = data.get('traded_in_device_id')
     trade_in_value = models.DecimalField().to_python(data.get('trade_in_value', 0))
     warranty_days = int(data.get('warranty_days', 14))
+    
+    # بطاقات الهدايا والنقاط
+    points_redeemed = int(data.get('points_redeemed', 0))
+    gift_card_code = data.get('gift_card_code', '').strip()
+    
     items_data = data.get('items', [])
     payments_data = data.get('payments', [])
     if not items_data:
@@ -345,6 +415,7 @@ def pos_checkout(request):
             customer = get_object_or_404(Contact, id=customer_id)
             # 1. إنشاء رأس الفاتورة
             invoice = SaleInvoice(
+                branch__in=[request.branch] if request.branch else request.user_allowed_branches,
                 shift=active_shift,
                 cashier=request.user,
                 customer=customer,
@@ -392,7 +463,56 @@ def pos_checkout(request):
                 sale_item.save()  # سيقوم الـ Signal بخصم المخزن
                 total_sum += sale_item.quantity * unit_price
             invoice.total_amount = total_sum
-            invoice.net_amount = (total_sum - discount) - trade_in_value
+            net_amount = (total_sum - discount) - trade_in_value
+            
+            # --- معالجة نظام نقاط الولاء وبطاقات الهدايا ---
+            store_settings = StoreSetting.objects.first()
+            if store_settings and store_settings.enable_loyalty_system:
+                from decimal import Decimal
+                from django.utils.timezone import now
+                
+                # 1. استبدال النقاط
+                if points_redeemed > 0:
+                    if customer.loyalty_points < points_redeemed:
+                        raise ValidationError(f"رصيد النقاط ({customer.loyalty_points}) لا يكفي لاستبدال ({points_redeemed}) نقطة.")
+                    
+                    points_discount_val = (Decimal(points_redeemed) / Decimal(100)) * store_settings.egp_per_100_points
+                    customer.loyalty_points -= points_redeemed
+                    invoice.points_redeemed = points_redeemed
+                    invoice.points_discount = points_discount_val
+                    net_amount -= points_discount_val
+                
+                # 2. خصم بطاقة الهدايا
+                if gift_card_code:
+                    try:
+                        gift_card = GiftCard.objects.select_for_update().get(code=gift_card_code, is_active=True)
+                    except GiftCard.DoesNotExist:
+                        raise ValidationError("كود بطاقة الهدية غير صالح أو غير مفعل.")
+                        
+                    if gift_card.expires_at and gift_card.expires_at < now().date():
+                        raise ValidationError("بطاقة الهدية منتهية الصلاحية.")
+                        
+                    if gift_card.current_balance > 0 and net_amount > 0:
+                        deduction = min(gift_card.current_balance, net_amount)
+                        gift_card.current_balance -= deduction
+                        gift_card.save()
+                        
+                        invoice.gift_card = gift_card
+                        invoice.gift_card_deduction = deduction
+                        net_amount -= deduction
+                    elif gift_card.current_balance <= 0:
+                        raise ValidationError("رصيد بطاقة الهدية نافد (صفر).")
+                
+                # 3. احتساب النقاط المكتسبة على المتبقي الذي سيُدفع (قبل احتساب المديونية)
+                if net_amount > 0 and customer.contact_type == 'customer':
+                    earned = int(net_amount * store_settings.loyalty_points_per_egp)
+                    invoice.points_earned = earned
+                    customer.loyalty_points += earned
+                
+                customer.save()
+            # ---------------------------------------------
+            
+            invoice.net_amount = net_amount
             invoice.save()  # سيقوم الـ Signal الخاص بـ Trade-in بتهيئة الجهاز المستبدل إن وُجد
             # 3. معالجة المدفوعات المتعددة
             total_paid = 0
@@ -436,6 +556,7 @@ def pos_checkout(request):
         return JsonResponse({'error': f"فشل الحفظ: {str(e)}"}, status=400)
 
 @login_required
+@require_specific_branch
 def pos_inventory_snapshot(request):
     """
     إرجاع قائمة الأجهزة المتاحة وكميات المخازن بصيغة JSON لتحديث نقطة البيع تلقائياً بدون تحديث الصفحة.
@@ -475,6 +596,7 @@ def pos_inventory_snapshot(request):
 # ==========================================
 @login_required
 @permission_required('erp.add_device', raise_exception=True)
+@require_specific_branch
 def used_device_purchase(request):
     store_setting = StoreSetting.objects.first()
     if request.method == 'POST':
@@ -583,8 +705,50 @@ def used_device_purchase(request):
         'attachment_formset': attachment_formset,
     }
     return render(request, 'erp/used_purchase.html', context)
+
+@login_required
+@permission_required('erp.change_device', raise_exception=True)
+@require_specific_branch
+def used_device_return(request, pk):
+    device = get_object_or_404(Device, pk=pk)
+    
+    if request.method == 'POST':
+        treasury_id = request.POST.get('treasury_id')
+        if not treasury_id:
+            messages.error(request, "يجب تحديد الخزينة التي سيتم استرداد المبلغ إليها.")
+            return redirect('erp:device_history', pk=pk)
+            
+        try:
+            with transaction.atomic():
+                treasury = Treasury.objects.select_for_update().get(pk=treasury_id)
+                
+                # تحديث حالة الجهاز بأنه تم إرجاعه للبائع
+                device.is_returned_to_seller = True
+                device.save()
+                
+                cost = device.cost or 0
+                if cost > 0 and device.purchased_from:
+                    treasury.balance += cost
+                    treasury.save()
+                    
+                    # تسجيل استرداد المبلغ كحركة إيصال (قبض) من البائع
+                    ContactTransaction.objects.create(
+                        contact=device.purchased_from,
+                        treasury=treasury,
+                        transaction_type='receipt',
+                        amount=cost,
+                        description=f"استرداد مبلغ الهاتف المستعمل IMEI: {device.imei} بسبب الإرجاع للبائع",
+                        user=request.user
+                    )
+                
+                messages.success(request, f"تم إرجاع الجهاز المستعمل ({device.imei}) للبائع بنجاح واسترداد مبلغه إلى الخزينة.")
+        except Exception as e:
+            messages.error(request, f"حدث خطأ أثناء الإرجاع: {str(e)}")
+            
+    return redirect('erp:device_history', pk=pk)
 @login_required
 @permission_required('erp.add_device', raise_exception=True)
+@require_specific_branch
 def quick_add_product(request):
     """
     إضافة موديل هاتف جديد بسرعة من شاشة شراء المستعمل.
@@ -645,9 +809,9 @@ def product_name_search(request):
 @login_required
 @permission_required('erp.view_purchaseinvoice', raise_exception=True)
 def purchase_invoice_list(request):
-    purchases = PurchaseInvoice.objects.all().order_by('-invoice_date').select_related('supplier', 'created_by')
-    has_open_shift = CashShift.objects.filter(cashier=request.user, status='open').exists()
-    active_treasuries = Treasury.objects.filter(is_active=True)
+    purchases = PurchaseInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches).order_by('-invoice_date').select_related('supplier', 'created_by')
+    has_open_shift = CashShift.objects.filter(cashier=request.user, status='open', branch__in=[request.branch] if request.branch else request.user_allowed_branches).exists()
+    active_treasuries = Treasury.objects.filter(is_active=True, branch__in=[request.branch] if request.branch else request.user_allowed_branches)
     return render(request, 'erp/purchase_list.html', {
         'purchases': purchases,
         'has_open_shift': has_open_shift,
@@ -655,6 +819,7 @@ def purchase_invoice_list(request):
     })
 @login_required
 @permission_required('erp.add_purchaseinvoice', raise_exception=True)
+@require_specific_branch
 def purchase_invoice_create(request):
     store_setting = StoreSetting.objects.first()
     if request.method == 'POST':
@@ -732,6 +897,7 @@ def purchase_invoice_detail(request, pk):
 
 @login_required
 @permission_required('erp.change_purchaseinvoice', raise_exception=True)
+@require_specific_branch
 def purchase_invoice_pay(request, pk):
     """
     تسجيل سداد دفعة لفاتورة مشتريات مورد (نقداً أو آجل).
@@ -835,6 +1001,7 @@ def transfer_list(request):
     return render(request, 'erp/transfer_list.html', {'transfers': transfers})
 @login_required
 @permission_required('erp.add_stocktransfer', raise_exception=True)
+@require_specific_branch
 def transfer_create(request):
     if request.method == 'POST':
         form = StockTransferForm(request.POST)
@@ -908,6 +1075,7 @@ def transfer_create(request):
     })
 @login_required
 @permission_required('erp.change_stocktransfer', raise_exception=True)
+@require_specific_branch
 def transfer_complete(request, pk):
     """
     تأكيد استلام الشحنة وتحديث مواقع المخازن وتفعيل السجنل.
@@ -928,12 +1096,12 @@ def transfer_complete(request, pk):
 @permission_required('erp.view_repairticket', raise_exception=True)
 def repair_ticket_list(request):
     # إحضار كافة التذاكر مع التحميل المسبق لتجنب N+1 Queries
-    tickets = RepairTicket.objects.all().order_by('-id').select_related('customer', 'technician')
-    parts = Product.objects.filter(product_type='spare_part')
-    warehouses = Warehouse.objects.filter(is_active=True)
+    tickets = RepairTicket.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches).order_by('-id').select_related('customer', 'technician')
+    parts = Product.objects.filter(product_type='spare_part', branch__in=[request.branch] if request.branch else request.user_allowed_branches)
+    warehouses = Warehouse.objects.filter(is_active=True, branch__in=[request.branch] if request.branch else request.user_allowed_branches)
     from django.contrib.auth.models import User
     technicians = User.objects.filter(groups__name='فني الصيانة')
-    treasuries = Treasury.objects.filter(is_active=True)
+    treasuries = Treasury.objects.filter(is_active=True, branch__in=[request.branch] if request.branch else request.user_allowed_branches)
     context = {
         'tickets': tickets,
         'parts': parts,
@@ -944,6 +1112,7 @@ def repair_ticket_list(request):
     return render(request, 'erp/repairs.html', context)
 @login_required
 @permission_required('erp.add_repairticket', raise_exception=True)
+@require_specific_branch
 def repair_ticket_create(request):
     if request.method == 'POST':
         form = RepairTicketForm(request.POST)
@@ -952,11 +1121,28 @@ def repair_ticket_create(request):
             messages.success(request, f"تم فتح تذكرة الصيانة #{ticket.id} بنجاح.")
             return redirect('erp:repair_list')
     else:
-        form = RepairTicketForm()
+        parent_id = request.GET.get('parent_id')
+        initial_data = {}
+        if parent_id:
+            try:
+                parent_ticket = RepairTicket.objects.get(id=parent_id)
+                initial_data = {
+                    'customer': parent_ticket.customer_id,
+                    'device_model': parent_ticket.device_model,
+                    'device_imei': parent_ticket.device_imei,
+                    'parent_ticket': parent_ticket.id,
+                    'labor_cost': 0, # افتراض أن تذكرة الضمان بدون مصنعية إضافية مبدئياً
+                    'issue_description': f"متابعة للتذكرة السابقة #{parent_ticket.id}:\n"
+                }
+                messages.info(request, "تم تعبئة البيانات تلقائياً بناءً على تذكرة الضمان السابقة.")
+            except RepairTicket.DoesNotExist:
+                pass
+        form = RepairTicketForm(initial=initial_data)
     return render(request, 'erp/repair_create.html', {'form': form})
 @login_required
 @permission_required('erp.change_repairticket', raise_exception=True)
 @require_POST
+@require_specific_branch
 def repair_add_part(request, pk):
     """
     إضافة قطع غيار للتذكرة وخصمها من المخزن عبر سجنل RepairPartUsed.
@@ -998,6 +1184,7 @@ def repair_add_part(request, pk):
 @login_required
 @permission_required('erp.change_repairticket', raise_exception=True)
 @require_POST
+@require_specific_branch
 def repair_change_status(request, pk):
     """
     تعديل حالة الصيانة وإرسال إشعار للعميل عبر Django Q2 في الخلفية.
@@ -1066,6 +1253,7 @@ def repair_change_status(request, pk):
 @login_required
 @permission_required('erp.change_repairticket', raise_exception=True)
 @require_POST
+@require_specific_branch
 def repair_ticket_edit(request, pk):
     """
     تحديث بيانات التذكرة (المصنعية، حالة التذكرة، وصف العطل، الفني المسؤول).
@@ -1129,6 +1317,7 @@ def repair_ticket_edit(request, pk):
 # ==========================================
 @login_required
 @permission_required('erp.view_cashshift', raise_exception=True)
+@require_specific_branch
 def shift_manage_view(request):
     # الوردية المفتوحة الحالية للكاشير
     active_shift = CashShift.objects.filter(cashier=request.user, status='open').first()
@@ -1184,9 +1373,9 @@ def shift_manage_view(request):
         
         # تمرير أرصدة الخزن لتعبئة رصيد البداية ديناميكياً
         if request.user.is_superuser or request.user.groups.filter(name='المدير العام').exists():
-            user_treasuries = Treasury.objects.filter(is_active=True)
+            user_treasuries = Treasury.objects.filter(is_active=True, branch__in=[request.branch] if request.branch else request.user_allowed_branches)
         else:
-            user_treasuries = Treasury.objects.filter(user=request.user, is_active=True)
+            user_treasuries = Treasury.objects.filter(user=request.user, is_active=True, branch__in=[request.branch] if request.branch else request.user_allowed_branches)
         balances_map = {t.id: float(t.balance) for t in user_treasuries}
         
         return render(request, 'erp/shift_open.html', {
@@ -1196,6 +1385,7 @@ def shift_manage_view(request):
 @login_required
 @permission_required('erp.add_expense', raise_exception=True)
 @require_POST
+@require_specific_branch
 def shift_add_expense(request):
     if not (request.user.is_staff or request.user.is_superuser):
         return JsonResponse({'error': 'غير مسموح للكاشير بتسجيل مصروفات'}, status=403)
@@ -1208,6 +1398,7 @@ def shift_add_expense(request):
         form = ExpenseForm(request.POST)
         if form.is_valid():
             expense = form.save(commit=False)
+            expense.branch = request.branch
             expense.shift = active_shift
             # التأكد من توفر رصيد في الخزينة المحددة
             if expense.treasury and expense.amount > expense.treasury.balance:
@@ -1226,6 +1417,7 @@ def shift_add_expense(request):
 @login_required
 @permission_required('erp.change_cashshift', raise_exception=True)
 @require_POST
+@require_specific_branch
 def shift_close(request):
     with transaction.atomic():
         active_shift = CashShift.objects.select_for_update().filter(cashier=request.user, status='open').first()
@@ -1257,7 +1449,7 @@ def cash_status(request):
     """
     شاشة حالة النقدية: تعرض الخزائن والأرصدة الحالية
     """
-    treasuries = Treasury.objects.filter(is_active=True).order_by('-balance')
+    treasuries = Treasury.objects.filter(is_active=True, branch__in=[request.branch] if request.branch else request.user_allowed_branches).order_by('-balance')
     
     # حساب إجمالي النقدية
     total_cash = sum(t.balance for t in treasuries)
@@ -1295,6 +1487,7 @@ def device_history(request, pk):
         (models.Q(device_imei=device.imei2) if device.imei2 else models.Q(id=-1))
     ).order_by('-id')
     store_setting = StoreSetting.objects.first()
+    treasuries = Treasury.objects.filter(is_active=True)
     context = {
         'store_setting': store_setting,
         'device': device,
@@ -1305,6 +1498,7 @@ def device_history(request, pk):
         'traded_in_invoice': traded_in_invoice,
         'transfers': transfers,
         'repairs': repairs,
+        'treasuries': treasuries,
     }
     return render(request, 'erp/device_history.html', context)
 @login_required
@@ -1347,8 +1541,12 @@ def setup_dashboard_view(request):
         elif action == 'add_warehouse':
             form = WarehouseForm(request.POST)
             if form.is_valid():
-                form.save()
-                messages.success(request, "تم تسجيل الفرع/المخزن الجديد بنجاح.")
+                warehouse = form.save(commit=False)
+                if request.branch:
+                    warehouse.branch = request.branch
+                warehouse.save()
+                branch_name = request.branch.name if request.branch else ''
+                messages.success(request, f"تم تسجيل المخزن الجديد بنجاح في الفرع '{branch_name}'.")
                 return redirect('erp:setup_dashboard')
             else:
                 messages.error(request, "خطأ في إدخال بيانات المخزن.")
@@ -1399,39 +1597,11 @@ def setup_dashboard_view(request):
             else:
                 messages.error(request, "خطأ في إدخال بيانات الصنف.")
                 product_form = form # احتفاظ بالنموذج غير الصالح لعرض الأخطاء
-        elif action == 'add_user':
-            form = SystemUserCreationForm(request.POST)
-            if form.is_valid():
-                username = form.cleaned_data.get('username')
-                first_name = form.cleaned_data.get('first_name')
-                last_name = form.cleaned_data.get('last_name')
-                email = form.cleaned_data.get('email')
-                password = form.cleaned_data.get('password')
-                role = form.cleaned_data.get('role')
-                # إنشاء المستخدم
-                new_user = User.objects.create_user(
-                    username=username,
-                    first_name=first_name,
-                    last_name=last_name,
-                    email=email,
-                    password=password
-                )
-                # ربط بالمجموعة (إنشاء المجموعة تلقائياً إذا لم تكن موجودة بقاعدة البيانات)
-                group, _ = Group.objects.get_or_create(name=role)
-                new_user.groups.add(group)
-                # إذا كان المدير العام، نمنحه رتبة إداري (is_staff) لتصفح لوحات النظام والتهيئة
-                if role == 'المدير العام':
-                    new_user.is_staff = True
-                    new_user.save()
-                messages.success(request, f"تم تسجيل المستخدم الجديد '{username}' بنجاح وتعيينه لدور '{role}'.")
-                return redirect('erp:setup_dashboard')
-            else:
-                messages.error(request, "خطأ في إدخال بيانات المستخدم الجديد.")
-                user_form = form # احتفاظ بالنموذج لعرض الأخطاء
+
     # جلب قوائم البيانات الحالية
     warehouses = Warehouse.objects.all().order_by('id')
     suppliers = Contact.objects.filter(contact_type='supplier').order_by('-id')
-    customers = Contact.objects.filter(contact_type='customer').order_by('-id')
+    customers = Contact.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, contact_type='customer').order_by('-id')
     treasuries = Treasury.objects.select_related('user').order_by('-id')
     products = Product.objects.all().order_by('-id')
     users = User.objects.filter(is_superuser=False).prefetch_related('groups').order_by('-id')
@@ -1469,7 +1639,7 @@ def debts_list(request):
                 
                 # توزيع المبلغ على الفواتير المفتوحة للعميل
                 if trans.transaction_type == 'receipt' and trans.contact.contact_type in ['customer', 'used_seller']:
-                    unpaid_sales = SaleInvoice.objects.filter(
+                    unpaid_sales = SaleInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, 
                         customer=trans.contact, 
                         payment_method__in=['credit', 'partial']
                     ).order_by('date_created')
@@ -1537,7 +1707,7 @@ def debts_list(request):
         form = ContactTransactionForm()
 
     # جلب جميع جهات الاتصال وحساب الرصيد الحالي
-    all_contacts = Contact.objects.all()
+    all_contacts = Contact.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches)
     customers_with_debts = []
     suppliers_with_dues = []
 
@@ -1567,7 +1737,7 @@ def sale_invoice_list(request):
     from django.db.models import Q
     
     query = request.GET.get('q', '')
-    invoices = SaleInvoice.objects.select_related('customer', 'cashier').order_by('-date_created')
+    invoices = SaleInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches).select_related('customer', 'cashier').order_by('-date_created')
     
     if query:
         invoices = invoices.filter(
@@ -1618,6 +1788,7 @@ def sale_invoice_detail(request, pk):
 
 @login_required
 @permission_required('erp.change_saleinvoice', raise_exception=True)
+@require_specific_branch
 def sale_invoice_pay(request, pk):
     """
     تسجيل سداد دفعة لفاتورة مبيعات عميل
@@ -1720,15 +1891,15 @@ def inventory_dashboard(request):
             request.user.has_perm('erp.view_device')):
         raise PermissionDenied("ليس لديك صلاحية لعرض لوحة المخزون.")
     store_setting = StoreSetting.objects.first()
-    warehouses = Warehouse.objects.filter(is_active=True).order_by('id')
+    warehouses = Warehouse.objects.filter(is_active=True, branch__in=[request.branch] if request.branch else request.user_allowed_branches).order_by('id')
     # استخراج الفلاتر والبحث
     warehouse_id = request.GET.get('warehouse')
     product_type = request.GET.get('type')
     search_query = request.GET.get('q', '').strip()
     # 1. المخزون السائب (Bulk Stock)
-    stock_qs = Stock.objects.all().select_related('product', 'warehouse')
+    stock_qs = Stock.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches).select_related('product', 'warehouse')
     # 2. الأجهزة المسيرنة غير المباعة (Serialized Devices in Stock)
-    device_qs = Device.objects.filter(is_sold=False).select_related('product', 'warehouse')
+    device_qs = Device.objects.filter(is_sold=False, warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches).select_related('product', 'warehouse')
     # تطبيق فلتر المستودع
     if warehouse_id:
         stock_qs = stock_qs.filter(warehouse_id=warehouse_id)
@@ -1848,7 +2019,7 @@ def reports_dashboard(request):
     from erp.models import (
         Warehouse, Product, Stock, Device, PurchaseInvoice, PurchaseItem,
         SaleInvoice, SaleItem, Payment, RepairTicket, RepairPartUsed, Expense, Contact,
-        CashShift, Warranty
+        CashShift, Warranty, SaleReturn, SaleReturnItem, PurchaseReturn, PurchaseReturnItem, TreasuryTransaction, ContactTransaction
     )
     # 1. Parse Date Range Filters
     start_date_str = request.GET.get('start_date')
@@ -1878,13 +2049,18 @@ def reports_dashboard(request):
     # 1. FINANCIAL REPORTS (التقارير المالية)
     # ==========================================
     # A. Profit & Loss Calculations
-    sales_in_period = SaleInvoice.objects.filter(date_created__range=(start_dt, end_dt))
+    sales_in_period = SaleInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, date_created__range=(start_dt, end_dt))
     total_sales_revenue = sales_in_period.aggregate(total=models.Sum('net_amount'))['total'] or Decimal('0.00')
     sales_list = sales_in_period.select_related('customer', 'cashier').order_by('-date_created')
+
+    # المرتجعات وتأثيرها على الإيرادات وتكلفة البضاعة
+    sales_returns_in_period = SaleReturn.objects.filter(sale_invoice__branch__in=[request.branch] if request.branch else request.user_allowed_branches, date_created__range=(start_dt, end_dt))
+    total_sales_returns_amount = sales_returns_in_period.aggregate(total=models.Sum('refund_amount'))['total'] or Decimal('0.00')
+    net_sales_revenue = total_sales_revenue - total_sales_returns_amount
     cogs_serialized = Decimal('0.00')
     cogs_bulk = Decimal('0.00')
     cogs_list = []
-    sale_items = SaleItem.objects.filter(invoice__date_created__range=(start_dt, end_dt)).select_related('invoice', 'product', 'device')
+    sale_items = SaleItem.objects.filter(invoice__branch__in=[request.branch] if request.branch else request.user_allowed_branches, invoice__date_created__range=(start_dt, end_dt)).select_related('invoice', 'product', 'device')
     for item in sale_items:
         if item.product.requires_imei and item.device:
             cost = item.device.cost
@@ -1903,25 +2079,44 @@ def reports_dashboard(request):
             'device_imei': item.device.imei if item.device else None
         })
     total_cogs = cogs_serialized + cogs_bulk
-    expenses_in_period = Expense.objects.filter(shift__start_time__range=(start_dt, end_dt))
+
+    # استرداد تكلفة البضاعة المرتجعة
+    returned_cogs = Decimal('0.00')
+    returned_items = SaleReturnItem.objects.filter(return_invoice__sale_invoice__branch__in=[request.branch] if request.branch else request.user_allowed_branches, return_invoice__date_created__range=(start_dt, end_dt)).select_related('sale_item__product', 'sale_item__device')
+    for r_item in returned_items:
+        if r_item.sale_item.product.requires_imei and r_item.sale_item.device:
+            returned_cogs += r_item.sale_item.device.cost
+        else:
+            returned_cogs += r_item.quantity * r_item.sale_item.product.average_cost
+            
+    net_cogs = total_cogs - returned_cogs
+
+    expenses_in_period = Expense.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, shift__start_time__range=(start_dt, end_dt))
     total_expenses = expenses_in_period.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
-    net_profit = total_sales_revenue - total_cogs - total_expenses
-    # B. Supplier Balance Statements (Credit balances)
-    suppliers = Contact.objects.filter(contact_type='supplier')
+
+    # أرباح الصيانة (للتقرير المالي فقط - سيتم إعادة حسابها في قسم الصيانة لاحقاً بشكل منفصل)
+    pl_tech_labor = RepairTicket.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, created_at__range=(start_dt, end_dt), status__in=['done', 'delivered']).aggregate(total=models.Sum('labor_cost'))['total'] or Decimal('0.00')
+    pl_parts_consumed = RepairPartUsed.objects.filter(ticket__branch__in=[request.branch] if request.branch else request.user_allowed_branches, ticket__created_at__range=(start_dt, end_dt), ticket__status__in=['done', 'delivered']).select_related('product')
+    pl_parts_cost = Decimal('0.00')
+    pl_parts_price = Decimal('0.00')
+    for p in pl_parts_consumed:
+        pl_parts_cost += p.quantity * p.product.average_cost
+        pl_parts_price += p.quantity * p.price
+    pl_parts_profit = pl_parts_price - pl_parts_cost
+    total_tech_profit = pl_tech_labor + pl_parts_profit
+
+    net_profit = net_sales_revenue - net_cogs - total_expenses + total_tech_profit
+    # B. Supplier Balance Statements (Credit balances) - كشف الموردين يعتمد على إجمالي الرصيد الحالي وليس فترة معينة
+    suppliers = Contact.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, contact_type='supplier')
     supplier_statements = []
     for sup in suppliers:
-        invoices = PurchaseInvoice.objects.filter(supplier=sup)
-        total_purchased = invoices.aggregate(total=models.Sum('net_amount'))['total'] or Decimal('0.00')
-        total_paid = invoices.aggregate(total=models.Sum('paid_amount'))['total'] or Decimal('0.00')
-        remaining = total_purchased - total_paid
-        if total_purchased > 0:
+        rem = sup.current_balance
+        if rem > 0:
             supplier_statements.append({
                 'supplier': sup,
-                'total_purchased': total_purchased,
-                'total_paid': total_paid,
-                'remaining': remaining,
-                'invoices': invoices.order_by('-invoice_date')
+                'remaining': rem,
             })
+    supplier_statements.sort(key=lambda x: x['remaining'], reverse=True)
     expenses_list = expenses_in_period.select_related('category', 'shift__cashier').order_by('-id')
     # ==========================================
     # 2. SALE REPORTS (تقارير المبيعات)
@@ -1929,17 +2124,17 @@ def reports_dashboard(request):
     sales_count = sales_in_period.count()
     sales_total_gross = sales_in_period.aggregate(total=models.Sum('total_amount'))['total'] or Decimal('0.00')
     sales_total_discount = sales_in_period.aggregate(total=models.Sum('discount'))['total'] or Decimal('0.00')
-    payments_in_period = Payment.objects.filter(invoice__date_created__range=(start_dt, end_dt))
+    payments_in_period = Payment.objects.filter(invoice__branch__in=[request.branch] if request.branch else request.user_allowed_branches, invoice__date_created__range=(start_dt, end_dt))
     payment_breakdown = {
         'cash': payments_in_period.filter(payment_method='cash').aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00'),
         'card': payments_in_period.filter(payment_method='card').aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00'),
         'wallet': payments_in_period.filter(payment_method='wallet').aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00'),
     }
-    top_selling_items = SaleItem.objects.filter(invoice__date_created__range=(start_dt, end_dt))        .values('product__name')        .annotate(total_qty=models.Sum('quantity'), total_revenue=models.Sum(models.F('quantity') * models.F('unit_price')))        .order_by('-total_qty')[:5]
+    top_selling_items = SaleItem.objects.filter(invoice__branch__in=[request.branch] if request.branch else request.user_allowed_branches, invoice__date_created__range=(start_dt, end_dt))        .values('product__name')        .annotate(total_qty=models.Sum('quantity'), total_revenue=models.Sum(models.F('quantity') * models.F('unit_price')))        .order_by('-total_qty')[:5]
     # ==========================================
     # 3. PURCHASE REPORTS (تقارير المشتريات)
     # ==========================================
-    purchases_in_period = PurchaseInvoice.objects.filter(invoice_date__range=(start_dt, end_dt))
+    purchases_in_period = PurchaseInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, invoice_date__range=(start_dt, end_dt))
     purchases_count = purchases_in_period.count()
     purchases_list = purchases_in_period.select_related('supplier', 'created_by').order_by('-invoice_date')
     purchases_total_net = purchases_in_period.aggregate(total=models.Sum('net_amount'))['total'] or Decimal('0.00')
@@ -1953,13 +2148,13 @@ def reports_dashboard(request):
     # ==========================================
     # 4. INVENTORY REPORTS (تقارير المخزون)
     # ==========================================
-    bulk_stocks = Stock.objects.filter(quantity__gt=0).select_related('product')
+    bulk_stocks = Stock.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches, quantity__gt=0).select_related('product')
     total_bulk_cost_val = Decimal('0.00')
     total_bulk_selling_val = Decimal('0.00')
     for bs in bulk_stocks:
         total_bulk_cost_val += bs.quantity * bs.product.average_cost
         total_bulk_selling_val += bs.quantity * bs.product.selling_price
-    devices_in_stock = Device.objects.filter(is_sold=False).select_related('product')
+    devices_in_stock = Device.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches, is_sold=False).select_related('product')
     total_devices_cost_val = Decimal('0.00')
     total_devices_selling_val = Decimal('0.00')
     for dev in devices_in_stock:
@@ -1970,16 +2165,16 @@ def reports_dashboard(request):
     expected_profit_on_stock = total_sval - total_cval
     new_devices_count = devices_in_stock.filter(condition='new').count()
     used_devices_count = devices_in_stock.filter(condition='used').count()
-    accessories_count = Stock.objects.filter(product__product_type='accessory', quantity__gt=0).aggregate(total=models.Sum('quantity'))['total'] or 0
-    spare_parts_count = Stock.objects.filter(product__product_type='spare_part', quantity__gt=0).aggregate(total=models.Sum('quantity'))['total'] or 0
-    covers_count = Stock.objects.filter(product__product_type='cover_screen', quantity__gt=0).aggregate(total=models.Sum('quantity'))['total'] or 0
-    electrical_count = Stock.objects.filter(product__product_type='electrical', quantity__gt=0).aggregate(total=models.Sum('quantity'))['total'] or 0
+    accessories_count = Stock.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches, product__product_type='accessory', quantity__gt=0).aggregate(total=models.Sum('quantity'))['total'] or 0
+    spare_parts_count = Stock.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches, product__product_type='spare_part', quantity__gt=0).aggregate(total=models.Sum('quantity'))['total'] or 0
+    covers_count = Stock.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches, product__product_type='cover_screen', quantity__gt=0).aggregate(total=models.Sum('quantity'))['total'] or 0
+    electrical_count = Stock.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches, product__product_type='electrical', quantity__gt=0).aggregate(total=models.Sum('quantity'))['total'] or 0
     
-    accessories_in_stock = Stock.objects.filter(product__product_type='accessory', quantity__gt=0).select_related('product', 'warehouse')
-    spare_parts_in_stock = Stock.objects.filter(product__product_type='spare_part', quantity__gt=0).select_related('product', 'warehouse')
-    covers_in_stock = Stock.objects.filter(product__product_type='cover_screen', quantity__gt=0).select_related('product', 'warehouse')
-    electrical_in_stock = Stock.objects.filter(product__product_type='electrical', quantity__gt=0).select_related('product', 'warehouse')
-    low_stock_items = Stock.objects.filter(quantity__lt=5).select_related('product', 'warehouse')
+    accessories_in_stock = Stock.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches, product__product_type='accessory', quantity__gt=0).select_related('product', 'warehouse')
+    spare_parts_in_stock = Stock.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches, product__product_type='spare_part', quantity__gt=0).select_related('product', 'warehouse')
+    covers_in_stock = Stock.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches, product__product_type='cover_screen', quantity__gt=0).select_related('product', 'warehouse')
+    electrical_in_stock = Stock.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches, product__product_type='electrical', quantity__gt=0).select_related('product', 'warehouse')
+    low_stock_items = Stock.objects.filter(warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches, quantity__lt=5).select_related('product', 'warehouse')
 
     # 4.B. All products list with stock counts and pagination
     from django.core.paginator import Paginator
@@ -2117,6 +2312,7 @@ def reports_dashboard(request):
     # 7. TOP CUSTOMERS REPORT (تقرير العملاء المميزين)
     # ==========================================
     top_customers_qs = SaleInvoice.objects.filter(
+        branch__in=[request.branch] if request.branch else request.user_allowed_branches,
         date_created__range=(start_dt, end_dt),
         customer__isnull=False
     ).values(
@@ -2129,6 +2325,7 @@ def reports_dashboard(request):
 
     # Customers with repair tickets (للصيانة أيضاً)
     top_repair_customers = RepairTicket.objects.filter(
+        branch__in=[request.branch] if request.branch else request.user_allowed_branches,
         created_at__range=(start_dt, end_dt),
         customer__isnull=False
     ).values(
@@ -2143,12 +2340,14 @@ def reports_dashboard(request):
     # ==========================================
     # Devices purchased (used) in period
     used_purchased = Device.objects.filter(
+        warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches,
         used_status='purchased',
         created_at__range=(start_dt, end_dt)
     ).select_related('product', 'purchased_from')
 
     # Devices sold (was used) in period
     used_sold = SaleItem.objects.filter(
+        invoice__branch__in=[request.branch] if request.branch else request.user_allowed_branches,
         invoice__date_created__range=(start_dt, end_dt),
         device__isnull=False,
         device__condition='used'
@@ -2166,6 +2365,7 @@ def reports_dashboard(request):
 
     # All used devices currently in stock (not sold)
     used_in_stock = Device.objects.filter(
+        warehouse__branch__in=[request.branch] if request.branch else request.user_allowed_branches,
         is_sold=False, condition='used'
     ).select_related('product', 'purchased_from')
     used_in_stock_cost = used_in_stock.aggregate(total=models.Sum('cost'))['total'] or Decimal('0.00')
@@ -2174,7 +2374,9 @@ def reports_dashboard(request):
     # 9. WARRANTIES REPORT (تقرير الضمانات)
     # ==========================================
     from datetime import date as date_type
-    warranties_all = Warranty.objects.select_related(
+    warranties_all = Warranty.objects.filter(
+        invoice__branch__in=[request.branch] if request.branch else request.user_allowed_branches
+    ).select_related(
         'device__product', 'customer', 'invoice'
     ).order_by('-start_date')
 
@@ -2198,22 +2400,21 @@ def reports_dashboard(request):
     # ==========================================
     # 10. RECEIVABLES REPORT (تقرير الذمم المدينة)
     # ==========================================
-    # Sale invoices with outstanding balance (if payment < net_amount)
-    all_sales = SaleInvoice.objects.filter(
-        date_created__range=(start_dt, end_dt)
-    ).select_related('customer', 'cashier').prefetch_related('payments')
+    # جلب جميع الفواتير غير المسددة بالكامل (بدون تقيد بفترة التقرير لأن الدين قائم)
+    unpaid_sales = SaleInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, 
+        payment_method__in=['credit', 'partial']
+    ).select_related('customer', 'cashier').order_by('date_created')
 
     receivables_list = []
     total_receivables = Decimal('0.00')
-    for inv in all_sales:
-        total_paid_inv = inv.payments.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
-        balance = inv.net_amount - total_paid_inv
+    for inv in unpaid_sales:
+        balance = inv.remaining_amount
         if balance > Decimal('0.01'):
             receivables_list.append({
                 'invoice': inv,
                 'customer': inv.customer,
                 'net_amount': inv.net_amount,
-                'paid': total_paid_inv,
+                'paid': inv.paid_amount,
                 'balance': balance,
                 'date': inv.date_created,
             })
@@ -2229,7 +2430,7 @@ def reports_dashboard(request):
     ).distinct()
 
     for tech in technicians:
-        tech_tickets = RepairTicket.objects.filter(
+        tech_tickets = RepairTicket.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, 
             technician=tech, created_at__range=(start_dt, end_dt)
         )
         total_tickets = tech_tickets.count()
@@ -2253,57 +2454,94 @@ def reports_dashboard(request):
     # 12. DAILY CASH FLOW (تقرير التدفق النقدي اليومي)
     # ==========================================
     from django.db.models.functions import TruncDate
-    daily_sales = SaleInvoice.objects.filter(
-        date_created__range=(start_dt, end_dt)
+    
+    # حركات الخزينة الفعلية (الوارد والمنصرف)
+    treasury_tx = TreasuryTransaction.objects.filter(treasury__branch__in=[request.branch] if request.branch else request.user_allowed_branches, 
+        date__range=(start_dt, end_dt)
     ).annotate(
-        day=TruncDate('date_created')
-    ).values('day').annotate(
-        revenue=models.Sum('net_amount'),
-        count=models.Count('id')
-    ).order_by('day')
+        day=TruncDate('date')
+    ).values('day', 'transaction_type').annotate(
+        total_amount=models.Sum('amount')
+    )
 
-    daily_expenses = Expense.objects.filter(
-        shift__start_time__range=(start_dt, end_dt)
-    ).annotate(
-        day=TruncDate('shift__start_time')
-    ).values('day').annotate(
-        expenses=models.Sum('amount')
-    ).order_by('day')
-
-    # Merge into single list
     daily_map = {}
-    for d in daily_sales:
-        key = str(d['day'])
-        daily_map[key] = {
-            'day': d['day'],
-            'revenue': d['revenue'] or Decimal('0.00'),
-            'count': d['count'],
-            'expenses': Decimal('0.00'),
-            'net': Decimal('0.00'),
-        }
-    for d in daily_expenses:
-        key = str(d['day'])
-        if key in daily_map:
-            daily_map[key]['expenses'] = d['expenses'] or Decimal('0.00')
-        else:
+    for tx in treasury_tx:
+        key = str(tx['day'])
+        if key not in daily_map:
             daily_map[key] = {
-                'day': d['day'],
+                'day': tx['day'],
                 'revenue': Decimal('0.00'),
-                'count': 0,
-                'expenses': d['expenses'] or Decimal('0.00'),
+                'expenses': Decimal('0.00'),
                 'net': Decimal('0.00'),
             }
+        if tx['transaction_type'] == 'in':
+            daily_map[key]['revenue'] += tx['total_amount']
+        else:
+            daily_map[key]['expenses'] += tx['total_amount']
+            
     for k in daily_map:
         daily_map[k]['net'] = daily_map[k]['revenue'] - daily_map[k]['expenses']
     daily_cashflow = sorted(daily_map.values(), key=lambda x: x['day'])
 
+    # ==========================================
+    # 13. CUSTOMER DEBTS (مديونيات العملاء)
+    # ==========================================
+    # إظهار جميع العملاء الذين لديهم مديونيات قائمة بغض النظر عن تاريخ الفاتورة
+    customers = Contact.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, contact_type='customer')
+    customer_statements = []
+    for cust in customers:
+        rem = cust.current_balance
+        if rem > 0:
+            customer_statements.append({
+                'customer': cust,
+                'remaining': rem,
+            })
+    customer_statements.sort(key=lambda x: x['remaining'], reverse=True)
+
+    # ==========================================
+    # 14. VAT / TAX REPORT (تقرير الإقرار الضريبي)
+    # ==========================================
+    sales_tax = Decimal('0.00') # المبيعات لا تحتوي على حقل ضريبة حالياً
+    purchases_tax = PurchaseInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, invoice_date__range=(start_dt, end_dt)).aggregate(total=models.Sum('deduction_addition_tax'))['total'] or Decimal('0.00')
+    net_tax = sales_tax - purchases_tax
+
+    # ==========================================
+    # 15. RETURNS REPORT (تقرير المرتجعات)
+    # ==========================================
+    from erp.models import SaleReturn, PurchaseReturn
+    sales_returns = SaleReturn.objects.filter(sale_invoice__branch__in=[request.branch] if request.branch else request.user_allowed_branches, date_created__range=(start_dt, end_dt)).aggregate(total=models.Sum('refund_amount'))['total'] or Decimal('0.00')
+    purchases_returns = PurchaseReturn.objects.filter(purchase_invoice__branch__in=[request.branch] if request.branch else request.user_allowed_branches, date_created__range=(start_dt, end_dt)).aggregate(total=models.Sum('refund_amount'))['total'] or Decimal('0.00')
+
+    # ==========================================
+    # 16. LOYALTY PROGRAM STATS (إحصائيات برنامج الولاء)
+    # ==========================================
+    loyalty_earned = SaleInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, date_created__range=(start_dt, end_dt)).aggregate(total=models.Sum('points_earned'))['total'] or 0
+    loyalty_redeemed = SaleInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, date_created__range=(start_dt, end_dt)).aggregate(total=models.Sum('points_redeemed'))['total'] or 0
+    loyalty_discount = SaleInvoice.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, date_created__range=(start_dt, end_dt)).aggregate(total=models.Sum('points_discount'))['total'] or Decimal('0.00')
+
     context = {
+        'new_reports': {
+            'customer_statements': customer_statements,
+            'sales_tax': sales_tax,
+            'purchases_tax': purchases_tax,
+            'net_tax': net_tax,
+            'sales_returns': sales_returns,
+            'purchases_returns': purchases_returns,
+            'loyalty_earned': loyalty_earned,
+            'loyalty_redeemed': loyalty_redeemed,
+            'loyalty_discount': loyalty_discount,
+        },
         'start_date': start_date,
         'end_date': end_date,
         'financials': {
             'total_sales_revenue': total_sales_revenue,
+            'total_sales_returns': total_sales_returns_amount,
+            'net_sales_revenue': net_sales_revenue,
             'total_cogs': total_cogs,
+            'net_cogs': net_cogs,
+            'returned_cogs': returned_cogs,
             'total_expenses': total_expenses,
+            'tech_profit': total_tech_profit,
             'net_profit': net_profit,
             'supplier_statements': supplier_statements,
             'expenses_list': expenses_list[:20],
@@ -2316,6 +2554,9 @@ def reports_dashboard(request):
             'gross': sales_total_gross,
             'discount': sales_total_discount,
             'net': total_sales_revenue,
+            'net_after_returns': net_sales_revenue,
+            'returns_count': sales_returns_in_period.count(),
+            'returns_amount': total_sales_returns_amount,
             'payment_breakdown': payment_breakdown,
             'top_items': top_selling_items,
         },
@@ -2713,24 +2954,33 @@ from erp.models import SaleReturn, SaleReturnItem, PurchaseReturn, PurchaseRetur
 
 @login_required
 @permission_required('erp.add_saleinvoice', raise_exception=True)
+@require_specific_branch
 def sale_return_create(request, pk):
     sale_invoice = get_object_or_404(SaleInvoice, pk=pk)
     # التحقق من عدم عمل مرتجع كامل مسبقا
     if request.method == 'POST':
         treasury_id = request.POST.get('treasury_id')
         refund_amount = Decimal(request.POST.get('refund_amount', 0))
+        debt_reduction = Decimal(request.POST.get('debt_reduction', 0))
         notes = request.POST.get('notes', '')
         
-        if not treasury_id:
+        if not treasury_id and refund_amount > 0:
             messages.error(request, "يجب تحديد الخزينة لخصم قيمة المرتجع.")
             return redirect('erp:sale_detail', pk=pk)
             
         try:
             with transaction.atomic():
-                treasury = Treasury.objects.select_for_update().get(pk=treasury_id)
-                if refund_amount > 0 and treasury.balance < refund_amount:
-                    messages.error(request, f"لا يوجد رصيد كافٍ في الخزينة المحددة. (متوفر: {treasury.balance})")
-                    return redirect('erp:sale_detail', pk=pk)
+                if treasury_id:
+                    treasury = Treasury.objects.select_for_update().get(pk=treasury_id)
+                    if refund_amount > 0 and treasury.balance < refund_amount:
+                        messages.error(request, f"لا يوجد رصيد كافٍ في الخزينة المحددة. (متوفر: {treasury.balance})")
+                        return redirect('erp:sale_detail', pk=pk)
+                else:
+                    # If refund_amount is 0, we can use the first active treasury as a placeholder or null if allowed.
+                    # Since treasury is required on SaleReturn model (PROTECT), we must supply one.
+                    treasury = Treasury.objects.filter(is_active=True).first()
+                    if not treasury:
+                        raise ValueError("يجب تفعيل خزينة واحدة على الأقل في النظام.")
                 
                 # إنشاء فاتورة المرتجع
                 sale_return = SaleReturn.objects.create(
@@ -2738,6 +2988,7 @@ def sale_return_create(request, pk):
                     treasury=treasury,
                     created_by=request.user,
                     refund_amount=refund_amount,
+                    debt_reduction=debt_reduction,
                     notes=notes
                 )
                 
@@ -2794,21 +3045,28 @@ def sale_return_create(request, pk):
 
 @login_required
 @permission_required('erp.add_purchaseinvoice', raise_exception=True)
+@require_specific_branch
 def purchase_return_create(request, pk):
     purchase_invoice = get_object_or_404(PurchaseInvoice, pk=pk)
     
     if request.method == 'POST':
         treasury_id = request.POST.get('treasury_id')
         refund_amount = Decimal(request.POST.get('refund_amount', 0))
+        debt_reduction = Decimal(request.POST.get('debt_reduction', 0))
         notes = request.POST.get('notes', '')
         
-        if not treasury_id:
+        if not treasury_id and refund_amount > 0:
             messages.error(request, "يجب تحديد الخزينة لإيداع القيمة المستردة.")
             return redirect('erp:purchase_detail', pk=pk)
             
         try:
             with transaction.atomic():
-                treasury = Treasury.objects.select_for_update().get(pk=treasury_id)
+                if treasury_id:
+                    treasury = Treasury.objects.select_for_update().get(pk=treasury_id)
+                else:
+                    treasury = Treasury.objects.filter(is_active=True).first()
+                    if not treasury:
+                        raise ValueError("يجب تفعيل خزينة واحدة على الأقل في النظام.")
                 
                 # إنشاء المرتجع
                 purchase_return = PurchaseReturn.objects.create(
@@ -2816,6 +3074,7 @@ def purchase_return_create(request, pk):
                     treasury=treasury,
                     created_by=request.user,
                     refund_amount=refund_amount,
+                    debt_reduction=debt_reduction,
                     notes=notes
                 )
                 
@@ -2898,6 +3157,7 @@ def treasury_transactions_report(request):
 
     # الاستعلام الأساسي
     transactions = TreasuryTransaction.objects.filter(
+        treasury__branch__in=[request.branch] if request.branch else request.user_allowed_branches,
         date__date__gte=start_date,
         date__date__lte=end_date
     )
@@ -2912,7 +3172,7 @@ def treasury_transactions_report(request):
 
     context = {
         'transactions': transactions.select_related('treasury', 'user').order_by('-date'),
-        'treasuries': Treasury.objects.filter(is_active=True),
+        'treasuries': Treasury.objects.filter(is_active=True, branch__in=[request.branch] if request.branch else request.user_allowed_branches),
         'start_date': start_date,
         'end_date': end_date,
         'selected_treasury': int(treasury_id) if treasury_id else None,
@@ -3043,6 +3303,7 @@ def achievements_report(request):
 
 
 @login_required
+@require_specific_branch
 def targets_manage(request):
     if not request.user.is_staff and not request.user.is_superuser:
         from django.core.exceptions import PermissionDenied
@@ -3092,3 +3353,207 @@ def targets_manage(request):
         'target_form': SalesTargetForm()
     }
     return render(request, 'erp/targets_manage.html', context)
+
+
+@login_required
+def system_audit_log(request):
+    if not request.user.is_staff and not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("عذراً، يجب أن تكون مديراً للوصول لسجل النظام.")
+        
+    from erp.models import AuditLog
+    from django.core.paginator import Paginator
+    
+    logs_list = AuditLog.objects.all().select_related('user')
+    
+    # الفلترة
+    user_id = request.GET.get('user')
+    action = request.GET.get('action')
+    model_name = request.GET.get('model_name')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    
+    if user_id:
+        logs_list = logs_list.filter(user_id=user_id)
+    if action:
+        logs_list = logs_list.filter(action=action)
+    if model_name:
+        logs_list = logs_list.filter(model_name__icontains=model_name)
+    if date_from:
+        logs_list = logs_list.filter(timestamp__date__gte=date_from)
+    if date_to:
+        logs_list = logs_list.filter(timestamp__date__lte=date_to)
+        
+    paginator = Paginator(logs_list, 50)
+    page_number = request.GET.get('page')
+    logs = paginator.get_page(page_number)
+    
+    from django.contrib.auth.models import User
+    users = User.objects.all()
+    
+    context = {
+        'logs': logs,
+        'users': users,
+    }
+    return render(request, 'erp/audit_log.html', context)
+
+
+@login_required
+def verify_gift_card(request):
+    code = request.GET.get('code', '').strip()
+    if not code:
+        return JsonResponse({'valid': False, 'message': 'لم يتم إدخال كود.'})
+    try:
+        from erp.models import GiftCard
+        card = GiftCard.objects.get(code=code, is_active=True)
+        from django.utils.timezone import now
+        if card.expires_at and card.expires_at < now().date():
+            return JsonResponse({'valid': False, 'message': 'بطاقة الهدية منتهية الصلاحية.'})
+        return JsonResponse({'valid': True, 'balance': float(card.current_balance), 'message': f'تم تفعيل البطاقة. الرصيد: {card.current_balance} ج.م'})
+    except Exception:
+        return JsonResponse({'valid': False, 'message': 'كود بطاقة الهدية غير صحيح أو غير مفعل.'})
+
+
+@login_required
+@require_specific_branch
+def gift_cards_manage(request):
+    # Only for staff/superusers
+    if not request.user.is_staff and not request.user.is_superuser:
+        messages.error(request, 'غير مصرح لك بالدخول لهذه الصفحة.')
+        return redirect('erp:dashboard')
+        
+    from erp.models import GiftCard
+    import uuid
+    from django.contrib import messages
+    from django.shortcuts import redirect, render
+    
+    if request.method == 'POST':
+        if 'issue_card' in request.POST:
+            amount = float(request.POST.get('amount', 0))
+            if amount > 0:
+                # Generate unique code
+                code = str(uuid.uuid4().hex)[:10].upper()
+                GiftCard.objects.create(
+                    code=code,
+                    initial_balance=amount,
+                    current_balance=amount,
+                    is_active=True
+                )
+                messages.success(request, f'تم إصدار بطاقة هدية جديدة بنجاح! الكود: {code}')
+            else:
+                messages.error(request, 'يرجى إدخال مبلغ صحيح.')
+        elif 'toggle_status' in request.POST:
+            card_id = request.POST.get('card_id')
+            try:
+                card = GiftCard.objects.get(id=card_id)
+                card.is_active = not card.is_active
+                card.save()
+                status = "مفعلة" if card.is_active else "موقوفة"
+                messages.success(request, f'تم تغيير حالة البطاقة {card.code} إلى {status}.')
+            except GiftCard.DoesNotExist:
+                messages.error(request, 'البطاقة غير موجودة.')
+        return redirect('erp:gift_cards_manage')
+        
+    cards = GiftCard.objects.all().order_by('-created_at')
+    
+    context = {
+        'cards': cards
+    }
+    return render(request, 'erp/gift_cards.html', context)
+
+
+@login_required
+def check_warranty_imei(request):
+    imei = request.GET.get('imei', '').strip()
+    if not imei:
+        return JsonResponse({'found': False})
+        
+    from erp.models import RepairTicket
+    from django.utils.timezone import now
+    import datetime
+    
+    # Find the most recent delivered ticket for this IMEI
+    ticket = RepairTicket.objects.filter(device_imei=imei, status='delivered').order_by('-created_at').first()
+    
+    if ticket and ticket.warranty_days > 0:
+        # Check if still in warranty
+        days_passed = (now().date() - ticket.created_at.date()).days
+        if days_passed <= ticket.warranty_days:
+            return JsonResponse({
+                'found': True,
+                'in_warranty': True,
+                'ticket_id': ticket.id,
+                'days_passed': days_passed,
+                'warranty_days': ticket.warranty_days,
+                'message': f'هذا الجهاز تمت صيانته منذ {days_passed} يوم (تذكرة #{ticket.id}) ولا يزال داخل فترة الضمان ({ticket.warranty_days} يوم).'
+            })
+        else:
+            return JsonResponse({
+                'found': True,
+                'in_warranty': False,
+                'ticket_id': ticket.id,
+                'message': f'الجهاز مسجل في تذكرة سابقة #{ticket.id} ولكن فترة الضمان انتهت.'
+            })
+            
+    return JsonResponse({'found': False})
+
+
+@login_required
+def imei_lifecycle_report(request):
+    imei = request.GET.get('imei', '').strip()
+    if not imei:
+        return JsonResponse({'error': 'No IMEI provided'})
+    
+    from erp.models import Device, SaleItem, RepairTicket, SaleReturnItem, PurchaseReturnItem
+    
+    lifecycle = []
+    
+    # 1. Device Purchase / Entry
+    devices = Device.objects.filter(imei=imei).select_related('purchased_from', 'product')
+    for d in devices:
+        supplier_name = d.purchased_from.name if d.purchased_from else 'غير محدد'
+        lifecycle.append({
+            'date': d.created_at,
+            'event': 'شراء / دخول المخزن',
+            'details': f'دخل المخزن عبر المورد: {supplier_name} بتكلفة {d.cost}',
+            'product': d.product.name
+        })
+        
+    # 2. Sales
+    sales = SaleItem.objects.filter(device__imei=imei).select_related('invoice', 'invoice__customer')
+    for s in sales:
+        cust_name = s.invoice.customer.name if s.invoice.customer else 'عميل نقدي'
+        lifecycle.append({
+            'date': s.invoice.date_created,
+            'event': 'بيع للعميل',
+            'details': f'تم البيع للعميل: {cust_name} بفاتورة #{s.invoice.id} بقيمة {s.unit_price}',
+            'product': s.product.name
+        })
+        
+    # 3. Sale Returns
+    sale_returns = SaleReturnItem.objects.filter(sale_item__device__imei=imei).select_related('return_invoice')
+    for sr in sale_returns:
+        lifecycle.append({
+            'date': sr.return_invoice.date_created,
+            'event': 'مرتجع مبيعات',
+            'details': f'تم استرجاع الجهاز في فاتورة مرتجع #{sr.return_invoice.id}',
+            'product': sr.sale_item.product.name
+        })
+
+    # 4. Repairs
+    repairs = RepairTicket.objects.filter(device_imei=imei).select_related('customer')
+    for r in repairs:
+        lifecycle.append({
+            'date': r.created_at,
+            'event': 'دخول صيانة',
+            'details': f'دخل صيانة بتذكرة #{r.id} وحالتها الحالية ({r.get_status_display()}) بتكلفة {r.total_cost}',
+            'product': r.device_model
+        })
+
+    lifecycle.sort(key=lambda x: x['date'])
+    
+    # Format dates
+    for item in lifecycle:
+        item['date_str'] = item['date'].strftime('%Y-%m-%d %H:%M')
+        
+    return JsonResponse({'status': 'success', 'history': lifecycle})

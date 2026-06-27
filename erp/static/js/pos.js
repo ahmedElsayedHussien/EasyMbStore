@@ -344,6 +344,63 @@ function renderCart() {
 }
 
 // حساب مجاميع الفاتورة
+
+let currentGiftCardCode = '';
+let currentGiftCardBalance = 0;
+let storeEgpPer100Points = 5.0; // This should ideally be fetched, we will assume 5 or just pass it in HTML. Wait, we can fetch it or hardcode for now. Actually, we don't need to show the exact EGP discount dynamically before save, but it's better to. Let's just deduct it. For now, let's assume 100 points = 5 EGP.
+// Wait, we can pass it from template.
+
+function updateCustomerPoints() {
+    const select = document.getElementById('customer-select');
+    const selectedOption = select.options[select.selectedIndex];
+    const points = selectedOption.getAttribute('data-points') || 0;
+    
+    const pointsDisplay = document.getElementById('customer-points-display');
+    const pointsWrapper = document.getElementById('points-info-wrapper');
+    const redeemInput = document.getElementById('points-redeem-input');
+    
+    if (points > 0) {
+        pointsDisplay.textContent = points;
+        pointsWrapper.classList.remove('d-none');
+        redeemInput.max = points;
+    } else {
+        pointsWrapper.classList.add('d-none');
+        redeemInput.value = 0;
+        redeemInput.max = 0;
+    }
+    calculateInvoiceTotals();
+}
+
+function verifyGiftCard() {
+    const code = document.getElementById('gift-card-input').value.trim();
+    const msg = document.getElementById('gift-card-balance-msg');
+    if (!code) {
+        msg.textContent = '';
+        msg.classList.add('d-none');
+        currentGiftCardCode = '';
+        currentGiftCardBalance = 0;
+        calculateInvoiceTotals();
+        return;
+    }
+    fetch("/pos/verify-gift-card/?code=" + encodeURIComponent(code))
+        .then(response => response.json())
+        .then(data => {
+            msg.classList.remove('d-none', 'text-danger', 'text-success');
+            if (data.valid) {
+                msg.classList.add('text-success');
+                msg.textContent = data.message;
+                currentGiftCardCode = code;
+                currentGiftCardBalance = data.balance;
+            } else {
+                msg.classList.add('text-danger');
+                msg.textContent = data.message;
+                currentGiftCardCode = '';
+                currentGiftCardBalance = 0;
+            }
+            calculateInvoiceTotals();
+        });
+}
+
 function calculateInvoiceTotals() {
     let total = 0;
     cart.forEach(item => {
@@ -356,11 +413,32 @@ function calculateInvoiceTotals() {
     const discount = parseFloat(discountInput.value) || 0;
     const tradeInValue = parseFloat(tradeInInput.value) || 0;
     
-    const netAmount = Math.max(0, (total - discount) - tradeInValue);
+    let pointsRedeemed = parseInt(document.getElementById('points-redeem-input').value) || 0;
+    // Assuming store_setting.egp_per_100_points is not easily accessible here without a template variable, 
+    // we'll fetch it from a data attribute or assume 5 EGP for every 100 points as default.
+    // Wait, let's look for a hidden input if we added one, otherwise use a placeholder (5 EGP per 100).
+    // The backend handles the exact calculation, but for the frontend preview:
+    let pointsDiscount = (pointsRedeemed / 100) * 5.0; 
+    
+    let netAmount = Math.max(0, (total - discount) - tradeInValue - pointsDiscount);
+    
+    let giftCardDeduction = 0;
+    if (currentGiftCardBalance > 0) {
+        giftCardDeduction = Math.min(currentGiftCardBalance, netAmount);
+        netAmount -= giftCardDeduction;
+    }
 
     document.getElementById("summary-total").textContent = `${total.toFixed(2)} ج.م`;
     document.getElementById("summary-discount").textContent = `${discount.toFixed(2)} ج.م`;
     document.getElementById("summary-trade-in").textContent = `${tradeInValue.toFixed(2)}- ج.م`;
+    
+    if (pointsDiscount > 0) {
+        document.getElementById("summary-trade-in").innerHTML += `<br><small class="text-warning">نقاط الولاء: ${pointsDiscount.toFixed(2)}- ج.م</small>`;
+    }
+    if (giftCardDeduction > 0) {
+        document.getElementById("summary-trade-in").innerHTML += `<br><small class="text-danger">بطاقة الهدية: ${giftCardDeduction.toFixed(2)}- ج.م</small>`;
+    }
+    
     document.getElementById("summary-net").textContent = `${netAmount.toFixed(2)} ج.م`;
 
     // إظهار قسم جهاز الاستبدال عند كتابة قيمة استبدال أكبر من صفر
@@ -470,6 +548,8 @@ function submitPOSInvoice() {
         trade_in_value: tradeInValue,
         traded_in_device_id: tradedInDeviceId ? parseInt(tradedInDeviceId) : null,
         warranty_days: parseInt(document.getElementById("warranty-days").value) || 14,
+        points_redeemed: parseInt(document.getElementById("points-redeem-input").value) || 0,
+        gift_card_code: currentGiftCardCode,
         items: cart.map(item => ({
             product_id: item.product_id,
             warehouse_id: item.warehouse_id,

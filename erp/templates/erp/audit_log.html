@@ -1,0 +1,148 @@
+{% extends 'erp/base.html' %}
+{% block title %}سجل النظام الشامل (Audit Log){% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold mb-0 text-primary">
+            <i class="bi bi-shield-lock me-2"></i> سجل المراقبة الشامل (Audit Log)
+        </h2>
+        <p class="text-secondary mt-1">تتبع كافة الإضافات، التعديلات، وعمليات الحذف في النظام.</p>
+    </div>
+</div>
+
+<!-- الفلاتر -->
+<div class="card glass-card border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label text-secondary">المستخدم</label>
+                <select name="user" class="form-select bg-dark text-white border-secondary">
+                    <option value="">الكل</option>
+                    {% for u in users %}
+                    <option value="{{ u.id }}" {% if request.GET.user == u.id|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-secondary">نوع العملية</label>
+                <select name="action" class="form-select bg-dark text-white border-secondary">
+                    <option value="">الكل</option>
+                    <option value="create" {% if request.GET.action == 'create' %}selected{% endif %}>إنشاء</option>
+                    <option value="update" {% if request.GET.action == 'update' %}selected{% endif %}>تعديل</option>
+                    <option value="delete" {% if request.GET.action == 'delete' %}selected{% endif %}>حذف</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-secondary">الجدول / النموذج</label>
+                <input type="text" name="model_name" class="form-control bg-dark text-white border-secondary" placeholder="مثال: فاتورة مبيعات" value="{{ request.GET.model_name|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-secondary">من تاريخ</label>
+                <input type="date" name="date_from" class="form-control bg-dark text-white border-secondary" value="{{ request.GET.date_from|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label text-secondary">إلى تاريخ</label>
+                <input type="date" name="date_to" class="form-control bg-dark text-white border-secondary" value="{{ request.GET.date_to|default:'' }}">
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- عرض السجلات -->
+<div class="card glass-card border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-striped align-middle mb-0">
+                <thead class="border-secondary">
+                    <tr>
+                        <th class="ps-3">التاريخ والوقت</th>
+                        <th>المستخدم</th>
+                        <th>العملية</th>
+                        <th>العنصر</th>
+                        <th>التفاصيل / الفروقات</th>
+                        <th>الـ IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td class="ps-3"><small>{{ log.timestamp|date:"Y-m-d H:i:s" }}</small></td>
+                        <td>
+                            {% if log.user %}
+                            <span class="badge bg-secondary"><i class="bi bi-person me-1"></i>{{ log.user.username }}</span>
+                            {% else %}
+                            <span class="text-muted">نظام</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.action == 'create' %}
+                            <span class="badge bg-success">إنشاء <i class="bi bi-plus-circle"></i></span>
+                            {% elif log.action == 'update' %}
+                            <span class="badge bg-warning text-dark">تعديل <i class="bi bi-pencil"></i></span>
+                            {% elif log.action == 'delete' %}
+                            <span class="badge bg-danger">حذف <i class="bi bi-trash"></i></span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong class="text-info">{{ log.model_name }}</strong><br>
+                            <small class="text-muted">{{ log.object_repr }}</small>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#logDetails{{ log.id }}">
+                                <i class="bi bi-eye"></i> عرض التفاصيل
+                            </button>
+                            <div class="collapse mt-2" id="logDetails{{ log.id }}">
+                                <div class="p-2 border border-secondary rounded" style="background: rgba(0,0,0,0.2); max-height: 200px; overflow-y: auto; font-size: 0.85rem; font-family: monospace;" dir="ltr">
+                                    {% if log.action == 'update' %}
+                                        {% for field, vals in log.changes.items %}
+                                            <div class="mb-1">
+                                                <span class="text-warning fw-bold">{{ field }}:</span> 
+                                                <span class="text-danger text-decoration-line-through">{{ vals.old }}</span>
+                                                <i class="bi bi-arrow-right text-muted mx-1"></i>
+                                                <span class="text-success">{{ vals.new }}</span>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        {% for field, val in log.changes.items %}
+                                            {% if val|length > 0 %}
+                                                <div class="text-white">{{ field }}: <span class="text-info">{{ val }}</span></div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td><small class="text-secondary">{{ log.ip_address|default:"غير متوفر" }}</small></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">لا توجد سجلات مطابقة للبحث</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginator -->
+        {% if logs.has_other_pages %}
+        <div class="d-flex justify-content-center mt-4 pb-3">
+            <ul class="pagination pagination-sm mb-0">
+                {% if logs.has_previous %}
+                <li class="page-item"><a class="page-link bg-dark text-white border-secondary" href="?page={{ logs.previous_page_number }}&user={{ request.GET.user }}&action={{ request.GET.action }}&model_name={{ request.GET.model_name }}&date_from={{ request.GET.date_from }}&date_to={{ request.GET.date_to }}">السابق</a></li>
+                {% endif %}
+                
+                <li class="page-item active"><span class="page-link">{{ logs.number }} من {{ logs.paginator.num_pages }}</span></li>
+                
+                {% if logs.has_next %}
+                <li class="page-item"><a class="page-link bg-dark text-white border-secondary" href="?page={{ logs.next_page_number }}&user={{ request.GET.user }}&action={{ request.GET.action }}&model_name={{ request.GET.model_name }}&date_from={{ request.GET.date_from }}&date_to={{ request.GET.date_to }}">التالي</a></li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

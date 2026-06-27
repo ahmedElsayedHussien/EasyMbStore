@@ -1,0 +1,28 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* تكبير حجم الشريط الجانبي (Sidebar) في لوحة الإدارة حتى لا يتم قص الكلمات الطويلة */
+    :root {
+        --nav-sidebar-width: 350px !important;
+    }
+    
+    #nav-sidebar {
+        width: 350px !important;
+        flex: 0 0 350px !important;
+    }
+    
+    #nav-sidebar .app-app_label {
+        /* Optional padding adjustments */
+    }
+</style>
+{% endblock %}
