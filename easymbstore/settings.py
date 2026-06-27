@@ -68,7 +68,7 @@ TENANT_DOMAIN_MODEL = 'tenants.Domain'
 
 
 MIDDLEWARE = [
-    'django_tenants.middleware.main.TenantMainMiddleware',
+    'django_tenants.middleware.subfolder.TenantSubfolderMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -335,3 +335,8 @@ JAZZMIN_UI_TWEAKS = {
 
 # السماح بفتح النوافذ المنبثقة (Modals) في لوحة الإدارة
 X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+
+# ── Multi-Tenancy Routing ──
+TENANT_SUBFOLDER_PREFIX = 'shop'
+PUBLIC_SCHEMA_URLCONF = 'easymbstore.urls_public'

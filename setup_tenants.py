@@ -30,7 +30,7 @@ def setup_tenants():
     for i in range(1, 6):
         shop_schema = f'shop{i}'
         shop_name = f'Shop {i}'
-        shop_domain = f'shop{i}.localhost'
+        shop_domain = f'shop{i}'
 
         print(f"  -> Setting up {shop_name} ({shop_schema})...")
         shop, created = Shop.objects.get_or_create(
