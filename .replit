@@ -1,0 +1,7 @@
+run = "python -m gunicorn easymbstore.wsgi:application --bind 0.0.0.0:$PORT"
+
+[nix]
+channel = "stable-23_11"
+
+[env]
+DEBUG = "False"
