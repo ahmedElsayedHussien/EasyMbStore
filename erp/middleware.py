@@ -24,6 +24,13 @@ class AuditLogMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        try:
+            from django.db import connection
+            if connection.schema_name == 'public':
+                return self.get_response(request)
+        except Exception:
+            pass
+            
         # تخزين المستخدم الحالي
         if hasattr(request, 'user') and request.user.is_authenticated:
             _thread_locals.user = request.user
@@ -59,6 +66,14 @@ class BranchMiddleware:
     def __call__(self, request):
         request.branch = None
         request.user_allowed_branches = None
+        
+        try:
+            from django.db import connection
+            if connection.schema_name == 'public':
+                return self.get_response(request)
+        except Exception:
+            pass
+            
         if request.user.is_authenticated:
             try:
                 from erp.models import Branch

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db import connection
 from erp.models import (
     StoreSetting, Contact, Warehouse, Product, Stock, Device, DeviceAttachment,
     PurchaseInvoice, PurchaseItem, StockTransfer, StockTransferItem,
@@ -8,38 +9,66 @@ from erp.models import (
     Branch, EmployeeProfile
 )
 
+
+class TenantOnlyAdmin(admin.ModelAdmin):
+    def has_view_permission(self, request, obj=None):
+        if connection.schema_name == 'public':
+            return False
+        return super().has_view_permission(request, obj)
+        
+    def has_add_permission(self, request):
+        if connection.schema_name == 'public':
+            return False
+        return super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        if connection.schema_name == 'public':
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if connection.schema_name == 'public':
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def has_module_permission(self, request):
+        if connection.schema_name == 'public':
+            return False
+        return super().has_module_permission(request)
+
+
 # 1. إعدادات المحل (Singleton Settings)
 @admin.register(StoreSetting)
-class StoreSettingAdmin(admin.ModelAdmin):
+class StoreSettingAdmin(TenantOnlyAdmin):
     list_display = ('store_name', 'whatsapp_api_key', 'sms_api_key')
     
     # منع إنشاء سجل إضافي إذا كان هناك سجل موجود بالفعل لضمان Singleton
     def has_add_permission(self, request):
         if StoreSetting.objects.exists():
             return False
-        return True
+        return super().has_add_permission(request)
 
 # 2. جهات الاتصال
 @admin.register(Contact)
-class ContactAdmin(admin.ModelAdmin):
+class ContactAdmin(TenantOnlyAdmin):
     list_display = ('name', 'phone', 'contact_type', 'national_id')
     list_filter = ('contact_type',)
     search_fields = ('name', 'phone', 'national_id')
 
 # 3. المخازن والمنتجات والمخزون
 @admin.register(Warehouse)
-class WarehouseAdmin(admin.ModelAdmin):
+class WarehouseAdmin(TenantOnlyAdmin):
     list_display = ('name', 'is_active')
     list_filter = ('is_active',)
 
 @admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
+class ProductAdmin(TenantOnlyAdmin):
     list_display = ('name', 'barcode_qr', 'product_type', 'average_cost', 'selling_price', 'requires_imei')
     list_filter = ('product_type', 'requires_imei')
     search_fields = ('name', 'barcode_qr')
 
 @admin.register(Stock)
-class StockAdmin(admin.ModelAdmin):
+class StockAdmin(TenantOnlyAdmin):
     list_display = ('product', 'warehouse', 'quantity')
     list_filter = ('warehouse', 'product__product_type')
     search_fields = ('product__name', 'product__barcode_qr')
@@ -50,7 +79,7 @@ class DeviceAttachmentInline(admin.TabularInline):
     extra = 1
 
 @admin.register(Device)
-class DeviceAdmin(admin.ModelAdmin):
+class DeviceAdmin(TenantOnlyAdmin):
     list_display = ('product', 'imei', 'condition', 'warehouse', 'is_sold', 'cost', 'purchased_from')
     list_filter = ('condition', 'is_sold', 'warehouse')
     search_fields = ('imei', 'product__name')
@@ -62,7 +91,7 @@ class PurchaseItemInline(admin.TabularInline):
     extra = 1
 
 @admin.register(PurchaseInvoice)
-class PurchaseInvoiceAdmin(admin.ModelAdmin):
+class PurchaseInvoiceAdmin(TenantOnlyAdmin):
     list_display = ('id', 'supplier', 'supplier_invoice_number', 'total_amount', 'discount', 'deduction_addition_tax', 'net_amount', 'invoice_date')
     list_filter = ('supplier', 'invoice_date')
     search_fields = ('supplier_invoice_number', 'supplier__name')
@@ -74,7 +103,7 @@ class StockTransferItemInline(admin.TabularInline):
     extra = 1
 
 @admin.register(StockTransfer)
-class StockTransferAdmin(admin.ModelAdmin):
+class StockTransferAdmin(TenantOnlyAdmin):
     list_display = ('id', 'from_warehouse', 'to_warehouse', 'created_by', 'status', 'created_at')
     list_filter = ('status', 'from_warehouse', 'to_warehouse')
     inlines = [StockTransferItemInline]
@@ -85,12 +114,15 @@ class ExpenseInline(admin.TabularInline):
     extra = 1
 
 @admin.register(CashShift)
-class CashShiftAdmin(admin.ModelAdmin):
+class CashShiftAdmin(TenantOnlyAdmin):
     list_display = ('id', 'cashier', 'start_time', 'end_time', 'opening_balance', 'expected_closing_balance', 'actual_cash', 'status')
     list_filter = ('status', 'cashier')
     inlines = [ExpenseInline]
 
-admin.site.register(ExpenseCategory)
+@admin.register(ExpenseCategory)
+class ExpenseCategoryAdmin(TenantOnlyAdmin):
+    pass
+
 
 # 7. المبيعات و POS
 class SaleItemInline(admin.TabularInline):
@@ -102,7 +134,7 @@ class PaymentInline(admin.TabularInline):
     extra = 0
 
 @admin.register(SaleInvoice)
-class SaleInvoiceAdmin(admin.ModelAdmin):
+class SaleInvoiceAdmin(TenantOnlyAdmin):
     list_display = ('id', 'shift', 'cashier', 'customer', 'total_amount', 'discount', 'trade_in_value', 'net_amount', 'date_created')
     list_filter = ('date_created', 'cashier')
     search_fields = ('customer__name', 'id')
@@ -114,7 +146,7 @@ class RepairPartUsedInline(admin.TabularInline):
     extra = 1
 
 @admin.register(RepairTicket)
-class RepairTicketAdmin(admin.ModelAdmin):
+class RepairTicketAdmin(TenantOnlyAdmin):
     list_display = ('id', 'customer', 'technician', 'device_model', 'device_imei', 'status', 'labor_cost')
     list_filter = ('status', 'technician')
     search_fields = ('customer__name', 'device_model', 'device_imei')
@@ -122,28 +154,28 @@ class RepairTicketAdmin(admin.ModelAdmin):
 
 # 9. الضمان والإشعارات
 @admin.register(Warranty)
-class WarrantyAdmin(admin.ModelAdmin):
+class WarrantyAdmin(TenantOnlyAdmin):
     list_display = ('device', 'customer', 'invoice', 'duration_days', 'start_date', 'is_valid')
     list_filter = ('start_date',)
     search_fields = ('device__imei', 'customer__name')
 
 @admin.register(NotificationLog)
-class NotificationLogAdmin(admin.ModelAdmin):
+class NotificationLogAdmin(TenantOnlyAdmin):
     list_display = ('customer', 'notification_type', 'sent_at', 'status')
     list_filter = ('notification_type', 'status')
     search_fields = ('customer__name', 'message_body')
 
 @admin.register(NotificationSettings)
-class NotificationSettingsAdmin(admin.ModelAdmin):
+class NotificationSettingsAdmin(TenantOnlyAdmin):
     list_display = ('sender_phone', 'whatsapp_enabled', 'delay_min_seconds', 'delay_max_seconds')
     
     def has_add_permission(self, request):
         if NotificationSettings.objects.exists():
             return False
-        return True
+        return super().has_add_permission(request)
 
 @admin.register(Treasury)
-class TreasuryAdmin(admin.ModelAdmin):
+class TreasuryAdmin(TenantOnlyAdmin):
     list_display = ('name', 'user', 'opening_balance', 'balance', 'is_active', 'created_at')
     list_filter = ('is_active', 'user')
     search_fields = ('name', 'user__username')
@@ -151,33 +183,33 @@ class TreasuryAdmin(admin.ModelAdmin):
 
 
 @admin.register(TreasuryTransaction)
-class TreasuryTransactionAdmin(admin.ModelAdmin):
+class TreasuryTransactionAdmin(TenantOnlyAdmin):
     list_display = ('treasury', 'transaction_type', 'amount', 'date', 'user')
     list_filter = ('transaction_type', 'treasury', 'date')
     search_fields = ('description',)
     readonly_fields = ('date',)
 
 @admin.register(CommissionRule)
-class CommissionRuleAdmin(admin.ModelAdmin):
+class CommissionRuleAdmin(TenantOnlyAdmin):
     list_display = ('product_type', 'sales_milestone', 'commission_amount')
     search_fields = ('product_type',)
 
 
 
 @admin.register(SalesTarget)
-class SalesTargetAdmin(admin.ModelAdmin):
+class SalesTargetAdmin(TenantOnlyAdmin):
     list_display = ('user', 'period', 'target_amount', 'date')
     list_filter = ('period', 'user', 'date')
 
 
 @admin.register(Branch)
-class BranchAdmin(admin.ModelAdmin):
+class BranchAdmin(TenantOnlyAdmin):
     list_display = ('name', 'address', 'phone', 'is_active')
     search_fields = ('name', 'address')
     list_filter = ('is_active',)
 
 @admin.register(EmployeeProfile)
-class EmployeeProfileAdmin(admin.ModelAdmin):
+class EmployeeProfileAdmin(TenantOnlyAdmin):
     list_display = ('user', 'is_active', 'active_branch')
     search_fields = ('user__username',)
     filter_horizontal = ('allowed_branches',)

@@ -18,107 +18,133 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from .env file
-load_dotenv(BASE_DIR / '.env')
+load_dotenv(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-l)b6cp3j)c29r)9^^(5lz_9ei2(p5ox4^i01d^^z)l687)0__('
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY", "django-insecure-l)b6cp3j)c29r)9^^(5lz_9ei2(p5ox4^i01d^^z)l687)0__("
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'mbstore.pythonanywhere.com', '.pythonanywhere.com', '.localhost']
-CSRF_TRUSTED_ORIGINS = ['https://*.pythonanywhere.com', 'http://127.0.0.1:8000', 'http://localhost:8000']
+ALLOWED_HOSTS = ["*"]
+REPLIT_DEV_DOMAIN = os.environ.get("REPLIT_DEV_DOMAIN", "")
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.pythonanywhere.com",
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    f"https://{REPLIT_DEV_DOMAIN}" if REPLIT_DEV_DOMAIN else "",
+    "https://*.replit.dev",
+    "https://*.repl.co",
+    "https://*.replit.app",
+]
+CSRF_TRUSTED_ORIGINS = [o for o in CSRF_TRUSTED_ORIGINS if o]
 
 
 # Application definition
 
 
 SHARED_APPS = [
-    'django_tenants',
-    'tenants',
-    'jazzmin',
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    "django_tenants",
+    "tenants",
+    "jazzmin",
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
 ]
 
 TENANT_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'django_htmx',
-    'django_q',
-    'erp.apps.ErpConfig',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "django_htmx",
+    "django_q",
+    "erp.apps.ErpConfig",
 ]
 
-INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
+INSTALLED_APPS = list(SHARED_APPS) + [
+    app for app in TENANT_APPS if app not in SHARED_APPS
+]
 
-TENANT_MODEL = 'tenants.Shop'
-TENANT_DOMAIN_MODEL = 'tenants.Domain'
+TENANT_MODEL = "tenants.Shop"
+TENANT_DOMAIN_MODEL = "tenants.Domain"
 
 
 MIDDLEWARE = [
-    'django_tenants.middleware.subfolder.TenantSubfolderMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django_htmx.middleware.HtmxMiddleware',
-    'erp.middleware.AuditLogMiddleware',
-    'erp.middleware.BranchMiddleware',
+    "django_tenants.middleware.subfolder.TenantSubfolderMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_htmx.middleware.HtmxMiddleware",
+    "erp.middleware.AuditLogMiddleware",
+    "erp.middleware.BranchMiddleware",
 ]
 
-ROOT_URLCONF = 'easymbstore.urls'
+ROOT_URLCONF = "easymbstore.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'erp.context_processors.branch_processor',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+                "erp.context_processors.branch_processor",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'easymbstore.wsgi.application'
+WSGI_APPLICATION = "easymbstore.wsgi.application"
 
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASE_ROUTERS = (
-    'django_tenants.routers.TenantSyncRouter',
-)
+DATABASE_ROUTERS = ("django_tenants.routers.TenantSyncRouter",)
 
-DATABASES = {
-    'default': {
+def _parse_db_config():
+    from urllib.parse import urlparse
+    database_url = os.environ.get('DATABASE_URL', '')
+    if database_url:
+        parsed = urlparse(database_url)
+        return {
+            'ENGINE': 'django_tenants.postgresql_backend',
+            'NAME': parsed.path.lstrip('/'),
+            'USER': parsed.username or 'postgres',
+            'PASSWORD': parsed.password or '',
+            'HOST': parsed.hostname or 'localhost',
+            'PORT': str(parsed.port or 5432),
+        }
+    return {
         'ENGINE': 'django_tenants.postgresql_backend',
-        'NAME': os.environ.get('DB_NAME', 'easymbstore_db'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+        'NAME': os.environ.get('PGDATABASE', os.environ.get('DB_NAME', 'easymbstore_db')),
+        'USER': os.environ.get('PGUSER', os.environ.get('DB_USER', 'postgres')),
+        'PASSWORD': os.environ.get('PGPASSWORD', os.environ.get('DB_PASSWORD', '')),
+        'HOST': os.environ.get('PGHOST', os.environ.get('DB_HOST', 'localhost')),
+        'PORT': os.environ.get('PGPORT', os.environ.get('DB_PORT', '5432')),
     }
-}
+
+DATABASES = {'default': _parse_db_config()}
 
 # إعدادات قاعدة بيانات MySQL خارجية (قم بإلغاء التعليق لتفعيلها واستبدل البيانات ببياناتك الفعالة)
 # DATABASES = {
@@ -142,16 +168,16 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -159,9 +185,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'ar'
+LANGUAGE_CODE = "ar"
 
-TIME_ZONE = 'Africa/Cairo'
+TIME_ZONE = "Africa/Cairo"
 
 USE_I18N = True
 
@@ -171,38 +197,38 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
-MULTITENANT_RELATIVE_MEDIA_ROOT = ''
+MULTITENANT_RELATIVE_MEDIA_ROOT = ""
 
 STORAGES = {
-    'default': {
-        'BACKEND': 'django_tenants.files.storage.TenantFileSystemStorage',
+    "default": {
+        "BACKEND": "django_tenants.files.storage.TenantFileSystemStorage",
     },
-    'staticfiles': {
-        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
 
-LOGIN_REDIRECT_URL = 'erp:dashboard'
-LOGOUT_REDIRECT_URL = 'erp:login'
+LOGIN_REDIRECT_URL = "erp:dashboard"
+LOGOUT_REDIRECT_URL = "erp:login"
 
 # Django Q2 Configuration
 Q_CLUSTER = {
-    'name': 'easymb_cluster',
-    'workers': 2,
-    'timeout': 90,
-    'retry': 120,
-    'queue_limit': 50,
-    'bulk': 10,
-    'orm': 'default'  # Natively use Django database tables
+    "name": "easymb_cluster",
+    "workers": 2,
+    "timeout": 90,
+    "retry": 120,
+    "queue_limit": 50,
+    "bulk": 10,
+    "orm": "default",  # Natively use Django database tables
 }
 
 # Django Jazzmin Admin Configuration
@@ -215,10 +241,8 @@ JAZZMIN_SETTINGS = {
     "login_logo": None,
     "welcome_sign": "مرحباً بك في لوحة التحكم الرئيسية",
     "copyright": "EasyMB Store © 2026",
-
     # ── البحث السريع ──
     "search_model": ["auth.User", "erp.Contact", "erp.RepairTicket"],
-
     # ── الشريط العلوي (Top Menu) ──
     "topmenu_links": [
         {"name": "🏠 الرئيسة", "url": "/", "new_window": True},
@@ -226,18 +250,15 @@ JAZZMIN_SETTINGS = {
         {"name": "🔔 الإشعارات", "url": "/notifications/", "new_window": True},
         {"app": "erp"},
     ],
-
     # ── قائمة المستخدم (User Menu) ──
     "usermenu_links": [
         {"name": "عرض الموقع", "url": "/", "new_window": True, "icon": "fas fa-globe"},
     ],
-
     # ── الشريط الجانبي ──
     "show_sidebar": True,
     "navigation_expanded": True,
     "hide_apps": ["django_q"],
     "hide_models": [],
-
     # ── ترتيب النماذج ──
     "order_with_respect_to": [
         "erp.StoreSetting",
@@ -257,86 +278,84 @@ JAZZMIN_SETTINGS = {
         "erp.NotificationLog",
         "erp.NotificationSettings",
     ],
-
     # ── الأيقونات ──
     "icons": {
-        "auth":                       "fas fa-shield-alt",
-        "auth.user":                  "fas fa-user-circle",
-        "auth.group":                 "fas fa-users",
-        "erp.StoreSetting":           "fas fa-store",
-        "erp.Contact":                "fas fa-address-book",
-        "erp.Warehouse":              "fas fa-warehouse",
-        "erp.Product":                "fas fa-box-open",
-        "erp.Stock":                  "fas fa-boxes",
-        "erp.Device":                 "fas fa-mobile-alt",
-        "erp.DeviceAttachment":       "fas fa-paperclip",
-        "erp.PurchaseInvoice":        "fas fa-file-invoice-dollar",
-        "erp.PurchaseItem":           "fas fa-shopping-basket",
-        "erp.StockTransfer":          "fas fa-exchange-alt",
-        "erp.CashShift":              "fas fa-cash-register",
-        "erp.ExpenseCategory":        "fas fa-tags",
-        "erp.Expense":                "fas fa-wallet",
-        "erp.SaleInvoice":            "fas fa-receipt",
-        "erp.RepairTicket":           "fas fa-tools",
-        "erp.Warranty":               "fas fa-shield-alt",
-        "erp.NotificationLog":        "fas fa-paper-plane",
-        "erp.NotificationSettings":   "fas fa-sliders-h",
+        "auth": "fas fa-shield-alt",
+        "auth.user": "fas fa-user-circle",
+        "auth.group": "fas fa-users",
+        "erp.StoreSetting": "fas fa-store",
+        "erp.Contact": "fas fa-address-book",
+        "erp.Warehouse": "fas fa-warehouse",
+        "erp.Product": "fas fa-box-open",
+        "erp.Stock": "fas fa-boxes",
+        "erp.Device": "fas fa-mobile-alt",
+        "erp.DeviceAttachment": "fas fa-paperclip",
+        "erp.PurchaseInvoice": "fas fa-file-invoice-dollar",
+        "erp.PurchaseItem": "fas fa-shopping-basket",
+        "erp.StockTransfer": "fas fa-exchange-alt",
+        "erp.CashShift": "fas fa-cash-register",
+        "erp.ExpenseCategory": "fas fa-tags",
+        "erp.Expense": "fas fa-wallet",
+        "erp.SaleInvoice": "fas fa-receipt",
+        "erp.RepairTicket": "fas fa-tools",
+        "erp.Warranty": "fas fa-shield-alt",
+        "erp.NotificationLog": "fas fa-paper-plane",
+        "erp.NotificationSettings": "fas fa-sliders-h",
     },
     "default_icon_parents": "fas fa-folder",
     "default_icon_children": "fas fa-circle-dot",
-
     # ── ميزات إضافية ──
     "related_modal_active": True,
-    "custom_css":           "css/admin-custom.css",
-    "custom_js":            None,
+    "custom_css": "css/admin-custom.css",
+    "custom_js": None,
     "use_google_fonts_cdn": True,
-    "show_ui_builder":      False,
-    "changeform_format":    "horizontal_tabs",
+    "show_ui_builder": False,
+    "changeform_format": "horizontal_tabs",
     "changeform_format_overrides": {
-        "auth.user":  "collapsible",
+        "auth.user": "collapsible",
         "auth.group": "vertical_tabs",
     },
     "language_chooser": False,
 }
 
 JAZZMIN_UI_TWEAKS = {
-    "navbar_small_text":      False,
-    "footer_small_text":      False,
-    "body_small_text":        False,
-    "brand_small_text":       False,
-    "brand_colour":           "navbar-dark",
-    "accent":                 "accent-primary",
-    "navbar":                 "navbar-dark",
-    "no_navbar_border":       True,
-    "navbar_fixed":           True,
-    "layout_boxed":           False,
-    "footer_fixed":           False,
-    "sidebar_fixed":          True,
-    "sidebar":                "sidebar-dark-primary",
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-dark",
+    "accent": "accent-primary",
+    "navbar": "navbar-dark",
+    "no_navbar_border": True,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-primary",
     "sidebar_nav_small_text": False,
     "sidebar_disable_expand": False,
     "sidebar_nav_child_indent": True,
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": False,
-    "theme":                  "darkly",
-    "dark_mode_theme":        "darkly",
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
     "button_classes": {
-        "primary":   "btn-outline-primary",
+        "primary": "btn-outline-primary",
         "secondary": "btn-outline-secondary",
-        "info":      "btn-outline-info",
-        "warning":   "btn-warning",
-        "danger":    "btn-danger",
-        "success":   "btn-success",
+        "info": "btn-outline-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success",
     },
     "actions_sticky_top": True,
 }
 
 
 # السماح بفتح النوافذ المنبثقة (Modals) في لوحة الإدارة
-X_FRAME_OPTIONS = 'SAMEORIGIN'
+X_FRAME_OPTIONS = "SAMEORIGIN"
 
 
 # ── Multi-Tenancy Routing ──
-TENANT_SUBFOLDER_PREFIX = 'shop'
-PUBLIC_SCHEMA_URLCONF = 'easymbstore.urls_public'
+TENANT_SUBFOLDER_PREFIX = "shop"
+PUBLIC_SCHEMA_URLCONF = "easymbstore.urls_public"
