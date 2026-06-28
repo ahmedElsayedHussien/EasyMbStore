@@ -282,7 +282,9 @@ JAZZMIN_SETTINGS = {
     "icons": {
         "auth": "fas fa-shield-alt",
         "auth.user": "fas fa-user-circle",
-        "auth.group": "fas fa-users",
+        "auth.group":                 "fas fa-users",
+        "tenants.Shop":               "fas fa-store-alt",
+        "tenants.Domain":             "fas fa-globe",
         "erp.StoreSetting": "fas fa-store",
         "erp.Contact": "fas fa-address-book",
         "erp.Warehouse": "fas fa-warehouse",
