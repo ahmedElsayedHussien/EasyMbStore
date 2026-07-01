@@ -104,3 +104,36 @@ def log_delete(sender, instance, **kwargs):
         changes={'deleted_data': serialize_instance(instance)},
         ip_address=ip
     )
+
+# --- Stock Transfer Automation ---
+from django.core.exceptions import ValidationError
+from .models import StockTransfer, Stock
+
+@receiver(pre_save, sender=StockTransfer)
+def process_stock_transfer(sender, instance, **kwargs):
+    if instance.pk:
+        old_instance = StockTransfer.objects.get(pk=instance.pk)
+        if old_instance.status == 'pending' and instance.status == 'completed':
+            # Process transfer
+            for item in instance.items.all():
+                if item.device:
+                    item.device.warehouse = instance.to_warehouse
+                    item.device.save()
+                else:
+                    # Deduct from source
+                    source_stock, _ = Stock.objects.get_or_create(
+                        product=item.product, 
+                        warehouse=instance.from_warehouse
+                    )
+                    if source_stock.quantity < item.quantity:
+                        raise ValidationError(f"لا يوجد رصيد كافٍ من {item.product.name} في المخزن المُرسل.")
+                    source_stock.quantity -= item.quantity
+                    source_stock.save()
+                    
+                    # Add to destination
+                    dest_stock, _ = Stock.objects.get_or_create(
+                        product=item.product, 
+                        warehouse=instance.to_warehouse
+                    )
+                    dest_stock.quantity += item.quantity
+                    dest_stock.save()
