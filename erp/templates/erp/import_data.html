@@ -1,0 +1,59 @@
+{% extends 'erp/base.html' %}
+{% load static %}
+
+{% block title %}استيراد البيانات من Excel{% endblock %}
+
+{% block content %}
+<div class="container mt-4" dir="rtl">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-excel me-2"></i> استيراد الأصناف والأرصدة</h5>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="alert alert-info">
+                        <strong>الخطوة 1:</strong> قم بتحميل قالب الإكسل القياسي المخصص للنظام وقم بتعبئته ببيانات محلك القديمة.
+                        <br><br>
+                        <a href="{% url 'erp:download_import_template' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-download"></i> تحميل قالب الإكسل (Template)
+                        </a>
+                    </div>
+
+                    <hr>
+
+                    <div class="alert alert-warning">
+                        <strong>الخطوة 2:</strong> بعد تعبئة القالب، قم برفعه هنا. سيقوم النظام آلياً بإنشاء الأصناف الجديدة وتحديث الكميات في مخزنك الافتراضي. (سيتم تجاهل الأصناف الموجودة مسبقاً بنفس الباركود).
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data" class="mt-4">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="excel_file" class="form-label fw-bold">اختر ملف الإكسل (.xlsx)</label>
+                            <input class="form-control form-control-lg" type="file" id="excel_file" name="excel_file" accept=".xlsx" required>
+                        </div>
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-upload"></i> بدء الاستيراد الآن
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="mt-3 text-center">
+                <a href="{% url 'erp:setup_dashboard' %}" class="text-decoration-none text-muted">العودة للإعدادات</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

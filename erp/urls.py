@@ -1,5 +1,6 @@
 from django.urls import path
 from erp import views
+from erp import views_import
 from django.contrib.auth import views as auth_views
 
 app_name = 'erp'
@@ -67,6 +68,11 @@ urlpatterns = [
     
     # الإعدادات والتهيئة
     path('setup/', views.setup_dashboard_view, name='setup_dashboard'),
+    
+    # الاستيراد من إكسل
+    path('import-data/', views_import.import_excel_data, name='import_excel_data'),
+    path('import-data/template/', views_import.download_import_template, name='download_import_template'),
+
     
     # المخزون والمخازن
     path('inventory/', views.inventory_dashboard, name='inventory_dashboard'),

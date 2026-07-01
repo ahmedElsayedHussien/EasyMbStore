@@ -54,3 +54,5 @@ wsproto==1.3.2
 setuptools<70
 
 gunicorn==22.0.0
+openpyxl==3.1.5
+et-xmlfile==2.0.0
