@@ -82,7 +82,7 @@ TENANT_DOMAIN_MODEL = "tenants.Domain"
 
 
 MIDDLEWARE = [
-    "django_tenants.middleware.subfolder.TenantSubfolderMiddleware",
+    "django_tenants.middleware.main.TenantMainMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -242,7 +242,7 @@ JAZZMIN_SETTINGS = {
     "welcome_sign": "مرحباً بك في لوحة التحكم الرئيسية",
     "copyright": "EasyMB Store © 2026",
     # ── البحث السريع ──
-    "search_model": ["auth.User", "erp.Contact", "erp.RepairTicket"],
+    "search_model": ["auth.User"],
     # ── الشريط العلوي (Top Menu) ──
     "topmenu_links": [
         {"name": "🏠 الرئيسة", "url": "/", "new_window": True},
@@ -340,8 +340,8 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": False,
-    "theme": "darkly",
-    "dark_mode_theme": "darkly",
+    "theme": "default",
+    "dark_mode_theme": None,
     "button_classes": {
         "primary": "btn-outline-primary",
         "secondary": "btn-outline-secondary",

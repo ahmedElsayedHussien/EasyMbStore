@@ -46,13 +46,18 @@
                         {% endif %}
                     </td>
                     <td>
-                        <form method="POST" class="d-inline">
-                            {% csrf_token %}
-                            <input type="hidden" name="card_id" value="{{ card.id }}">
-                            <button type="submit" name="toggle_status" class="btn btn-sm {% if card.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
-                                {% if card.is_active %}<i class="bi bi-stop-circle"></i> إيقاف{% else %}<i class="bi bi-play-circle"></i> تفعيل{% endif %}
-                            </button>
-                        </form>
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                            <a href="{% url 'erp:print_gift_card' card.id %}" target="_blank" class="btn btn-sm btn-outline-info" title="طباعة البطاقة">
+                                <i class="bi bi-printer"></i> طباعة
+                            </a>
+                            <form method="POST" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="card_id" value="{{ card.id }}">
+                                <button type="submit" name="toggle_status" class="btn btn-sm {% if card.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                    {% if card.is_active %}<i class="bi bi-stop-circle"></i> إيقاف{% else %}<i class="bi bi-play-circle"></i> تفعيل{% endif %}
+                                </button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% empty %}

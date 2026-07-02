@@ -25,6 +25,19 @@ def setup_tenants():
         tenant=public_shop,
         defaults={'is_primary': True}
     )
+    
+    # Also add a generic replit domain or just allow whatever domain is needed
+    import os
+    replit_domain = os.environ.get('REPLIT_DEV_DOMAIN', '')
+    if replit_domain:
+        Domain.objects.get_or_create(
+            domain=replit_domain,
+            tenant=public_shop,
+            defaults={'is_primary': False}
+        )
+    # Add common replit suffixes for the user's specific app just in case
+    Domain.objects.get_or_create(domain='easy-mb-store--ahbezo4.replit.app', tenant=public_shop, defaults={'is_primary': False})
+    Domain.objects.get_or_create(domain='easy-mb-store--ahbezo4.replit.dev', tenant=public_shop, defaults={'is_primary': False})
 
     print("Creating 5 shops...")
     for i in range(1, 6):

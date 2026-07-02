@@ -11,5 +11,11 @@ class Shop(TenantMixin):
     def __str__(self):
         return self.name
 
+    class Meta:
+        verbose_name = "المتجر / الفرع"
+        verbose_name_plural = "المتاجر والفروع"
+
 class Domain(DomainMixin):
-    pass
+    class Meta:
+        verbose_name = "النطاق (Domain)"
+        verbose_name_plural = "النطاقات (Domains)"

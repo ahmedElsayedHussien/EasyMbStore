@@ -1,0 +1,92 @@
+{% extends 'erp/base_dashboard.html' %}
+
+{% block title %}إدارة الصلاحيات | EasyMB{% endblock %}
+{% block page_title %}إدارة الصلاحيات والمجموعات{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="input-group" style="max-width: 300px;">
+        <span class="input-group-text form-control-custom border-end-0 bg-transparent text-muted"><i class="bi bi-search"></i></span>
+        <input type="text" class="form-control form-control-custom border-start-0 ps-0" placeholder="بحث عن صلاحية...">
+    </div>
+    <button class="btn btn-primary px-4 rounded-pill" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+        <i class="bi bi-plus-lg me-1"></i> إضافة مسمى وظيفي جديد
+    </button>
+</div>
+
+<div class="custom-card">
+    <div class="table-responsive">
+        <table class="table table-custom text-center align-middle">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th class="text-start">اسم الصلاحية / المسمى الوظيفي</th>
+                    <th>عدد المستخدمين</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for role in roles %}
+                <tr>
+                    <td class="text-muted fw-bold">{{ forloop.counter }}</td>
+                    <td class="text-start">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="bg-primary bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                <i class="bi bi-shield-lock-fill text-primary fs-5"></i>
+                            </div>
+                            <h6 class="mb-0 fw-bold">{{ role.name }}</h6>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge badge-soft-success px-3 py-2 rounded-pill">{{ role.user_set.count }} مستخدمين</span>
+                    </td>
+                    <td>
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="{% url 'erp:edit_role' role.id %}" class="btn btn-sm btn-outline-warning rounded-3" title="تعديل الصلاحيات">
+                                <i class="bi bi-sliders"></i> تخصيص الصلاحيات
+                            </a>
+                            
+                            <form method="POST" action="{% url 'erp:delete_role' role.id %}" style="display:inline;" onsubmit="return confirm('هل أنت متأكد من حذف هذه الصلاحية نهائياً؟');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-3" title="حذف" {% if role.user_set.exists %}disabled{% endif %}>
+                                    <i class="bi bi-trash3"></i> حذف
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="py-5 text-muted">لا يوجد أي صلاحيات أو مجموعات مسجلة بعد.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Add Role -->
+<div class="modal fade" id="addRoleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background-color: var(--surface-color); border: 1px solid var(--border-color);">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title">إضافة مسمى وظيفي جديد</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{% url 'erp:manage_roles' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">اسم المسمى الوظيفي (مثال: محاسب فرعي)</label>
+                        <input type="text" name="role_name" class="form-control form-control-custom" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends 'erp/base_dashboard.html' %}
+
+{% block title %}تخصيص الصلاحيات | EasyMB{% endblock %}
+{% block page_title %}تخصيص صلاحيات: {{ role.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'erp:manage_roles' %}" class="btn btn-outline-secondary rounded-pill">
+        <i class="bi bi-arrow-right me-1"></i> العودة للمجموعات
+    </a>
+</div>
+
+<form method="POST" action="{% url 'erp:edit_role' role.id %}">
+    {% csrf_token %}
+    
+    <div class="row g-4">
+        {% for model_name, perms in perms_by_model.items %}
+        <div class="col-md-6 col-lg-4">
+            <div class="custom-card h-100">
+                <h5 class="text-primary mb-3 text-capitalize border-bottom border-secondary pb-2">
+                    <i class="bi bi-shield-check me-2"></i> {{ model_name }}
+                </h5>
+                
+                <div class="d-flex flex-column gap-2 mt-3">
+                    {% for p in perms %}
+                    <div class="form-check form-switch custom-switch">
+                        <input class="form-check-input" type="checkbox" name="permissions" value="{{ p.id }}" id="perm_{{ p.id }}" {% if p.id in role_perms %}checked{% endif %}>
+                        <label class="form-check-label text-light ms-2" for="perm_{{ p.id }}">
+                            {{ p.name }}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center text-muted py-5">
+            لا توجد صلاحيات متاحة حالياً للنظام.
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="mt-5 text-start bg-dark p-3 rounded" style="background-color: var(--surface-color) !important; position: sticky; bottom: 20px; z-index: 10;">
+        <button type="submit" class="btn btn-primary px-5 py-2 rounded-pill fs-5 shadow">
+            <i class="bi bi-save2 me-2"></i> حفظ الصلاحيات
+        </button>
+    </div>
+</form>
+
+<style>
+    /* Customizing the Switch */
+    .custom-switch .form-check-input {
+        width: 3rem;
+        height: 1.5rem;
+        background-color: var(--bg-color);
+        border-color: var(--border-color);
+    }
+    .custom-switch .form-check-input:checked {
+        background-color: var(--success-color);
+        border-color: var(--success-color);
+    }
+    .custom-switch .form-check-label {
+        padding-top: 0.2rem;
+        font-size: 0.95rem;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

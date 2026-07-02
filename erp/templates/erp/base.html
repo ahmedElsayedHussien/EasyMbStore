@@ -129,7 +129,7 @@
                     {% endif %}
 
                     <!-- شؤون الموظفين -->
-                    {% if request.user.is_authenticated %}
+                    {% if perms.erp.view_employeeprofile or perms.erp.view_payroll %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if 'hr' in request.resolver_match.view_name or 'employee' in request.resolver_match.view_name or 'payroll' in request.resolver_match.view_name or 'attendance' in request.resolver_match.view_name %}active{% endif %}" href="#" id="hrDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-people-fill"></i> الموظفين
@@ -219,8 +219,10 @@
                         <a href="{% url 'erp:setup_dashboard' %}" class="btn btn-outline-info btn-sm me-2">
                             <i class="bi bi-sliders"></i> التأسيس والإعداد
                         </a>
+                        <a href="{% url 'erp:manage_users' %}" class="btn btn-outline-primary btn-sm me-2 fw-bold" style="border-width: 2px;">
+                            <i class="bi bi-shield-lock-fill"></i> الإدارة والصلاحيات
+                        </a>
                         {% endif %}
-                        <!-- تم إخفاء زر لوحة الإدارة بناء على طلبك -->
                         <form action="{% url 'erp:logout' %}" method="POST" class="d-inline">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-outline-danger btn-sm">

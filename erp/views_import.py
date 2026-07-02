@@ -4,7 +4,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
 from .models import Product, Stock, Warehouse
-from .middleware import get_current_branch
 
 @login_required
 def download_import_template(request):
@@ -34,7 +33,7 @@ def download_import_template(request):
 
 @login_required
 def import_excel_data(request):
-    branch = get_current_branch(request)
+    branch = request.branch
     # Default warehouse for the branch
     main_warehouse = Warehouse.objects.filter(branch=branch, is_active=True).first()
 

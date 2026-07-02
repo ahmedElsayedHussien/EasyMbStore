@@ -25,6 +25,9 @@ class Branch(models.Model):
     name = models.CharField(max_length=100, verbose_name="اسم الفرع")
     address = models.TextField(blank=True, null=True, verbose_name="عنوان الفرع")
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="رقم الهاتف")
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="خط العرض (Latitude) للفرع")
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="خط الطول (Longitude) للفرع")
+    allowed_radius = models.IntegerField(default=50, verbose_name="النطاق المسموح للبصمة (بالمتر)")
     is_active = models.BooleanField(default=True, verbose_name="نشط")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 

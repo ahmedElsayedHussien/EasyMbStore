@@ -495,6 +495,8 @@ def pos_checkout(request):
                     if gift_card.current_balance > 0 and net_amount > 0:
                         deduction = min(gift_card.current_balance, net_amount)
                         gift_card.current_balance -= deduction
+                        # Single-use GC
+                        gift_card.is_active = False 
                         gift_card.save()
                         
                         invoice.gift_card = gift_card
@@ -1538,6 +1540,18 @@ def setup_dashboard_view(request):
                 return redirect('erp:setup_dashboard')
             else:
                 messages.error(request, "حدث خطأ في حفظ الإعدادات العامة.")
+        elif action == 'update_branch':
+            from erp.models import Branch
+            from erp.forms import BranchForm
+            branch_id = request.POST.get('branch_id')
+            branch = get_object_or_404(Branch, id=branch_id)
+            form = BranchForm(request.POST, instance=branch)
+            if form.is_valid():
+                form.save()
+                messages.success(request, f"تم تحديث بيانات الفرع {branch.name} بنجاح.")
+            else:
+                messages.error(request, f"حدث خطأ في تحديث بيانات الفرع {branch.name}.")
+            return redirect('erp:setup_dashboard')
         elif action == 'add_warehouse':
             form = WarehouseForm(request.POST)
             if form.is_valid():
@@ -1599,6 +1613,8 @@ def setup_dashboard_view(request):
                 product_form = form # احتفاظ بالنموذج غير الصالح لعرض الأخطاء
 
     # جلب قوائم البيانات الحالية
+    from erp.models import Branch
+    branches = Branch.objects.all().order_by('id')
     warehouses = Warehouse.objects.all().order_by('id')
     suppliers = Contact.objects.filter(contact_type='supplier').order_by('-id')
     customers = Contact.objects.filter(branch__in=[request.branch] if request.branch else request.user_allowed_branches, contact_type='customer').order_by('-id')
@@ -1613,6 +1629,7 @@ def setup_dashboard_view(request):
         'treasury_form': treasury_form,
         'product_form': product_form,
         'user_form': user_form,
+        'branches': branches,
         'warehouses': warehouses,
         'suppliers': suppliers,
         'customers': customers,
@@ -2805,15 +2822,18 @@ def api_attendance_check(request):
     if not user_lat or not user_lon:
         return JsonResponse({'error': 'لم يتم العثور على إحداثيات الموقع.'}, status=400)
         
-    store_setting = StoreSetting.objects.first()
-    if not store_setting or not store_setting.latitude or not store_setting.longitude:
-        return JsonResponse({'error': 'لم يتم تهيئة إحداثيات المحل في الإعدادات.'}, status=400)
+    if not profile.active_branch:
+        return JsonResponse({'error': 'لم يتم تعيينك على أي فرع نشط حالياً.'}, status=400)
         
-    distance = haversine(float(user_lat), float(user_lon), float(store_setting.latitude), float(store_setting.longitude))
-    allowed_radius = store_setting.allowed_radius or 50
+    branch = profile.active_branch
+    if not branch.latitude or not branch.longitude:
+        return JsonResponse({'error': f'لم يتم ضبط إحداثيات الموقع الجغرافي للفرع: {branch.name}. يرجى مراجعة الإدارة.'}, status=400)
+        
+    distance = haversine(float(user_lat), float(user_lon), float(branch.latitude), float(branch.longitude))
+    allowed_radius = branch.allowed_radius or 50
     
     if distance > allowed_radius:
-        return JsonResponse({'error': f'أنت بعيد جداً عن المحل. المسافة: {int(distance)} متر (المسموح {allowed_radius} متر).'}, status=400)
+        return JsonResponse({'error': f'أنت بعيد جداً عن فرع {branch.name}. المسافة: {int(distance)} متر (المسموح {allowed_radius} متر).'}, status=400)
         
     today = timezone.now().date()
     now_time = timezone.now()
@@ -3460,6 +3480,21 @@ def gift_cards_manage(request):
         'cards': cards
     }
     return render(request, 'erp/gift_cards.html', context)
+
+
+@login_required
+@require_specific_branch
+def print_gift_card(request, pk):
+    # Only for staff/superusers
+    if not request.user.is_staff and not request.user.is_superuser:
+        messages.error(request, 'غير مصرح لك بالدخول لهذه الصفحة.')
+        return redirect('erp:dashboard')
+        
+    from erp.models import GiftCard
+    from django.shortcuts import get_object_or_404
+    card = get_object_or_404(GiftCard, id=pk)
+    
+    return render(request, 'erp/print_gift_card.html', {'card': card})
 
 
 @login_required

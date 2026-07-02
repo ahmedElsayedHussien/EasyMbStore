@@ -16,6 +16,11 @@
         </button>
     </li>
     <li class="nav-item" role="presentation">
+        <button class="nav-link text-light fw-semibold" id="branches-tab" data-bs-toggle="tab" data-bs-target="#branches" type="button" role="tab" aria-controls="branches" aria-selected="false">
+            <i class="bi bi-geo-alt-fill me-1"></i> إعدادات الفروع والمواقع
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
         <button class="nav-link text-light fw-semibold" id="warehouses-tab" data-bs-toggle="tab" data-bs-target="#warehouses" type="button" role="tab" aria-controls="warehouses" aria-selected="false">
             <i class="bi bi-house-gear-fill me-1"></i> الفروع والمخازن
         </button>
@@ -63,25 +68,6 @@
                         {{ store_setting_form.store_name }}
                     </div>
                     
-                    <h6 class="text-warning mt-4 border-bottom pb-2">بيانات الموقع (لتسجيل البصمة الجغرافية)</h6>
-                    <div class="col-md-6 mb-2">
-                        <label>خط العرض (Latitude)</label>
-                        {{ store_setting_form.latitude }}
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label>خط الطول (Longitude)</label>
-                        {{ store_setting_form.longitude }}
-                    </div>
-                    <div class="col-md-12 mb-2">
-                        <label>النطاق المسموح به (بالمتر)</label>
-                        {{ store_setting_form.allowed_radius }}
-                    </div>
-                    <div class="col-md-12 text-end mt-2">
-                        <button type="button" class="btn btn-sm btn-outline-info" onclick="getCurrentLocationForStore()">
-                            <i class="bi bi-geo-alt"></i> تحديد موقع المحل الحالي تلقائياً
-                        </button>
-                    </div>
-
                     <h6 class="text-warning mt-4 border-bottom pb-2">إعدادات الطباعة والإيصالات</h6>
                     <div class="col-md-6 mb-2">
                         <label>ترويسة الفاتورة</label>
@@ -112,6 +98,118 @@
                 </div>
             </form>
         </div>
+    </div>
+
+    <!-- 0.5. الفروع الجغرافية (Branches) -->
+    <div class="tab-pane fade" id="branches" role="tabpanel" aria-labelledby="branches-tab">
+        <div class="glass-card p-4 mx-auto overflow-auto" style="max-width: 1000px;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="text-primary mb-0"><i class="bi bi-geo-alt-fill"></i> إدارة إحداثيات الفروع</h5>
+                <small class="text-secondary">ملاحظة: إضافة فروع جديدة يتم من خلال الإدارة المركزية (Admin Panel)</small>
+            </div>
+            
+            <table class="table table-dark table-hover table-striped text-center align-middle">
+                <thead>
+                    <tr class="border-secondary text-primary">
+                        <th>الفرع</th>
+                        <th>العنوان</th>
+                        <th>حالة البصمة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for branch in branches %}
+                    <tr>
+                        <td>{{ branch.name }}</td>
+                        <td>{{ branch.address|default:"-" }}</td>
+                        <td>
+                            {% if branch.latitude and branch.longitude %}
+                                <span class="badge bg-success rounded-pill"><i class="bi bi-check-circle"></i> مضبوط</span>
+                            {% else %}
+                                <span class="badge bg-danger rounded-pill"><i class="bi bi-exclamation-circle"></i> غير مضبوط</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editBranchModal{{ branch.id }}">
+                                <i class="bi bi-pencil-square"></i> تعديل وضبط الموقع
+                            </button>
+                        </td>
+                    </tr>
+
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-muted py-4">لم يتم إضافة فروع حتى الآن من لوحة الإدارة.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Modals لتعديل الفروع -->
+        {% for branch in branches %}
+        <div class="modal fade" id="editBranchModal{{ branch.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content bg-dark text-light border-secondary">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title"><i class="bi bi-pencil"></i> تعديل إعدادات الفرع ({{ branch.name }})</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_branch">
+                        <input type="hidden" name="branch_id" value="{{ branch.id }}">
+                        
+                        <div class="modal-body text-start">
+                            <div class="mb-3">
+                                <label class="form-label">اسم الفرع</label>
+                                <input type="text" name="name" class="form-control" value="{{ branch.name }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">العنوان</label>
+                                <textarea name="address" class="form-control" rows="2">{{ branch.address|default:"" }}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">رقم الهاتف</label>
+                                <input type="text" name="phone" class="form-control" value="{{ branch.phone|default:"" }}">
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" name="is_active" class="form-check-input" id="isActive{{ branch.id }}" {% if branch.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="isActive{{ branch.id }}">نشط</label>
+                            </div>
+                            
+                            <hr class="border-secondary">
+                            <h6 class="text-warning mb-3"><i class="bi bi-geo"></i> إحداثيات البصمة</h6>
+                            
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label">خط العرض (Latitude)</label>
+                                    <input type="number" step="0.000001" name="latitude" id="lat{{ branch.id }}" class="form-control" value="{{ branch.latitude|default:"" }}">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">خط الطول (Longitude)</label>
+                                    <input type="number" step="0.000001" name="longitude" id="lng{{ branch.id }}" class="form-control" value="{{ branch.longitude|default:"" }}">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">النطاق المسموح (بالمتر)</label>
+                                <input type="number" name="allowed_radius" class="form-control" value="{{ branch.allowed_radius|default:50 }}">
+                            </div>
+                            
+                            <div class="d-grid mt-3">
+                                <button type="button" class="btn btn-outline-info" onclick="detectBranchLocation('{{ branch.id }}')">
+                                    <i class="bi bi-crosshair"></i> استكشاف موقعي الحالي تلقائياً
+                                </button>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-secondary">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-save2-fill"></i> حفظ التعديلات</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 
     <!-- 1. المخازن (Warehouses) -->
@@ -832,17 +930,17 @@
         }
     });
 
-    function getCurrentLocationForStore() {
+    function detectBranchLocation(branchId) {
         if (navigator.geolocation) {
             alert("جاري تحديد الموقع... يرجى الموافقة على الصلاحية في المتصفح والانتظار قليلاً.");
             navigator.geolocation.getCurrentPosition(
                 function(position) {
-                    const latField = document.getElementById('id_latitude');
-                    const lonField = document.getElementById('id_longitude');
+                    const latField = document.getElementById('lat' + branchId);
+                    const lonField = document.getElementById('lng' + branchId);
                     if (latField && lonField) {
                         latField.value = position.coords.latitude.toFixed(6);
                         lonField.value = position.coords.longitude.toFixed(6);
-                        alert("تم جلب الإحداثيات بنجاح! لا تنسَ الضغط على 'حفظ التعديلات'.");
+                        alert("تم جلب الإحداثيات بنجاح! لا تنسَ الضغط على 'حفظ التعديلات' لهذا الفرع.");
                     } else {
                         alert("حدث خطأ: تعذر الوصول إلى الحقول.");
                     }

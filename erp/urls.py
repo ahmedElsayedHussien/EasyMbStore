@@ -1,6 +1,7 @@
 from django.urls import path
 from erp import views
 from erp import views_import
+from erp import views_users
 from django.contrib.auth import views as auth_views
 
 app_name = 'erp'
@@ -111,7 +112,19 @@ urlpatterns = [
     
     # بطاقات الهدايا
     path('gift-cards/', views.gift_cards_manage, name='gift_cards_manage'),
+    path('gift-cards/<int:pk>/print/', views.print_gift_card, name='print_gift_card'),
     
     # سجل النظام (Audit Log)
     path('audit-log/', views.system_audit_log, name='system_audit_log'),
+    
+    # إدارة المستخدمين (Custom Admin)
+    path('manage-users/', views_users.manage_users, name='manage_users'),
+    path('manage-users/toggle/<int:user_id>/', views_users.toggle_user_status, name='toggle_user_status'),
+    path('manage-users/edit/<int:user_id>/', views_users.edit_user, name='edit_user'),
+    path('manage-users/delete/<int:user_id>/', views_users.delete_user, name='delete_user'),
+    
+    # إدارة الصلاحيات
+    path('manage-roles/', views_users.manage_roles, name='manage_roles'),
+    path('manage-roles/<int:role_id>/edit/', views_users.edit_role, name='edit_role'),
+    path('manage-roles/<int:role_id>/delete/', views_users.delete_role, name='delete_role'),
 ]

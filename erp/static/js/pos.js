@@ -117,6 +117,21 @@ document.addEventListener("DOMContentLoaded", () => {
 function handleBarcodeScan(code) {
     if (!code.trim()) return;
     
+    // التعرف التلقائي على بطاقة الهدية (10 أحرف هيكس)
+    if (code.length === 10 && /^[0-9A-F]+$/i.test(code)) {
+        const scannerInput = document.getElementById("barcode-scanner");
+        if (scannerInput) scannerInput.value = ""; 
+        
+        const giftInput = document.getElementById("gift-card-input");
+        if (giftInput) {
+            giftInput.value = code.toUpperCase();
+            if (typeof verifyGiftCard === 'function') {
+                verifyGiftCard();
+            }
+        }
+        return;
+    }
+    
     fetch(`/pos/search/?code=${encodeURIComponent(code)}`)
         .then(res => res.json())
         .then(data => {

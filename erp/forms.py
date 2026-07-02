@@ -13,18 +13,30 @@ class StoreSettingForm(forms.ModelForm):
     class Meta:
         from erp.models import StoreSetting
         model = StoreSetting
-        fields = ['store_name', 'logo', 'receipt_header', 'receipt_footer', 'whatsapp_api_key', 'sms_api_key', 'latitude', 'longitude', 'allowed_radius', 'loyalty_points_per_egp', 'egp_per_100_points']
+        fields = ['store_name', 'logo', 'receipt_header', 'receipt_footer', 'whatsapp_api_key', 'sms_api_key', 'loyalty_points_per_egp', 'egp_per_100_points']
         widgets = {
             'store_name': forms.TextInput(attrs={'class': 'form-control'}),
             'receipt_header': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'receipt_footer': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'whatsapp_api_key': forms.TextInput(attrs={'class': 'form-control'}),
             'sms_api_key': forms.TextInput(attrs={'class': 'form-control'}),
+            'loyalty_points_per_egp': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'egp_per_100_points': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }
+
+class BranchForm(forms.ModelForm):
+    class Meta:
+        from erp.models import Branch
+        model = Branch
+        fields = ['name', 'address', 'phone', 'latitude', 'longitude', 'allowed_radius', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'latitude': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.000001'}),
             'longitude': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.000001'}),
             'allowed_radius': forms.NumberInput(attrs={'class': 'form-control'}),
-            'loyalty_points_per_egp': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'egp_per_100_points': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
 # ==========================================
@@ -237,7 +249,10 @@ class CashShiftOpenForm(forms.ModelForm):
             if user.is_superuser or user.groups.filter(name='المدير العام').exists():
                 self.fields['treasury'].queryset = Treasury.objects.filter(is_active=True)
             else:
-                self.fields['treasury'].queryset = Treasury.objects.filter(user=user, is_active=True)
+                qs = Treasury.objects.filter(user=user, is_active=True)
+                self.fields['treasury'].queryset = qs
+                if qs.count() == 1:
+                    self.fields['treasury'].initial = qs.first()
 
 class CashShiftCloseForm(forms.ModelForm):
     class Meta:
@@ -257,6 +272,18 @@ class ExpenseForm(forms.ModelForm):
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'المبلغ'}),
             'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'الوصف / ملاحظات'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if user:
+            if user.is_superuser or user.groups.filter(name='المدير العام').exists():
+                self.fields['treasury'].queryset = Treasury.objects.filter(is_active=True)
+            else:
+                qs = Treasury.objects.filter(user=user, is_active=True)
+                self.fields['treasury'].queryset = qs
+                if qs.count() == 1:
+                    self.fields['treasury'].initial = qs.first()
 
 
 

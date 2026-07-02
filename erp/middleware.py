@@ -104,8 +104,8 @@ class BranchMiddleware:
                                 profile.active_branch = request.branch
                                 profile.save(update_fields=['active_branch'])
                                 
-                    # If still no branch, fallback to the first active branch globally (for superusers without a profile)
-                    if not request.branch and request.user.is_superuser:
+                    # If still no branch, fallback to the first active branch globally
+                    if not request.branch:
                         request.branch = Branch.objects.filter(is_active=True).first()
                         
             except Exception:

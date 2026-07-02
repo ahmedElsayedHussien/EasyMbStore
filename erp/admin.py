@@ -204,9 +204,17 @@ class SalesTargetAdmin(TenantOnlyAdmin):
 
 @admin.register(Branch)
 class BranchAdmin(TenantOnlyAdmin):
-    list_display = ('name', 'address', 'phone', 'is_active')
-    search_fields = ('name', 'address')
+    list_display = ('name', 'is_active', 'phone', 'latitude', 'longitude', 'allowed_radius', 'created_at')
     list_filter = ('is_active',)
+    search_fields = ('name', 'address', 'phone')
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'address', 'phone', 'is_active')
+        }),
+        ('إعدادات البصمة والموقع', {
+            'fields': ('latitude', 'longitude', 'allowed_radius')
+        }),
+    )
 
 @admin.register(EmployeeProfile)
 class EmployeeProfileAdmin(TenantOnlyAdmin):
